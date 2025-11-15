@@ -20,14 +20,14 @@ settings = get_settings()
 
 class EmailService:
     """Service for sending co-creator program emails"""
-    
+
     def __init__(self):
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_username = os.getenv("SMTP_USERNAME")
         self.smtp_password = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("FROM_EMAIL", self.smtp_username)
-        self.from_name = os.getenv("FROM_NAME", "Unitasa Co-Creator Program")
+        self.from_email = os.getenv("FROM_EMAIL", "support@unitasa.in")
+        self.from_name = os.getenv("FROM_NAME", "Unitasa")
     
     def send_email(
         self,

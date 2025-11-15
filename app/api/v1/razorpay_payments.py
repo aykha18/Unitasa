@@ -365,7 +365,7 @@ async def test_razorpay_order(
     """Test Razorpay order creation"""
     try:
         razorpay_service = get_razorpay_service(db_session=db)
-        
+
         # Test order creation
         success, message, order_data = await razorpay_service.create_co_creator_payment(
             co_creator_id=999,  # Test ID
@@ -373,14 +373,45 @@ async def test_razorpay_order(
             customer_name="Test User",
             amount=250.0
         )
-        
+
         return {
             "success": success,
             "message": message,
             "order_data": order_data,
             "test_mode": True
         }
-        
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "test_mode": True
+        }
+
+@router.post("/test-email")
+async def test_email_sending() -> Dict[str, Any]:
+    """Test email sending functionality"""
+    try:
+        from app.core.payment_support_service import get_payment_support_service
+
+        support_service = get_payment_support_service()
+
+        # Test payment confirmation email
+        result = await support_service.send_payment_confirmation({
+            "customer_email": "test@unitasa.in",
+            "customer_name": "Test User",
+            "amount": 497.00,
+            "currency": "USD",
+            "order_id": "test_order_123"
+        })
+
+        return {
+            "success": True,
+            "email_sent": result.get("email_sent", False),
+            "message": result.get("message", "Email test completed"),
+            "test_mode": True
+        }
+
     except Exception as e:
         return {
             "success": False,

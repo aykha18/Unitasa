@@ -5,8 +5,9 @@ Supports both local development and Railway PostgreSQL
 
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 
 # Create declarative base
 Base = declarative_base()
@@ -14,6 +15,10 @@ Base = declarative_base()
 # Global variables for lazy initialization
 engine = None
 AsyncSessionLocal = None
+
+# Synchronous session variables for legacy compatibility
+sync_engine = None
+SessionLocal = None
 
 
 def get_database_url():
@@ -95,6 +100,64 @@ async def init_db():
     """Initialize database tables"""
     # Initialize database if not already done
     engine, _ = init_database()
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+def init_sync_database():
+    """Initialize synchronous database engine and session factory"""
+    global sync_engine, SessionLocal
+
+    if sync_engine is not None:
+        return sync_engine, SessionLocal
+
+    try:
+        DATABASE_URL = get_database_url()
+
+        # Convert async URL back to sync for synchronous operations
+        if DATABASE_URL.startswith("postgresql+asyncpg://"):
+            DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+
+        # Create sync engine
+        if DATABASE_URL.startswith("sqlite"):
+            sync_engine = create_engine(
+                DATABASE_URL,
+                echo=False,
+                connect_args={"check_same_thread": False}
+            )
+        else:
+            sync_engine = create_engine(
+                DATABASE_URL,
+                echo=False,
+                pool_size=1,
+                max_overflow=0,
+                pool_pre_ping=False,
+                pool_recycle=300,
+                pool_timeout=10
+            )
+
+        # Create sync session factory
+        SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=sync_engine
+        )
+
+        return sync_engine, SessionLocal
+
+    except Exception as e:
+        print(f"Synchronous database initialization failed: {e}")
+        raise
+
+
+def get_sync_db():
+    """Dependency to get synchronous database session"""
+    # Initialize database if not already done
+    engine, SessionLocal = init_sync_database()
+
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

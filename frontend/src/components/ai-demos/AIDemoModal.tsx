@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Brain, Target, MessageCircle, Zap, Shield, BarChart3 } from 'lucide-react';
+import { X, Brain, Target, MessageCircle, Zap, Shield, BarChart3, Share2 } from 'lucide-react';
 import Button from '../ui/Button';
 import AIAgentDemo from './AIAgentDemo';
 import PredictiveAnalyticsDemo from './PredictiveAnalyticsDemo';
@@ -11,7 +11,7 @@ interface AIDemoModalProps {
   initialDemo?: string;
 }
 
-type DemoType = 'agent' | 'predictive' | 'conversational' | 'optimization' | 'security' | 'analytics';
+type DemoType = 'agent' | 'predictive' | 'conversational' | 'social-media' | 'optimization' | 'security' | 'analytics';
 
 interface DemoTab {
   id: DemoType;
@@ -43,6 +43,12 @@ const AIDemoModal: React.FC<AIDemoModalProps> = ({ isOpen, onClose, initialDemo 
       description: 'Voice-enabled marketing consultation'
     },
     {
+      id: 'social-media',
+      title: 'Social Media Automation',
+      icon: <Share2 className="w-5 h-5" />,
+      description: '10+ platforms automated posting & engagement'
+    },
+    {
       id: 'optimization',
       title: 'Real-Time Optimization',
       icon: <Zap className="w-5 h-5" />,
@@ -70,6 +76,66 @@ const AIDemoModal: React.FC<AIDemoModalProps> = ({ isOpen, onClose, initialDemo 
         return <PredictiveAnalyticsDemo />;
       case 'conversational':
         return <ConversationalAIDemo />;
+      case 'social-media':
+        return (
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+            <div className="flex items-center mb-6">
+              <Share2 className="w-6 h-6 text-blue-600 mr-3" />
+              <h3 className="text-xl font-semibold text-gray-900">Multi-Platform Social Media Automation</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600">10+</div>
+                  <div className="text-xs text-gray-600">Platforms Supported</div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600">24/7</div>
+                  <div className="text-xs text-gray-600">Automated Posting</div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-700">Twitter/X Automated Posting</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-700">LinkedIn Campaign Management</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-700">Instagram Content Scheduling</span>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Scheduled</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-700">Facebook Engagement Tracking</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-700">YouTube Analytics Integration</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Real-Time Performance</h4>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-blue-600">2.4K</div>
+                    <div className="text-xs text-gray-600">Posts This Week</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-green-600">18.5K</div>
+                    <div className="text-xs text-gray-600">Engagements</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-purple-600">+127%</div>
+                    <div className="text-xs text-gray-600">Reach Growth</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       case 'optimization':
         return (
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">

@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, WebSocket, WebSo
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.core.database import get_db
+from app.core.database import get_db, get_sync_db
 from app.core.chat_service import ChatService
 from app.models.chat_session import ChatSession, ChatMessage
 from app.models.lead import Lead
@@ -143,7 +143,7 @@ async def initialize_chat_session(
 @router.get("/sessions/{session_id}", response_model=ChatSessionResponse)
 async def get_chat_session(
     session_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ) -> ChatSessionResponse:
     """
     Get chat session details
@@ -171,7 +171,7 @@ async def get_chat_session(
 async def send_chat_message(
     session_id: str,
     request: ChatMessageRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ) -> ChatMessageResponse:
     """
     Send a message to the conversational AI agent
@@ -219,7 +219,7 @@ async def send_chat_message(
 async def get_chat_history(
     session_id: str,
     limit: int = 50,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ) -> ChatHistoryResponse:
     """
     Get chat history for a session
@@ -262,7 +262,7 @@ async def get_chat_history(
 async def end_chat_session(
     session_id: str,
     reason: str = "user_ended",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_sync_db)
 ) -> Dict[str, Any]:
     """
     End a chat session

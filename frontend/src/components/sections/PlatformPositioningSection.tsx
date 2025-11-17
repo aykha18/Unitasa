@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Link, Brain, BarChart3, Shield, Clock } from 'lucide-react';
+import { Zap, Link, Brain, BarChart3, Shield, Clock, Share2 } from 'lucide-react';
 import { Card } from '../ui';
 import ConsultationBooking from '../booking/ConsultationBooking';
 import { useCurrency } from '../../hooks/useCurrency';
@@ -30,6 +30,12 @@ const PlatformPositioningSection: React.FC = () => {
       title: 'Universal CRM Integration',
       description: 'Connect Pipedrive, Zoho, HubSpot, Monday, Salesforce, or use our built-in NeuraCRM. 2-click setup, no coding required.',
       benefits: ['OAuth2 secure authentication', 'Real-time data sync', 'Field mapping automation'],
+    },
+    {
+      icon: Share2,
+      title: 'Multi-Platform Social Media',
+      description: 'Automate posting, engagement, and analytics across 10+ social platforms including Twitter, Facebook, Instagram, LinkedIn, and YouTube.',
+      benefits: ['OAuth2 secure connections', 'Automated scheduling', 'Cross-platform analytics'],
     },
     {
       icon: Brain,
@@ -129,6 +135,14 @@ const PlatformPositioningSection: React.FC = () => {
                   </td>
                   <td className="py-4 px-4 text-center text-gray-500">Complex configuration</td>
                   <td className="py-4 px-4 text-center text-gray-500">Months of development</td>
+                </tr>
+                <tr>
+                  <td className="py-4 px-4 font-medium">Social Media Integration</td>
+                  <td className="py-4 px-4 text-center">
+                    <span className="text-green-600 font-semibold">10+ platforms</span>
+                  </td>
+                  <td className="py-4 px-4 text-center text-gray-500">Limited platforms</td>
+                  <td className="py-4 px-4 text-center text-gray-500">Custom integrations</td>
                 </tr>
                 <tr>
                   <td className="py-4 px-4 font-medium">AI Automation</td>

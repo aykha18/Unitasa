@@ -11,9 +11,47 @@ logger = logging.getLogger(__name__)
 
 class VoiceService:
     """Service for handling voice processing"""
-    
+
     def __init__(self):
         self.logger = logger
+
+    async def process_voice_message(self,
+                                  audio_data: str,
+                                  audio_format: str = "wav",
+                                  language: str = "en-US",
+                                  session_id: str = None) -> Dict[str, Any]:
+        """
+        Process a voice message: transcribe audio to text
+        """
+        try:
+            # Transcribe the audio
+            transcription_result = await self.transcribe_audio(
+                audio_data=audio_data,
+                audio_format=audio_format,
+                language=language
+            )
+
+            if not transcription_result["success"]:
+                return {
+                    "success": False,
+                    "error": transcription_result.get("error", "Transcription failed")
+                }
+
+            return {
+                "success": True,
+                "transcribed_text": transcription_result["transcript"],
+                "transcription_confidence": transcription_result["confidence"],
+                "audio_duration_seconds": transcription_result["duration_seconds"],
+                "language": language,
+                "audio_format": audio_format
+            }
+
+        except Exception as e:
+            self.logger.error(f"Voice message processing failed: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     async def transcribe_audio(self, 
                              audio_data: str, 

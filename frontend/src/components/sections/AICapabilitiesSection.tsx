@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, Target, MessageCircle, Zap, Shield, BarChart3, CheckCircle } from 'lucide-react';
+import { Brain, Target, MessageCircle, Zap, Shield, BarChart3, CheckCircle, Share2 } from 'lucide-react';
 import Button from '../ui/Button';
 import AIDemoModal from '../ai-demos/AIDemoModal';
 import RazorpayCheckout from '../payment/RazorpayCheckout';
@@ -20,6 +20,20 @@ const AICapabilitiesSection: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const currency = useCurrency(497);
+
+  // Map capability IDs to demo types
+  const getDemoType = (capabilityId: string): string => {
+    const demoMapping: { [key: string]: string } = {
+      'autonomous-agent': 'agent',
+      'social-media-automation': 'social-media',
+      'predictive-intelligence': 'predictive',
+      'conversational-ai': 'conversational',
+      'real-time-optimization': 'optimization',
+      'enterprise-security': 'security',
+      'advanced-analytics': 'analytics'
+    };
+    return demoMapping[capabilityId] || 'agent';
+  };
 
   // Helper functions for dynamic pricing
   const getConvertedAmount = (usdAmount: number) => {
@@ -47,6 +61,17 @@ const AICapabilitiesSection: React.FC = () => {
         'Makes 10,000+ optimization decisions per hour',
         'Improves performance by 15% monthly through AI learning',
         'Executes 500+ marketing actions daily without human intervention'
+      ]
+    },
+    {
+      id: 'social-media-automation',
+      title: 'Social Media Automation',
+      description: 'AI-powered multi-platform social media management and engagement',
+      icon: <Share2 className="w-8 h-8" />,
+      metrics: [
+        '10+ platforms: Twitter, Facebook, Instagram, LinkedIn, YouTube, Telegram, Reddit, Mastodon, Bluesky, Pinterest',
+        'Automated posting, engagement, and campaign management',
+        'OAuth2 secure connections with real-time analytics'
       ]
     },
     {
@@ -151,7 +176,7 @@ const AICapabilitiesSection: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setActiveDemo(capability.id);
+                  setActiveDemo(getDemoType(capability.id));
                   setIsDemoModalOpen(true);
                 }}
                 className="w-full"

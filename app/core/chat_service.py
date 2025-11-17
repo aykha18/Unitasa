@@ -519,11 +519,11 @@ class ChatService:
         return self.handoff_service.get_handoff_queue(limit=limit)
 
     async def assign_to_human_agent(self,
-                                  session_id: str,
-                                  agent_id: str,
-                                  agent_name: str) -> Dict[str, Any]:
+                                   session_id: str,
+                                   agent_id: str,
+                                   agent_name: str) -> Dict[str, Any]:
         """Assign session to human agent"""
-        return await self.handoff_service.assign_to_human_agent(
+        return await self.handoff_service.assign_agent(
             session_id=session_id,
             agent_id=agent_id,
             agent_name=agent_name

@@ -57,7 +57,8 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
     debug: bool = Field(default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true")
     environment: str = Field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
-    
+    frontend_url: str = Field(default_factory=lambda: os.getenv("FRONTEND_URL", "http://localhost:3000"))
+
     # Direct environment variables (for backward compatibility)
     secret_key: Optional[str] = Field(default_factory=lambda: os.getenv("SECRET_KEY"))
     sendgrid_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("SENDGRID_API_KEY"))

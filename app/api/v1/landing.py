@@ -502,7 +502,7 @@ async def submit_assessment_responses(
             "technical_requirements": assessment.technical_requirements,
             "next_steps": assessment.next_steps,
             "is_completed": assessment.is_completed,
-            "co_creator_qualified": lead_score.overall_score >= 70
+            "co_creator_qualified": lead_score_value >= 70
         }
 
         # Add personalized co-creator invitation for qualified leads

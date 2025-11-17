@@ -12,7 +12,12 @@ import {
   MessageSquare,
   Heart,
   Repeat,
-  ExternalLink
+  ExternalLink,
+  Facebook,
+  Youtube,
+  Instagram,
+  Send,
+  Globe
 } from 'lucide-react';
 
 interface SocialAccount {
@@ -100,7 +105,7 @@ const SocialDashboard: React.FC = () => {
 
       // Check if this is demo mode
       if (data.demo_mode) {
-        alert(`Demo Mode: ${data.message}\n\nIn production, this would redirect to Twitter for authentication.`);
+        alert(`Demo Mode: ${data.message}\n\nIn production, this would redirect to ${platform} for authentication.`);
         return;
       }
 
@@ -115,6 +120,21 @@ const SocialDashboard: React.FC = () => {
     switch (platform) {
       case 'twitter':
         return <Twitter className="w-5 h-5" />;
+      case 'facebook':
+        return <Facebook className="w-5 h-5" />;
+      case 'youtube':
+        return <Youtube className="w-5 h-5" />;
+      case 'instagram':
+        return <Instagram className="w-5 h-5" />;
+      case 'telegram':
+        return <Send className="w-5 h-5" />;
+      case 'reddit':
+        return <MessageSquare className="w-5 h-5" />;
+      case 'mastodon':
+      case 'bluesky':
+        return <Globe className="w-5 h-5" />;
+      case 'pinterest':
+        return <Heart className="w-5 h-5" />;
       default:
         return <Plus className="w-5 h-5" />;
     }
@@ -128,6 +148,22 @@ const SocialDashboard: React.FC = () => {
         return 'bg-blue-700';
       case 'medium':
         return 'bg-black';
+      case 'facebook':
+        return 'bg-blue-600';
+      case 'youtube':
+        return 'bg-red-600';
+      case 'instagram':
+        return 'bg-pink-500';
+      case 'telegram':
+        return 'bg-blue-400';
+      case 'reddit':
+        return 'bg-orange-500';
+      case 'mastodon':
+        return 'bg-purple-600';
+      case 'bluesky':
+        return 'bg-sky-500';
+      case 'pinterest':
+        return 'bg-red-500';
       default:
         return 'bg-gray-500';
     }
@@ -349,6 +385,14 @@ const SocialDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 { name: 'Twitter', platform: 'twitter', description: 'Post tweets and engage with conversations' },
+                { name: 'Facebook Page', platform: 'facebook', description: 'Manage Facebook pages and engage with audiences' },
+                { name: 'YouTube', platform: 'youtube', description: 'Upload videos and manage channel content' },
+                { name: 'Instagram', platform: 'instagram', description: 'Share photos and stories with your audience' },
+                { name: 'Telegram', platform: 'telegram', description: 'Send messages and manage Telegram channels' },
+                { name: 'Reddit', platform: 'reddit', description: 'Post to subreddits and engage with communities' },
+                { name: 'Mastodon', platform: 'mastodon', description: 'Decentralized social networking' },
+                { name: 'Bluesky', platform: 'bluesky', description: 'Open social media platform' },
+                { name: 'Pinterest', platform: 'pinterest', description: 'Share visual content and drive traffic' },
                 { name: 'LinkedIn', platform: 'linkedin', description: 'Professional networking and thought leadership' },
                 { name: 'Medium', platform: 'medium', description: 'Long-form content publishing' }
               ].map(({ name, platform, description }) => {

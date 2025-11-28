@@ -23,7 +23,7 @@ class TwitterOAuthService:
     def __init__(self):
         self.client_id = os.getenv("TWITTER_CLIENT_ID", "")
         self.client_secret = os.getenv("TWITTER_CLIENT_SECRET", "")
-        self.redirect_uri = os.getenv("TWITTER_REDIRECT_URI", f"{settings.frontend_url}/auth/twitter/callback")
+        self.redirect_uri = os.getenv("TWITTER_REDIRECT_URI", f"{settings.frontend_url}/api/v1/social/auth/twitter/callback")
 
         if not self.client_id:
             raise ValueError("TWITTER_CLIENT_ID environment variable is required")
@@ -69,16 +69,21 @@ class TwitterOAuthService:
         """
         token_url = "https://api.twitter.com/2/oauth2/token"
 
+        # Create Basic Auth header - Twitter requires this format
+        auth_string = f"{self.client_id}:{self.client_secret}"
+        auth_bytes = auth_string.encode('utf-8')
+        auth_b64 = base64.b64encode(auth_bytes).decode('utf-8')
+
         data = {
             'grant_type': 'authorization_code',
             'code': code,
             'redirect_uri': self.redirect_uri,
-            'code_verifier': code_verifier,
-            'client_id': self.client_id
+            'code_verifier': code_verifier
         }
 
         headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': f'Basic {auth_b64}'
         }
 
         response = requests.post(token_url, data=data, headers=headers)
@@ -100,14 +105,19 @@ class TwitterOAuthService:
         """
         token_url = "https://api.twitter.com/2/oauth2/token"
 
+        # Create Basic Auth header
+        auth_string = f"{self.client_id}:{self.client_secret}"
+        auth_bytes = auth_string.encode('utf-8')
+        auth_b64 = base64.b64encode(auth_bytes).decode('utf-8')
+
         data = {
             'grant_type': 'refresh_token',
-            'refresh_token': refresh_token,
-            'client_id': self.client_id
+            'refresh_token': refresh_token
         }
 
         headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': f'Basic {auth_b64}'
         }
 
         response = requests.post(token_url, data=data, headers=headers)
@@ -129,14 +139,19 @@ class TwitterOAuthService:
         """
         revoke_url = "https://api.twitter.com/2/oauth2/revoke"
 
+        # Create Basic Auth header
+        auth_string = f"{self.client_id}:{self.client_secret}"
+        auth_bytes = auth_string.encode('utf-8')
+        auth_b64 = base64.b64encode(auth_bytes).decode('utf-8')
+
         data = {
             'token': token,
-            'token_type_hint': token_type_hint,
-            'client_id': self.client_id
+            'token_type_hint': token_type_hint
         }
 
         headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': f'Basic {auth_b64}'
         }
 
         response = requests.post(revoke_url, data=data, headers=headers)

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.core.twitter_service import TwitterOAuthService, get_twitter_service
 from app.core.facebook_service import FacebookOAuthService, get_facebook_service
 from app.core.instagram_service import InstagramOAuthService, get_instagram_service
@@ -26,6 +27,7 @@ from app.models.campaign import Campaign
 from app.models.user import User
 
 settings = get_settings()
+logger = get_logger(__name__)
 
 # Mock encryption functions for now - replace with actual implementation
 def encrypt_data(data: str) -> str:
@@ -100,7 +102,7 @@ async def get_oauth_url(platform: str, user_id: int = Query(1, description="User
                 state = secrets.token_urlsafe(16)
 
                 # Return a demo URL that shows the OAuth flow would work
-                auth_url = f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=demo&redirect_uri=http://localhost:3000/auth/twitter/callback&scope=tweet.read%20tweet.write%20users.read%20offline.access&state={state}&code_challenge=demo&code_challenge_method=S256"
+                auth_url = f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=demo&redirect_uri=http://localhost:3000/social/callback&scope=tweet.read%20tweet.write%20users.read%20offline.access&state={state}&code_challenge=demo&code_challenge_method=S256"
 
                 return {
                     "auth_url": auth_url,
@@ -111,9 +113,16 @@ async def get_oauth_url(platform: str, user_id: int = Query(1, description="User
                     "message": "Twitter API credentials not configured. This is a demo OAuth URL."
                 }
 
+            # Store code_verifier in a simple in-memory cache (in production, use Redis/database)
+            # For demo purposes, we'll use a global dict
+            if not hasattr(get_oauth_url, 'code_verifiers'):
+                get_oauth_url.code_verifiers = {}
+            get_oauth_url.code_verifiers[state] = code_verifier
+            logger.info(f"Stored code_verifier for state {state}: length={len(code_verifier)}")
+
             return {
                 "auth_url": auth_url,
-                "code_verifier": code_verifier,
+                "code_verifier": code_verifier,  # Still return for frontend storage as backup
                 "state": state,
                 "platform": platform,
                 "demo_mode": False
@@ -298,6 +307,202 @@ async def get_oauth_url(platform: str, user_id: int = Query(1, description="User
         raise HTTPException(status_code=500, detail=f"Failed to generate auth URL: {str(e)}")
 
 
+@router.get("/auth/{platform}/callback")
+async def oauth_callback(
+    platform: str,
+    code: str = Query(..., description="Authorization code from OAuth provider"),
+    state: str = Query(..., description="State parameter for security"),
+    code_verifier: Optional[str] = Query(None, description="PKCE code verifier (optional, retrieved from server storage)"),
+    error: Optional[str] = Query(None, description="Error from OAuth provider"),
+    user_id: int = Query(1, description="User ID")
+):
+    """Handle OAuth callback from social media platforms and automatically connect account"""
+    if error:
+        # Redirect back to social dashboard with error
+        return f"""
+        <html>
+        <head><title>OAuth Error</title></head>
+        <body>
+        <h1>OAuth Error</h1>
+        <p>Error: {error}</p>
+        <p>Platform: {platform}</p>
+        <a href="/social">Back to Social Dashboard</a>
+        <script>
+        setTimeout(function() {{
+            window.location.href = '/social';
+        }}, 3000);
+        </script>
+        </body>
+        </html>
+        """
+
+    try:
+        # Try to get code_verifier from server-side storage first, then from query param
+        stored_code_verifier = None
+        if hasattr(get_oauth_url, 'code_verifiers') and state in get_oauth_url.code_verifiers:
+            stored_code_verifier = get_oauth_url.code_verifiers.pop(state, None)  # Remove after use
+
+        final_code_verifier = stored_code_verifier or code_verifier
+        logger.info(f"OAuth callback received: platform={platform}, state={state}")
+        logger.info(f"Code verifier details: stored_length={len(stored_code_verifier) if stored_code_verifier else 0}, query_length={len(code_verifier) if code_verifier else 0}, final_length={len(final_code_verifier) if final_code_verifier else 0}")
+        logger.info(f"Available states in storage: {list(getattr(get_oauth_url, 'code_verifiers', {}).keys())}")
+
+        # Automatically connect the account
+        from app.core.database import init_database
+        from app.models.user import User
+
+        engine, AsyncSessionLocal = init_database()
+        async with AsyncSessionLocal() as db:
+            # Get user (mock for now)
+            user_result = await db.execute(select(User).where(User.id == user_id))
+            user = user_result.scalar_one_or_none()
+
+            if not user:
+                return f"""
+                <html>
+                <head><title>OAuth Error</title></head>
+                <body>
+                <h1>User Not Found</h1>
+                <p>User ID {user_id} not found.</p>
+                <a href="/social">Back to Social Dashboard</a>
+                </body>
+                </html>
+                """
+
+            # Connect the account using the same logic as the connect endpoint
+            account_info = None
+            token_data = None
+
+            if platform == "twitter":
+                oauth_service = TwitterOAuthService()
+                token_data = oauth_service.exchange_code_for_tokens(code, final_code_verifier)
+                twitter_service = get_twitter_service(token_data['access_token'])
+                account_info = twitter_service.get_account_info()
+
+            elif platform == "facebook":
+                oauth_service = FacebookOAuthService()
+                token_data = oauth_service.exchange_code_for_tokens(code)
+                facebook_service = get_facebook_service(token_data['access_token'])
+                account_info = facebook_service.get_account_info()
+
+            elif platform == "instagram":
+                oauth_service = InstagramOAuthService()
+                token_data = oauth_service.exchange_code_for_tokens(code)
+                instagram_service = get_instagram_service(token_data['access_token'])
+                account_info = instagram_service.get_account_info()
+
+            elif platform == "youtube":
+                oauth_service = YouTubeOAuthService()
+                token_data = oauth_service.exchange_code_for_tokens(code)
+                youtube_service = get_youtube_service(token_data['access_token'])
+                account_info = youtube_service.get_account_info()
+
+            else:
+                return f"""
+                <html>
+                <head><title>Platform Not Supported</title></head>
+                <body>
+                <h1>Platform Not Supported</h1>
+                <p>Platform '{platform}' is not supported for automatic connection.</p>
+                <a href="/social">Back to Social Dashboard</a>
+                </body>
+                </html>
+                """
+
+            if not account_info or not token_data:
+                return f"""
+                <html>
+                <head><title>Connection Failed</title></head>
+                <body>
+                <h1>Connection Failed</h1>
+                <p>Failed to retrieve account information from {platform}.</p>
+                <a href="/social">Back to Social Dashboard</a>
+                </body>
+                </html>
+                """
+
+            # Encrypt tokens
+            encrypted_access_token = encrypt_data(token_data['access_token'])
+            encrypted_refresh_token = encrypt_data(token_data.get('refresh_token', ''))
+
+            # Create or update social account
+            existing_account = await db.execute(
+                select(SocialAccount).where(
+                    SocialAccount.user_id == user.id,
+                    SocialAccount.platform == platform,
+                    SocialAccount.account_id == account_info['account_id']
+                )
+            )
+            existing_account = existing_account.scalar_one_or_none()
+
+            if existing_account:
+                existing_account.access_token = encrypted_access_token
+                existing_account.refresh_token = encrypted_refresh_token
+                existing_account.token_expires_at = token_data.get('expires_at')
+                existing_account.account_username = account_info['username']
+                existing_account.account_name = account_info['name']
+                existing_account.profile_url = account_info['profile_url']
+                existing_account.avatar_url = account_info['avatar_url']
+                existing_account.follower_count = account_info.get('follower_count', 0)
+                existing_account.following_count = account_info.get('following_count', 0)
+                existing_account.is_active = True
+                existing_account.last_synced_at = datetime.utcnow()
+                account = existing_account
+            else:
+                account = SocialAccount(
+                    user_id=user.id,
+                    platform=platform,
+                    account_id=account_info['account_id'],
+                    account_username=account_info['username'],
+                    account_name=account_info['name'],
+                    profile_url=account_info['profile_url'],
+                    avatar_url=account_info['avatar_url'],
+                    access_token=encrypted_access_token,
+                    refresh_token=encrypted_refresh_token,
+                    token_expires_at=token_data.get('expires_at'),
+                    follower_count=account_info.get('follower_count', 0),
+                    following_count=account_info.get('following_count', 0),
+                    is_active=True,
+                    last_synced_at=datetime.utcnow()
+                )
+                db.add(account)
+
+            await db.commit()
+            await db.refresh(account)
+
+            # Success page with redirect
+            return f"""
+            <html>
+            <head><title>Account Connected</title></head>
+            <body>
+            <h1>Success!</h1>
+            <p>Successfully connected your {platform} account: @{account_info['username']}</p>
+            <p>Redirecting to Social Dashboard...</p>
+            <a href="/social">Go to Social Dashboard</a>
+            <script>
+            setTimeout(function() {{
+                window.location.href = '/social';
+            }}, 2000);
+            </script>
+            </body>
+            </html>
+            """
+
+    except Exception as e:
+        logger.error(f"OAuth callback error for {platform}: {str(e)}", exc_info=True)
+        return f"""
+        <html>
+        <head><title>Connection Error</title></head>
+        <body>
+        <h1>Connection Error</h1>
+        <p>An error occurred while connecting your {platform} account.</p>
+        <p>Error: {str(e)}</p>
+        <a href="/social">Back to Social Dashboard</a>
+        </body>
+        </html>
+        """
+
+
 @router.post("/accounts/connect")
 async def connect_account(
     request: ConnectAccountRequest,
@@ -454,25 +659,79 @@ async def connect_account(
 
 
 @router.get("/accounts")
-async def get_connected_accounts():
+async def get_connected_accounts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     """Get all connected social accounts for the user"""
-    # This would be implemented with proper database queries
-    # For now, return mock data (removed auth for development)
-    return {
-        "accounts": [
-            {
-                "id": 1,
-                "platform": "twitter",
-                "username": "@unitasaAI",
-                "name": "Unitasa AI",
-                "profile_url": "https://twitter.com/unitasaAI",
-                "avatar_url": "https://example.com/avatar.jpg",
-                "follower_count": 1250,
-                "is_active": True,
-                "last_synced_at": datetime.utcnow().isoformat()
+    try:
+        # Query database for accounts
+        result = await db.execute(
+            select(SocialAccount).where(
+                SocialAccount.user_id == user.id,
+                SocialAccount.is_active == True
+            )
+        )
+        accounts = result.scalars().all()
+        
+        if accounts:
+            return {
+                "accounts": [
+                    {
+                        "id": acc.id,
+                        "platform": acc.platform,
+                        "username": acc.account_username,
+                        "name": acc.account_name,
+                        "profile_url": acc.profile_url,
+                        "avatar_url": acc.avatar_url,
+                        "follower_count": acc.follower_count,
+                        "is_active": acc.is_active,
+                        "last_synced_at": acc.last_synced_at.isoformat() if acc.last_synced_at else None
+                    }
+                    for acc in accounts
+                ]
             }
-        ]
-    }
+            
+        # For development, return empty accounts to allow real OAuth setup
+        # Comment out mock data to enable real account connections
+        # if settings.environment == "development":
+        #     return {
+        #         "accounts": [
+        #             {
+        #                 "id": 1,
+        #                 "platform": "twitter",
+        #                 "username": "@unitasaAI",
+        #                 "name": "Unitasa AI",
+        #                 "profile_url": "https://twitter.com/unitasaAI",
+        #                 "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=unitasa",
+        #                 "follower_count": 1250,
+        #                 "is_active": True,
+        #                 "last_synced_at": datetime.utcnow().isoformat()
+        #             }
+        #         ]
+        #     }
+            
+        return {"accounts": []}
+        
+    except Exception as e:
+        # In case of DB error, return empty accounts for real OAuth setup
+        # if settings.environment == "development":
+        #       return {
+        #         "accounts": [
+        #             {
+        #                 "id": 1,
+        #                 "platform": "twitter",
+        #                 "username": "@unitasaAI",
+        #                 "name": "Unitasa AI",
+        #                 "profile_url": "https://twitter.com/unitasaAI",
+        #                 "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=unitasa",
+        #                 "follower_count": 1250,
+        #                 "is_active": True,
+        #                 "last_synced_at": datetime.utcnow().isoformat()
+        #             }
+        #         ]
+        #     }
+        raise HTTPException(status_code=500, detail=f"Failed to fetch accounts: {str(e)}")
 
 
 @router.delete("/accounts/{account_id}")
@@ -482,8 +741,22 @@ async def disconnect_account(
     db: AsyncSession = Depends(get_db)
 ):
     """Disconnect a social account"""
-    # Implementation would revoke tokens and delete account record
-    return {"success": True, "message": "Account disconnected"}
+    try:
+        # Check if it's the mock account
+        if account_id == 1 and settings.environment == "development":
+             return {"success": True, "message": "Mock account disconnected"}
+
+        account = await db.get(SocialAccount, account_id)
+        if not account or account.user_id != user.id:
+            raise HTTPException(status_code=404, detail="Account not found")
+            
+        await db.delete(account)
+        await db.commit()
+        
+        return {"success": True, "message": "Account disconnected"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect account: {str(e)}")
 
 
 @router.post("/campaigns")
@@ -552,12 +825,15 @@ async def create_post(
     db: AsyncSession = Depends(get_db)
 ):
     """Create and schedule a social media post"""
+    logger.info(f"Starting create_post: user_id={user.id}, platforms={request.platforms}, content_length={len(request.content)}")
     try:
         results = []
 
         for platform in request.platforms:
+            logger.info(f"Processing platform: {platform}, user_id={user.id}")
             try:
                 # Get user's account for this platform
+                logger.debug(f"Querying social account: platform={platform}, user_id={user.id}")
                 account = await db.execute(
                     select(SocialAccount).where(
                         SocialAccount.user_id == user.id,
@@ -566,6 +842,20 @@ async def create_post(
                     )
                 )
                 account = account.scalar_one_or_none()
+                logger.info(f"Account query result: platform={platform}, account_found={account is not None}")
+
+                # Demo mode fallback
+                if not account and settings.environment == "development":
+                    # Simulate success for demo/dev environment
+                    results.append({
+                        "platform": platform,
+                        "success": True,
+                        "post_id": f"demo-{secrets.token_hex(8)}",
+                        "url": f"https://{platform}.com/demo/status/{secrets.token_hex(8)}",
+                        "posted_at": datetime.utcnow().isoformat(),
+                        "note": "Demo mode: Post simulated"
+                    })
+                    continue
 
                 if not account:
                     results.append({
@@ -576,9 +866,11 @@ async def create_post(
                     continue
 
                 # Decrypt access token
+                logger.debug(f"Decrypting access token for platform: {platform}")
                 access_token = decrypt_data(account.access_token)
 
                 # Post to platform
+                logger.info(f"Getting service for platform: {platform}")
                 if platform == "twitter":
                     service = get_twitter_service(access_token)
                 elif platform == "facebook":
@@ -590,6 +882,7 @@ async def create_post(
                 elif platform == "bluesky":
                     service = get_bluesky_service(access_token)
                 else:
+                    logger.warning(f"Posting not implemented for platform: {platform}")
                     results.append({
                         "platform": platform,
                         "success": False,
@@ -597,10 +890,13 @@ async def create_post(
                     })
                     continue
 
+                logger.info(f"Calling service.post_content for platform: {platform}")
                 result = service.post_content(request.content)
+                logger.info(f"Service post_content result: platform={platform}, success={result.get('success')}, error={result.get('error')}")
 
                 if result['success']:
                     # Save post record
+                    logger.info(f"Saving post to database: platform={platform}, account_id={account.id}")
                     post = SocialPost(
                         user_id=user.id,
                         social_account_id=account.id,
@@ -613,6 +909,7 @@ async def create_post(
                         posted_at=datetime.utcnow()
                     )
                     db.add(post)
+                    logger.info(f"Post saved successfully: platform={platform}, post_id={post.id}")
 
                     results.append({
                         "platform": platform,
@@ -629,16 +926,20 @@ async def create_post(
                     })
 
             except Exception as e:
+                logger.error(f"Error processing platform: {platform}, error={str(e)}", exc_info=True)
                 results.append({
                     "platform": platform,
                     "success": False,
                     "error": str(e)
                 })
 
+        logger.info(f"Committing database transaction: user_id={user.id}")
         await db.commit()
+        logger.info("Database commit successful")
 
         # Check if any posts succeeded
         success_count = sum(1 for r in results if r['success'])
+        logger.info(f"Post creation summary: success_count={success_count}, total_platforms={len(request.platforms)}")
         if success_count > 0:
             return {
                 "success": True,
@@ -646,9 +947,11 @@ async def create_post(
                 "results": results
             }
         else:
+            logger.error(f"No posts succeeded: results={results}")
             raise HTTPException(status_code=500, detail="Failed to post to any platforms")
 
     except Exception as e:
+        logger.error(f"Failed to create post: error={str(e)}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create post: {str(e)}")
 

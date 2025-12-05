@@ -1,4 +1,5 @@
 export { default as HeroSection } from './HeroSection';
+export { default as BenefitCardsSection } from './BenefitCardsSection';
 export { default as FounderStorySection } from './FounderStorySection';
 export { default as PlatformPositioningSection } from './PlatformPositioningSection';
 export { default as SocialProofSection } from './SocialProofSection';

@@ -109,35 +109,31 @@ const SocialProofSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Founder Credibility Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 mt-16">
+        {/* Trust Section */}
+        <div className="bg-white rounded-2xl p-8 mt-16 border border-gray-200">
           <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Built by a Founder Who Lived This Pain</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Built with Engineering Excellence</h3>
 
-            <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-unitasa-blue rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
-                  F
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 text-blue-600" />
                 </div>
-                <div className="text-left">
-                  <h4 className="font-bold text-gray-900 mb-2">"I spent 15 hours every week on manual marketing tasks"</h4>
-                  <p className="text-gray-700 mb-3">
-                    Managing 5 disconnected tools: Pipedrive, Mailchimp, Google Sheets, Calendly, Slack.
-                    Lost leads. Missed follow-ups. Constant manual data entry.
-                  </p>
-                  <p className="text-gray-700 font-medium">
-                    After 6 months of building, Unitasa now handles what took me 15 hours in 15 minutes.
-                    <strong className="text-unitasa-blue"> I'm using it to market Unitasa itself.</strong>
-                  </p>
-                  <p className="text-gray-500 text-sm mt-2">— Founder, Unitasa</p>
-                </div>
+                <p className="text-gray-700 font-medium">Built by a founder with 13+ years of engineering experience</p>
               </div>
-            </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-center text-green-800">
-                <span className="text-2xl mr-2">🤖</span>
-                <span className="font-medium">This website is being marketed by Unitasa's own AI agent</span>
+              <div className="text-center">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                <p className="text-gray-700 font-medium">Currently integrated with: X (Twitter), Facebook, Instagram, Telegram, Reddit</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
+                <p className="text-gray-700 font-medium">Already running live automations for internal Unitasa marketing</p>
               </div>
             </div>
           </div>

@@ -16,50 +16,51 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Content */}
           <div className="text-center lg:text-left">
-            {/* Transparent Beta Badge */}
-            <div className="inline-flex items-center bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6 animate-pulse">
-              <span className="w-2 h-2 bg-white rounded-full mr-2"></span>
-              BETA - INVITING 25 FOUNDING MEMBERS
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-unitasa-blue mb-6 leading-tight font-display">
-              Marketing Intelligence
-              <span className="bg-gradient-primary bg-clip-text text-transparent block">That Thinks & Optimizes</span>
+              AI Agents That Run Your Marketing For You
             </h1>
 
             {/* Subheadline */}
             <p className="text-xl text-unitasa-gray mb-8 max-w-2xl mx-auto lg:mx-0 font-medium">
-              <strong className="text-unitasa-blue">Beyond traditional marketing automation.</strong> AI that makes 10,000+ intelligent decisions per hour,
-              replacing human oversight with <strong className="text-unitasa-electric">autonomous marketing excellence</strong>.
-            </p>
-
-            <p className="text-lg text-unitasa-gray mb-8 max-w-2xl mx-auto lg:mx-0">
-              🚀 NOW IN BETA - Join 25 Founding Members Built by a founder frustrated with disconnected marketing tools. Help shape the future of AI marketing automation.
+              Unitasa connects to your CRM, social accounts, and ad platforms so autonomous agents can plan, post, and optimize campaigns while you focus on building your product.
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button 
-                variant="primary" 
-                size="lg" 
-                icon={ArrowRight} 
+              <Button
+                variant="primary"
+                size="lg"
+                icon={ArrowRight}
                 iconPosition="right"
                 className="text-lg px-8 py-4"
-                onClick={onStartAssessment}
+                onClick={() => {
+                  // TODO: Integrate Calendly
+                  window.open('https://calendly.com/unitasa/ai-strategy-session', '_blank');
+                }}
               >
-                Take AI Readiness Assessment
+                Book Free AI Strategy Session
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                icon={Play} 
-                iconPosition="left"
-                className="text-lg px-8 py-4"
-                onClick={() => setIsDemoModalOpen(true)}
-              >
-                Watch AI Demo
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  icon={Play}
+                  iconPosition="left"
+                  className="text-lg px-8 py-4"
+                  onClick={() => setIsDemoModalOpen(true)}
+                >
+                  Watch 2-Minute Demo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="text-lg px-8 py-4"
+                  onClick={onStartAssessment}
+                >
+                  Take AI Readiness Assessment
+                </Button>
+              </div>
             </div>
 
 
@@ -101,7 +102,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
                 </div>
                 <div className="mt-4 p-3 bg-unitasa-light/50 rounded-lg">
                   <p className="text-sm text-unitasa-blue font-medium">
-                    I built Unitasa because I had this exact problem. Now inviting 25 founders to build it together.
+                    Built by a founder who solved these exact marketing automation challenges.
                   </p>
                 </div>
               </div>

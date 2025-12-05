@@ -74,30 +74,6 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
       ]
     },
     {
-      id: 'decision-speed',
-      category: 'automation-maturity',
-      question: 'How quickly can you make and implement marketing optimization decisions?',
-      options: [
-        { value: 1, label: 'Days to weeks', description: 'Manual review process' },
-        { value: 2, label: 'Same day', description: 'Quick manual decisions' },
-        { value: 3, label: 'Within hours', description: 'Some automated triggers' },
-        { value: 4, label: 'Within minutes', description: 'Real-time monitoring' },
-        { value: 5, label: 'Instant/Automated', description: 'AI makes decisions automatically' }
-      ]
-    },
-    {
-      id: 'predictive-capabilities',
-      category: 'data-intelligence',
-      question: 'Do you currently use predictive analytics for lead scoring or campaign optimization?',
-      options: [
-        { value: 1, label: 'No predictive analytics', description: 'Reactive analysis only' },
-        { value: 2, label: 'Basic forecasting', description: 'Simple trend analysis' },
-        { value: 3, label: 'Lead scoring models', description: 'Basic predictive scoring' },
-        { value: 4, label: 'Advanced predictions', description: 'ML-based forecasting' },
-        { value: 5, label: 'AI-powered predictions', description: 'Real-time predictive intelligence' }
-      ]
-    },
-    {
       id: 'integration-complexity',
       category: 'integration-needs',
       question: 'How many marketing tools and platforms do you currently use?',
@@ -248,11 +224,11 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
   };
 
   const calculateResults = () => {
-    const aiReadiness = (answers['ai-experience'] || 0) * 20;
-    const automation = ((answers['automation-level'] || 0) + (answers['decision-speed'] || 0)) * 10;
-    const dataIntel = ((answers['data-collection'] || 0) + (answers['predictive-capabilities'] || 0)) * 10;
-    const integration = (answers['integration-complexity'] || 0) * 20;
-    
+    const aiReadiness = (answers['ai-experience'] || 0) * 25;
+    const automation = (answers['automation-level'] || 0) * 25;
+    const dataIntel = (answers['data-collection'] || 0) * 25;
+    const integration = (answers['integration-complexity'] || 0) * 25;
+
     const overall = Math.round((aiReadiness + automation + dataIntel + integration) / 4);
     
     const recommendations = generateRecommendations(overall, {
@@ -308,6 +284,7 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
     setResults(null);
   };
 
+
   if (showResults && results) {
     return (
       <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
@@ -359,10 +336,10 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
         {/* AI Predictions */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Predicted ROI Improvement</h3>
-            <div className="text-3xl font-bold text-green-600 mb-2">+{results.predictedROI}%</div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Potential ROI Improvement</h3>
+            <div className="text-3xl font-bold text-green-600 mb-2">High Potential</div>
             <p className="text-sm text-gray-600">
-              Based on AI implementation across similar organizations
+              Based on benchmarks from AI-driven marketing in similar organizations
             </p>
           </div>
           <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg">
@@ -391,51 +368,19 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
           </div>
         </div>
 
-        {/* Co-Creator Invitation */}
-        {results.co_creator_qualified && results.co_creator_invitation && (
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg mb-8 border-2 border-purple-200">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-purple-900 mb-2">
-                🎉 Congratulations!
-              </h3>
-              <p className="text-purple-700 font-medium">
-                {results.co_creator_invitation.message}
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              {results.co_creator_invitation.benefits?.map((benefit: string, index: number) => (
-                <div key={index} className="flex items-start">
-                  <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center mt-0.5 mr-3 flex-shrink-0">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                  <span className="text-sm text-purple-800">{benefit}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm text-purple-600 mb-4">
-                {results.co_creator_invitation.urgency}
-              </p>
-              <Button size="lg" className="bg-purple-600 hover:bg-purple-700 px-8">
-                {results.co_creator_invitation.next_action}
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Call to Action */}
         <div className="text-center">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Ready to Activate Your AI Marketing Team?
+            Ready to Plan Your AI Marketing Roadmap?
           </h3>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="px-8">
-              Start AI Implementation
+            <Button
+              size="lg"
+              className="px-8"
+              onClick={() => window.open('https://calendly.com/unitasa/ai-strategy-session', '_blank')}
+            >
+              Book Free AI Strategy Session
             </Button>
             <Button variant="outline" size="lg" onClick={resetAssessment}>
               Retake Assessment
@@ -452,13 +397,18 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
   return (
     <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200 max-w-2xl mx-auto">
       <div className="mb-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Marketing Readiness Assessment</h2>
+          <p className="text-gray-600">
+            Answer a few quick questions and get a personalized AI automation roadmap for your marketing in under 30 seconds.
+          </p>
+        </div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">AI Marketing Readiness Assessment</h2>
           <span className="text-sm text-gray-500">
             {currentQuestion + 1} of {questions.length}
           </span>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
           <div
@@ -472,9 +422,9 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
         <h3 className="text-xl font-semibold text-gray-900 mb-6">
           {question.question}
         </h3>
-        
+
         <div className="space-y-3">
-          {question.options.map((option) => (
+          {question.options.map((option: any) => (
             <button
               key={option.value}
               onClick={() => handleAnswer(option.value)}

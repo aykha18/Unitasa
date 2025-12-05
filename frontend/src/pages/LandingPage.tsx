@@ -2,6 +2,7 @@ import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Layout } from '../components/layout';
 import {
   HeroSection,
+  BenefitCardsSection,
   PlatformPositioningSection
 } from '../components/sections';
 import { CRMAssessmentResult } from '../types';
@@ -9,7 +10,6 @@ import { trackPageView } from '../utils/analytics';
 import LeadCaptureForm, { LeadData } from '../components/assessment/LeadCaptureForm';
 import CRMSelectorStep from '../components/assessment/CRMSelectorStep';
 import ConsultationTest from '../components/test/ConsultationTest';
-import { useCurrency } from '../hooks/useCurrency';
 import { LandingPageAPI } from '../services/landingPageApi';
 
 // Lazy load heavy components
@@ -46,59 +46,10 @@ const LandingPage: React.FC = () => {
   const [isAssessmentOpen, setIsAssessmentOpen] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState<CRMAssessmentResult | null>(null);
   const [leadData, setLeadData] = useState<LeadData | null>(null);
-  const [foundingMembersStats, setFoundingMembersStats] = useState<{
-    total_spots: number;
-    spots_taken: number;
-    spots_remaining: number;
-    progress_percentage: number;
-    last_updated: string;
-    is_live: boolean;
-    status: string;
-  } | null>(null);
 
-  // Currency detection for pricing display
-  const currency = useCurrency(497);
-
-  // Calculate converted amounts for pricing display
-  const getConvertedAmount = (usdAmount: number) => {
-    const rate = currency.currency === 'INR' ? 83 : currency.currency === 'EUR' ? 0.85 : 1;
-    return Math.round(usdAmount * rate);
-  };
-
-  const formatAmount = (amount: number) => {
-    if (currency.currency === 'INR') {
-      return amount.toLocaleString('en-IN');
-    } else if (currency.currency === 'EUR') {
-      return amount.toString();
-    } else {
-      return amount.toString();
-    }
-  };
 
   useEffect(() => {
     trackPageView('/');
-
-    // Fetch founding members stats
-    const fetchFoundingMembersStats = async () => {
-      try {
-        const stats = await LandingPageAPI.getFoundingMembersStats();
-        setFoundingMembersStats(stats);
-      } catch (error) {
-        console.error('Failed to fetch founding members stats:', error);
-        // Fallback to default values
-        setFoundingMembersStats({
-          total_spots: 25,
-          spots_taken: 13,
-          spots_remaining: 12,
-          progress_percentage: 52,
-          last_updated: new Date().toISOString(),
-          is_live: true,
-          status: 'active'
-        });
-      }
-    };
-
-    fetchFoundingMembersStats();
 
     // Listen for custom events to open assessment
     const handleOpenAssessment = () => {
@@ -176,7 +127,9 @@ const LandingPage: React.FC = () => {
         <Layout>
           <div className="bg-white">
             <HeroSection onStartAssessment={openAssessment} />
-            
+
+            <BenefitCardsSection />
+
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <AICapabilitiesSection />
             </Suspense>
@@ -187,9 +140,9 @@ const LandingPage: React.FC = () => {
               <CRMMarketplaceSection />
             </Suspense>
             
-            <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse"></div>}>
+            {/* <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse"></div>}>
               <SocialProofSection />
-            </Suspense>
+            </Suspense> */}
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <MetaProofSection />
@@ -203,105 +156,6 @@ const LandingPage: React.FC = () => {
               <ThoughtLeadershipSection isCoCreator={assessmentResult?.readinessLevel === 'priority_integration'} />
             </Suspense>
             
-            {/* Co-Creator Program Preview */}
-            <section id="co-creator" className="py-20">
-              <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                <div className="bg-gradient-to-r from-unitasa-electric to-unitasa-purple text-white rounded-2xl p-8 md:p-12 relative overflow-hidden shadow-brand">
-                  {/* Urgency Badge */}
-                  <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold animate-pulse">
-                    LIMITED TIME
-                  </div>
-
-                  <h2 className="text-3xl md:text-4xl font-bold mb-4 font-display">
-                    Join 25 Visionaries of AI Marketing
-                  </h2>
-
-                  <div className="mb-6">
-                    <div className="text-4xl font-bold mb-2 text-white">{currency.displayText}</div>
-                    <div className="text-lg opacity-90 line-through mb-1 text-white mt-2">
-                      Regular price: {currency.symbol}{formatAmount(getConvertedAmount(2000))}+
-                    </div>
-                    <p className="text-xl opacity-90 text-white">
-                      Assessment-Qualified • Lifetime Access • Shape AI Marketing's Future
-                    </p>
-                  </div>
-                  
-                  {/* Value Stack */}
-                  <div className="bg-white/10 rounded-lg p-4 mb-6 text-left max-w-md mx-auto">
-                    <div className="text-sm font-semibold mb-2 text-center text-white">What You Get ({currency.symbol}{formatAmount(getConvertedAmount(1397))}+ Value):</div>
-                    <div className="space-y-1 text-sm text-white">
-                      <div className="flex justify-between">
-                        <span>• Lifetime AI Platform Access</span>
-                        <span>{currency.symbol}{formatAmount(getConvertedAmount(500))}+/month</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Personal AI Strategy Audit</span>
-                        <span>{currency.symbol}{formatAmount(getConvertedAmount(500))}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Custom AI Agent Setup</span>
-                        <span>{currency.symbol}{formatAmount(getConvertedAmount(300))}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• 6-Month Priority Support</span>
-                        <span>{currency.symbol}{formatAmount(getConvertedAmount(600))}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-center mb-6">
-                    <div className="bg-white/20 rounded-full px-4 py-2">
-                      <span className="font-semibold text-white">
-                        ⚡ Only {foundingMembersStats?.spots_remaining || 12} visionary spots remaining
-                      </span>
-                    </div>
-                    {foundingMembersStats && (
-                      <div className="text-xs text-white/80 mt-1">
-                        {foundingMembersStats.spots_taken}/25 founding members joined
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <button
-                      onClick={openAssessment}
-                      className="bg-white text-unitasa-blue px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors w-full sm:w-auto shadow-lg"
-                    >
-                      Qualify for AI Intelligence Access
-                    </button>
-                    <div className="text-sm opacity-75 text-white">
-                      🎯 Assessment determines if you're ready for enterprise AI marketing
-                    </div>
-                  </div>
-                </div>
-
-                {/* Why Only 25 Founding Members */}
-                <div className="mt-8 bg-white rounded-lg p-6 border border-gray-200 shadow-lg">
-                  <h4 className="font-bold text-lg mb-4 text-gray-900">Why Only 25 Founding Members?</h4>
-                  <div className="space-y-2 text-sm text-gray-700">
-                    <div className="flex items-start">
-                      <span className="text-green-600 mr-2">✅</span>
-                      <span>I personally onboard each member (~1 hour each)</span>
-                    </div>
-                    <div className="flex items-start">
-                      <span className="text-green-600 mr-2">✅</span>
-                      <span>Want meaningful feedback, not mass market</span>
-                    </div>
-                    <div className="flex items-start">
-                      <span className="text-green-600 mr-2">✅</span>
-                      <span>Building case studies together as early adopters</span>
-                    </div>
-                    <div className="flex items-start">
-                      <span className="text-green-600 mr-2">✅</span>
-                      <span>After spot 25, price goes to {currency.symbol}{formatAmount(getConvertedAmount(2000))}+</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-4 italic">
-                    This isn't fake scarcity. I can't onboard {'>'}25 people while building the product.
-                  </p>
-                </div>
-              </div>
-            </section>
 
             {/* Lead Capture Form */}
             <LeadCaptureForm

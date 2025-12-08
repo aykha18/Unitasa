@@ -6,8 +6,12 @@ Uses structlog for structured logging with JSON output
 import logging
 import sys
 from typing import Any, Dict
-import structlog
-from pythonjsonlogger import jsonlogger
+try:
+    import structlog
+    from pythonjsonlogger import jsonlogger
+    STRUCTLOG_AVAILABLE = True
+except ImportError:
+    STRUCTLOG_AVAILABLE = False
 
 from app.core.config import get_settings
 settings = get_settings()
@@ -17,51 +21,59 @@ def setup_logging():
     """
     Configure structured logging for the application
     """
+    # Default log level and format
+    log_level = getattr(logging, "INFO")  # Default to INFO
+    log_format = "text"  # Default to text
+
+    # Try to get from settings if available
+    try:
+        log_level = getattr(logging, getattr(settings, 'log_level', 'INFO').upper())
+        log_format = getattr(settings, 'log_format', 'text')
+    except AttributeError:
+        pass
+
     # Configure standard library logging
     logging.basicConfig(
-        format="%(message)s",
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         stream=sys.stdout,
-        level=getattr(logging, settings.log_level.upper()),
+        level=log_level,
     )
 
-    # Configure structlog
-    if settings.log_format == "json":
-        # JSON logging for production
-        structlog.configure(
-            processors=[
-                structlog.contextvars.merge_contextvars,
-                structlog.processors.add_log_level,
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.JSONRenderer(),
-            ],
-            wrapper_class=structlog.make_filtering_bound_logger(
-                getattr(logging, settings.log_level.upper())
-            ),
-            context_class=dict,
-            logger_factory=structlog.WriteLoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
-    else:
-        # Human-readable logging for development
-        structlog.configure(
-            processors=[
-                structlog.contextvars.merge_contextvars,
-                structlog.processors.add_log_level,
-                structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S"),
-                structlog.dev.ConsoleRenderer(colors=True),
-            ],
-            wrapper_class=structlog.make_filtering_bound_logger(
-                getattr(logging, settings.log_level.upper())
-            ),
-            context_class=dict,
-            logger_factory=structlog.WriteLoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
+    if STRUCTLOG_AVAILABLE:
+        # Configure structlog
+        if log_format == "json":
+            # JSON logging for production
+            structlog.configure(
+                processors=[
+                    structlog.contextvars.merge_contextvars,
+                    structlog.processors.add_log_level,
+                    structlog.processors.TimeStamper(fmt="iso"),
+                    structlog.processors.JSONRenderer(),
+                ],
+                wrapper_class=structlog.make_filtering_bound_logger(log_level),
+                context_class=dict,
+                logger_factory=structlog.WriteLoggerFactory(),
+                cache_logger_on_first_use=True,
+            )
+        else:
+            # Human-readable logging for development
+            structlog.configure(
+                processors=[
+                    structlog.contextvars.merge_contextvars,
+                    structlog.processors.add_log_level,
+                    structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S"),
+                    structlog.dev.ConsoleRenderer(colors=True),
+                ],
+                wrapper_class=structlog.make_filtering_bound_logger(log_level),
+                context_class=dict,
+                logger_factory=structlog.WriteLoggerFactory(),
+                cache_logger_on_first_use=True,
+            )
 
 
-def get_logger(name: str) -> structlog.BoundLoggerBase:
+def get_logger(name: str):
     """
-    Get a structured logger instance
+    Get a logger instance
 
     Args:
         name: Logger name (usually __name__)
@@ -69,7 +81,10 @@ def get_logger(name: str) -> structlog.BoundLoggerBase:
     Returns:
         Configured logger instance
     """
-    return structlog.get_logger(name)
+    if STRUCTLOG_AVAILABLE:
+        return structlog.get_logger(name)
+    else:
+        return logging.getLogger(name)
 
 
 # Global logger instance

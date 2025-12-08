@@ -5,6 +5,7 @@ Main API router for v1 endpoints
 from fastapi import APIRouter
 
 from app.api.agents import router as agents_router
+from app.api.client_onboarding import router as client_onboarding_router
 from .landing import router as landing_router
 from .social import router as social_router
 from .crm_marketplace import router as crm_marketplace_router
@@ -15,6 +16,9 @@ api_router = APIRouter()
 
 # Include existing agents router
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
+
+# Include client onboarding router
+api_router.include_router(client_onboarding_router, prefix="/clients", tags=["clients"])
 
 # Include new landing page router
 api_router.include_router(landing_router, prefix="/landing", tags=["landing"])

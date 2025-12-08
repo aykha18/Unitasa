@@ -865,14 +865,23 @@ async def create_post(
                     })
                     continue
 
-                # Decrypt access token
-                logger.debug(f"Decrypting access token for platform: {platform}")
+                # Decrypt tokens
+                logger.debug(f"Decrypting tokens for platform: {platform}")
                 access_token = decrypt_data(account.access_token)
+                refresh_token = decrypt_data(account.refresh_token) if account.refresh_token else None
 
                 # Post to platform
                 logger.info(f"Getting service for platform: {platform}")
                 if platform == "twitter":
                     service = get_twitter_service(access_token)
+                    # Set refresh token and expiration info for automatic token refresh
+                    logger.info(f"Setting refresh token data: refresh_token_exists={refresh_token is not None}, expires_at={account.token_expires_at}")
+                    if refresh_token and account.token_expires_at:
+                        service._refresh_token = refresh_token
+                        service._token_expires_at = account.token_expires_at
+                        logger.info(f"Refresh token data set successfully")
+                    else:
+                        logger.warning(f"Missing refresh token or expiration data")
                 elif platform == "facebook":
                     service = get_facebook_service(access_token)
                 elif platform == "instagram":
@@ -919,10 +928,19 @@ async def create_post(
                         "posted_at": post.posted_at.isoformat()
                     })
                 else:
+                    # Check if account needs reconnection
+                    if result.get('needs_reconnection'):
+                        logger.warning(f"Account needs reconnection: platform={platform}, account_id={account.id}")
+                        # Mark account as inactive and requiring reconnection
+                        account.is_active = False
+                        account.last_synced_at = datetime.utcnow()
+                        # Could also send notification here
+
                     results.append({
                         "platform": platform,
                         "success": False,
-                        "error": result.get('error', 'Unknown error')
+                        "error": result.get('error', 'Unknown error'),
+                        "needs_reconnection": result.get('needs_reconnection', False)
                     })
 
             except Exception as e:

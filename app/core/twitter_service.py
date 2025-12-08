@@ -295,23 +295,68 @@ class TwitterAutomationService:
         }
 
     def post_content(self, content: str, campaign_data: Dict = None) -> Dict[str, Any]:
-        """Post content to Twitter"""
-        try:
-            tweet_data = self.api.post_tweet(content)
+        """Post content to Twitter with automatic token management"""
+        max_retries = 2  # Try refresh once, then fail gracefully
 
-            return {
-                'success': True,
-                'post_id': tweet_data['id'],
-                'url': f"https://twitter.com/i/status/{tweet_data['id']}",
-                'posted_at': tweet_data.get('created_at'),
-                'platform': 'twitter'
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': str(e),
-                'platform': 'twitter'
-            }
+        for attempt in range(max_retries):
+            try:
+                # Check if token needs refresh (tokens expire after 2 hours)
+                if self._should_refresh_token():
+                    print(f"Token needs refresh (attempt {attempt + 1})")
+                    try:
+                        self._refresh_token()
+                        print("Token refresh successful")
+                    except Exception as refresh_error:
+                        print(f"Token refresh failed: {refresh_error}")
+                        if attempt == max_retries - 1:
+                            # Final attempt failed, mark account as needing reconnection
+                            return {
+                                'success': False,
+                                'error': f'Token refresh failed: {refresh_error}. Account needs reconnection.',
+                                'needs_reconnection': True,
+                                'platform': 'twitter'
+                            }
+                        continue  # Try posting with current token
+
+                # Attempt to post
+                print(f"Attempting to post tweet: {content[:50]}...")
+                tweet_data = self.api.post_tweet(content)
+                return {
+                    'success': True,
+                    'post_id': tweet_data['id'],
+                    'url': f"https://twitter.com/i/status/{tweet_data['id']}",
+                    'posted_at': tweet_data.get('created_at'),
+                    'platform': 'twitter'
+                }
+
+            except Exception as e:
+                error_str = str(e).lower()
+                if 'unauthorized' in error_str or '401' in error_str:
+                    if attempt < max_retries - 1:
+                        print(f"Post failed with auth error, trying refresh: {e}")
+                        continue  # Try refresh on next iteration
+                    else:
+                        # All attempts failed
+                        return {
+                            'success': False,
+                            'error': f'Authentication failed after {max_retries} attempts. Account needs reconnection.',
+                            'needs_reconnection': True,
+                            'platform': 'twitter'
+                        }
+                else:
+                    # Non-auth error, don't retry
+                    return {
+                        'success': False,
+                        'error': str(e),
+                        'platform': 'twitter'
+                    }
+
+        # Should not reach here, but fallback
+        return {
+            'success': False,
+            'error': 'Unknown posting error',
+            'platform': 'twitter'
+        }
 
     def find_engagement_targets(self, keywords: list, max_results: int = 20) -> list:
         """Find tweets to engage with based on keywords"""
@@ -404,6 +449,52 @@ class TwitterAutomationService:
         recency_boost = max(0, 1 - (hours_old / 24))  # Decay over 24 hours
 
         return score * (0.7 + 0.3 * recency_boost)
+
+    def _should_refresh_token(self) -> bool:
+        """Check if the access token needs to be refreshed"""
+        # Twitter access tokens expire after 2 hours
+        # We'll refresh if it's been more than 1.5 hours to be safe
+        if not hasattr(self, '_token_expires_at') or self._token_expires_at is None:
+            print("No token expiration info, will refresh")
+            return True  # No expiration info, refresh to be safe
+
+        expires_at = self._token_expires_at
+        if expires_at.tzinfo is None:
+            # Assume UTC if no timezone info
+            from datetime import timezone
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        current_time = datetime.now(timezone.utc)
+
+        # Add 30-minute buffer before expiration
+        buffer_time = timedelta(minutes=30)
+        should_refresh = current_time + buffer_time >= expires_at
+
+        print(f"Token expires at: {expires_at}, current time: {current_time}, should refresh: {should_refresh}")
+        return should_refresh
+
+    def _refresh_token(self):
+        """Refresh the access token using the refresh token"""
+        try:
+            if not hasattr(self, '_refresh_token') or not self._refresh_token:
+                raise Exception("No refresh token available")
+
+            # Use the OAuth service to refresh
+            token_data = self.oauth.refresh_access_token(self._refresh_token)
+
+            # Update the API service with new token
+            self.api = TwitterAPIService(token_data['access_token'])
+
+            # Store new token data
+            self._access_token = token_data['access_token']
+            self._refresh_token = token_data.get('refresh_token')
+            self._token_expires_at = token_data.get('expires_at')
+
+            print(f"Successfully refreshed Twitter access token")
+
+        except Exception as e:
+            print(f"Failed to refresh Twitter token: {e}")
+            raise
 
 
 def get_twitter_service(access_token: str = None) -> TwitterAutomationService:

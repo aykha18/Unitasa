@@ -45,7 +45,6 @@ Unitasa provides "Everything you need IN one platform" for marketing automation 
   - Personal founder onboarding (1-hour sessions)
   - Early access to features
   - Product influence and case study participation
-- **Current Progress:** 13/25 spots taken, 12 remaining
 
 #### Post-Founding Member Pricing
 - **Tier 1:** $97/month (Basic automation)
@@ -253,7 +252,7 @@ Unitasa provides "Everything you need IN one platform" for marketing automation 
 ## Team Analysis
 
 ### Founder Profile
-- **Background:** Technical founder with 5+ months full-time R&D experience
+- **Background:** Technical founder with 13+ yrs in IT and 6+ months full-time R&D experience
 - **Technical Skills:** Full-stack development, AI/ML integration, system architecture
 - **Domain Knowledge:** Marketing automation, B2B SaaS, Indian market dynamics
 - **Execution Track Record:** Built MVP from scratch, deployed to production, secured early customers
@@ -266,7 +265,7 @@ Unitasa provides "Everything you need IN one platform" for marketing automation 
 - **Risks:** Single point of failure, bandwidth limitations, expertise gaps
 
 #### Hiring Plan
-- **Phase 1 (Post-Investment):** Frontend developer, DevOps engineer
+- **Phase 1 (Post-Investment):**1 Frontend developer, 1 DevOps engineer
 - **Phase 2 (Product-Market Fit):** AI/ML engineer, sales engineer
 - **Phase 3 (Scale):** Customer success, marketing, additional engineers
 
@@ -477,7 +476,3 @@ Unitasa provides "Everything you need IN one platform" for marketing automation 
 Unitasa represents a compelling investment opportunity in the emerging AI marketing automation space. The combination of sophisticated multi-agent architecture, clear market need, and founder execution capability creates a strong foundation for success. While execution risks exist due to the solo founder structure, the technical validation and early traction mitigate these concerns.
 
 The recommended investment provides sufficient capital to reach product-market fit while maintaining founder alignment through reasonable valuation expectations. This is a classic pre-seed opportunity where technical innovation meets market timing.
-
-**Final Recommendation: INVEST**
-
-*This due diligence report is based on codebase analysis, documentation review, and market research. Investment decisions should include additional validation through customer calls, technical deep-dives, and legal review.*

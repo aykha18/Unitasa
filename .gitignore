@@ -203,7 +203,8 @@ yarn-error.log*
 # Temporary and test files
 tmp/
 temp/
-test_*.py
+temp/
+check_*.py
 check_*.py
 verify_*.py
 validate_*.py

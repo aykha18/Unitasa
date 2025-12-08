@@ -69,6 +69,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip caching for API requests - let them go directly to network
+  if (request.url.includes('/api/')) {
+    return;
+  }
+
   // Default: try cache first, then network
   event.respondWith(
     caches.match(request)

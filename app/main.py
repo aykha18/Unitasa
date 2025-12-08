@@ -15,7 +15,7 @@ load_dotenv()
 warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*was never awaited.*")
 warnings.filterwarnings("ignore", message=".*Event loop is closed.*")
 warnings.filterwarnings("ignore", message=".*Exception terminating connection.*")
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +23,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.database import Base, init_database
+from app.core.logging import setup_logging
 from app.core.security_middleware import SecurityHeadersMiddleware
 
 print("Importing API modules...")
@@ -181,34 +182,72 @@ async def create_default_data(engine):
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
+    print("Setting up logging...")
+    setup_logging()
     print("Starting Unitasa application...")
     engine = None
+    background_tasks = []
+
     try:
         print("Attempting database connection...")
         engine, _ = init_database()
         print(f"Database URL: {engine.url}")
-        
+
         # Test connection with proper cleanup
         try:
             async with engine.begin() as conn:
                 print("Creating database tables...")
                 await conn.run_sync(Base.metadata.create_all)
                 print(f"Created tables: {list(Base.metadata.tables.keys())}")
-            
+
             # Create default data
             print("Creating default user and campaign...")
             await create_default_data(engine)
             print("Database initialized successfully")
+
+            # Start background services
+            print("Starting background services...")
+
+            # Import background services
+            try:
+                from app.core.token_refresh_service import scheduled_token_refresh
+                from app.core.client_notification_service import scheduled_client_notifications
+
+                # Create background tasks
+                token_refresh_task = asyncio.create_task(scheduled_token_refresh())
+                client_notification_task = asyncio.create_task(scheduled_client_notifications())
+
+                background_tasks.extend([token_refresh_task, client_notification_task])
+
+                print("✅ Background services started:")
+                print("   • Token refresh service (runs every 4 hours)")
+                print("   • Client notification service (runs daily)")
+
+            except ImportError as e:
+                print(f"⚠️  Background services not available: {e}")
+                print("   This is normal for minimal deployments")
+
         except Exception as conn_error:
             print(f"Database connection error: {conn_error}")
             # Don't fail startup, just continue without database
-            
+
     except Exception as e:
         print(f"Database initialization failed: {e}")
         print("Application will continue without database initialization")
 
     print("Application startup complete")
     yield
+
+    # Shutdown - cancel background tasks
+    print("Shutting down background services...")
+    for task in background_tasks:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+    print("Background services shut down")
 
     # Shutdown
     print("Shutting down application...")
@@ -489,6 +528,26 @@ def get_conversion_stage(path: str) -> str:
     else:
         return "other"
 
+# OAuth callback redirect routes
+@app.get("/auth/{platform}/callback")
+async def oauth_callback_redirect(
+    platform: str,
+    code: str = Query(..., description="Authorization code from OAuth provider"),
+    state: str = Query(..., description="State parameter for security"),
+    error: str = Query(None, description="Error from OAuth provider"),
+    user_id: int = Query(1, description="User ID")
+):
+    """Redirect OAuth callbacks to the API endpoints"""
+    from fastapi.responses import RedirectResponse
+
+    # Redirect to the actual API endpoint
+    redirect_url = f"/api/v1/social/auth/{platform}/callback?code={code}&state={state}&user_id={user_id}"
+    if error:
+        redirect_url += f"&error={error}"
+
+    return RedirectResponse(url=redirect_url, status_code=302)
+
+
 # Catch-all route for SPA - serves index.html for all non-API routes
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
@@ -497,14 +556,14 @@ async def serve_spa(full_path: str):
     if full_path.startswith("api/"):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="API endpoint not found")
-    
+
     # Check if it's a static file request (has file extension)
     if "." in full_path.split("/")[-1]:
         # Try to serve the actual file from build directory
         file_path = f"frontend/build/{full_path}"
         if os.path.exists(file_path):
             return FileResponse(file_path)
-    
+
     # For all other paths (routes), serve index.html (React will handle routing)
     index_path = "frontend/build/index.html"
     if os.path.exists(index_path):

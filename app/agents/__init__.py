@@ -1,7 +1,8 @@
-# AI Marketing Agents - Simplified for deployment
-# Core agent functionality without complex dependencies
+# AI Marketing Agents - Social Media Automation System
 
-# For now, we'll keep agents minimal to avoid import issues
-# Full agent functionality will be restored after successful deployment
+from .social_content_generator import SocialContentGeneratorAgent, create_social_content_generator
 
-__all__ = []
+__all__ = [
+    'SocialContentGeneratorAgent',
+    'create_social_content_generator'
+]

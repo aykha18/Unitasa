@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui';
+import CreatePostModal from '../components/social/CreatePostModal';
 import {
-  Twitter,
+  X,
   Plus,
   BarChart3,
   Calendar,
@@ -65,6 +66,7 @@ const SocialDashboard: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -94,14 +96,35 @@ const SocialDashboard: React.FC = () => {
   };
 
   const handleConnectAccount = async (platform: string) => {
+    console.log('Starting OAuth flow for platform:', platform);
+
+    // Check if we already have OAuth data in sessionStorage
+    const existingState = sessionStorage.getItem('oauth_state');
+    const existingPlatform = sessionStorage.getItem('oauth_platform');
+
+    if (existingState && existingPlatform === platform) {
+      console.log('Reusing existing OAuth session');
+      const authUrl = sessionStorage.getItem('oauth_auth_url');
+      if (authUrl) {
+        console.log('Redirecting to existing OAuth URL:', authUrl);
+        window.location.href = authUrl;
+        return;
+      }
+    }
+
     try {
       // Get OAuth URL
+      console.log('Fetching OAuth URL...');
       const response = await fetch(`/api/v1/social/auth/${platform}/url?user_id=1`);
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('OAuth data received:', data);
 
-      // Store code verifier for later
+      // Store OAuth data in sessionStorage
       sessionStorage.setItem('oauth_code_verifier', data.code_verifier);
       sessionStorage.setItem('oauth_state', data.state);
+      sessionStorage.setItem('oauth_platform', platform);
+      sessionStorage.setItem('oauth_auth_url', data.auth_url);
 
       // Check if this is demo mode
       if (data.demo_mode) {
@@ -110,16 +133,19 @@ const SocialDashboard: React.FC = () => {
       }
 
       // Redirect to OAuth
+      console.log('Redirecting to:', data.auth_url);
       window.location.href = data.auth_url;
     } catch (error) {
       console.error('Failed to get OAuth URL:', error);
+      alert('Failed to connect account. Check console for details.');
     }
   };
+
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case 'twitter':
-        return <Twitter className="w-5 h-5" />;
+        return <X className="w-5 h-5" />;
       case 'facebook':
         return <Facebook className="w-5 h-5" />;
       case 'youtube':
@@ -188,7 +214,10 @@ const SocialDashboard: React.FC = () => {
               <p className="text-gray-600 mt-1">Manage your automated social media presence</p>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+              <button
+                onClick={() => setIsPostModalOpen(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+              >
                 <Zap className="w-4 h-4 mr-2" />
                 Quick Post
               </button>
@@ -211,11 +240,10 @@ const SocialDashboard: React.FC = () => {
               <button
                 key={id}
                 onClick={() => setActiveTab(id as any)}
-                className={`flex items-center px-1 py-2 border-b-2 font-medium text-sm ${
-                  activeTab === id
+                className={`flex items-center px-1 py-2 border-b-2 font-medium text-sm ${activeTab === id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <Icon className="w-4 h-4 mr-2" />
                 {label}
@@ -421,8 +449,11 @@ const SocialDashboard: React.FC = () => {
                       </button>
                     )}
                     {isConnected && (
-                      <button className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors">
-                        Manage Account
+                      <button
+                        onClick={() => setIsPostModalOpen(true)}
+                        className="w-full bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Post Content
                       </button>
                     )}
                   </Card>
@@ -482,11 +513,10 @@ const SocialDashboard: React.FC = () => {
                 <Card key={campaign.id} className="p-6 hover:shadow-lg transition-shadow">
                   <div className="flex justify-between items-start mb-4">
                     <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      campaign.status === 'active' ? 'bg-green-100 text-green-800' :
-                      campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs ${campaign.status === 'active' ? 'bg-green-100 text-green-800' :
+                        campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                      }`}>
                       {campaign.status}
                     </span>
                   </div>
@@ -622,6 +652,12 @@ const SocialDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      <CreatePostModal
+        isOpen={isPostModalOpen}
+        onClose={() => setIsPostModalOpen(false)}
+        connectedAccounts={connectedAccounts}
+      />
     </div>
   );
 };
@@ -629,4 +665,4 @@ const SocialDashboard: React.FC = () => {
 export default SocialDashboard;
 
 // Export empty object to make this a module
-export {};
+export { };

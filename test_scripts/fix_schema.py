@@ -1,15 +1,45 @@
 import asyncio
 import asyncpg
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 async def fix_schema():
-    # Connect to database
-    conn = await asyncpg.connect(
-        host='localhost',
-        port=5432,
-        user='postgres',
-        password='aykha123',
-        database='unitas'
-    )
+    # Connect to database using environment variables
+    database_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:aykha123@localhost:5432/unitas")
+
+    # Parse database URL for asyncpg connection
+    if database_url.startswith("postgresql+asyncpg://"):
+        # Extract connection details from URL
+        url_parts = database_url.replace("postgresql+asyncpg://", "").split("@")
+        user_pass = url_parts[0].split(":")
+        host_db = url_parts[1].split("/")
+
+        user = user_pass[0]
+        password = user_pass[1] if len(user_pass) > 1 else ""
+        host_port = host_db[0].split(":")
+        host = host_port[0]
+        port = int(host_port[1]) if len(host_port) > 1 else 5432
+        database = host_db[1]
+
+        conn = await asyncpg.connect(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database
+        )
+    else:
+        # Fallback to direct connection (for backward compatibility)
+        conn = await asyncpg.connect(
+            host='localhost',
+            port=5432,
+            user='postgres',
+            password='aykha123',
+            database='unitas'
+        )
     
     try:
         # Add missing columns

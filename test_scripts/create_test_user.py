@@ -6,6 +6,10 @@ Create a test user for login testing
 import asyncio
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the app directory to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,13 +21,18 @@ from app.core.jwt_handler import get_password_hash
 async def create_test_user():
     """Create a test user"""
     try:
-        print("Creating test user...")
+        # Use environment variables for test user credentials
+        test_email = os.getenv("TEST_USER_EMAIL", "test@example.com")
+        test_password = os.getenv("TEST_USER_PASSWORD", "testpassword123")
+        test_name = os.getenv("TEST_USER_NAME", "Test User")
+
+        print(f"Creating test user: {test_email}")
         engine, SessionLocal = init_database()
 
         async with SessionLocal() as session:
             # Check if user already exists
             from sqlalchemy import select
-            result = await session.execute(select(User).where(User.email == 'khanayub25@outlook.com'))
+            result = await session.execute(select(User).where(User.email == test_email))
             existing_user = result.scalar_one_or_none()
 
             if existing_user:
@@ -33,13 +42,13 @@ async def create_test_user():
                 return
 
             # Create new user
-            hashed_password = get_password_hash('testpassword123')
+            hashed_password = get_password_hash(test_password)
             user = User(
-                email='khanayub25@outlook.com',
+                email=test_email,
                 hashed_password=hashed_password,
-                full_name='Test User',
-                first_name='Test',
-                last_name='User',
+                full_name=test_name,
+                first_name=test_name.split()[0] if test_name else 'Test',
+                last_name=' '.join(test_name.split()[1:]) if test_name and len(test_name.split()) > 1 else 'User',
                 company='Test Company',
                 is_active=True,
                 is_verified=True,
@@ -52,7 +61,7 @@ async def create_test_user():
 
             print('✅ Test user created successfully!')
             print(f'Email: {user.email}')
-            print(f'Password: testpassword123')
+            print(f'Password: {test_password}')
             print(f'User ID: {user.id}')
 
     except Exception as e:

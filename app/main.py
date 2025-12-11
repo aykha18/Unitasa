@@ -141,10 +141,15 @@ async def create_default_data(engine):
             
             if not user:
                 print("Creating system user...")
+                # Generate a proper hash for the system user password
+                from app.core.jwt_handler import get_password_hash
+                system_password = os.getenv("SYSTEM_USER_PASSWORD", "change_this_system_password_in_production")
+                hashed_system_password = get_password_hash(system_password)
+
                 user = User(
                     id=1,
                     email="system@unitasa.com",
-                    hashed_password="system_password_hash",  # Required field
+                    hashed_password=hashed_system_password,
                     full_name="System User",
                     is_active=True,
                     role="admin"

@@ -8,18 +8,22 @@ import json
 import time
 import random
 import string
+import os
 from datetime import datetime
 
 def generate_test_user():
     """Generate realistic test user data"""
     random_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    # Use environment variable for test password, fallback to secure default
+    test_password = os.getenv("TEST_USER_PASSWORD", "SecureTestPass123!")
+
     return {
         "firstName": f"Test",
         "lastName": f"User{random_id.upper()}",
         "email": f"testuser.{random_id}@unitasa.com",
         "company": f"Test Company {random_id.upper()}",
-        "password": "Test123!",
-        "confirmPassword": "Test123!",
+        "password": test_password,
+        "confirmPassword": test_password,
         "agreeToTerms": True
     }
 

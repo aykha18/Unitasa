@@ -7,18 +7,22 @@ import requests
 import json
 import random
 import string
+import os
 from datetime import datetime
 
 def generate_trial_user():
     """Generate test user for free trial"""
     random_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    # Use environment variable for test password, fallback to secure default
+    test_password = os.getenv("TEST_USER_PASSWORD", "SecureTestPass123!")
+
     return {
         "firstName": f"Trial",
         "lastName": f"User{random_id.upper()}",
         "email": f"trial.{random_id}@unitasa.com",
         "company": f"Trial Company {random_id.upper()}",
-        "password": "Trial123!",
-        "confirmPassword": "Trial123!",
+        "password": test_password,
+        "confirmPassword": test_password,
         "agreeToTerms": True
     }
 

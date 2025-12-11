@@ -228,7 +228,7 @@ const SimpleAIReportModal: React.FC<SimpleAIReportModalProps> = ({
                 
                 <Button
                   variant="outline"
-                  onClick={() => window.open('mailto:hello@unitasa.in', '_blank')}
+                  onClick={() => window.open('mailto:support@unitasa.in', '_blank')}
                   className="w-full"
                 >
                   Questions? Contact Us

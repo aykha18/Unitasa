@@ -328,6 +328,336 @@ class EmailService:
         except Exception as e:
             return False, f"Failed to send welcome email: {str(e)}"
     
+    def send_free_trial_welcome_email(
+        self,
+        user,
+        verification_token: str = None
+    ) -> Tuple[bool, str]:
+        """Send welcome email to new free trial user"""
+        try:
+            # Prepare template data
+            template_data = {
+                "user": user,
+                "user_name": user.first_name or "there",
+                "trial_days": 15,
+                "trial_end_date": user.trial_end_date.strftime("%B %d, %Y") if user.trial_end_date else "N/A",
+                "verification_token": verification_token,
+                "verification_url": f"https://app.unitasa.in/verify-email?token={verification_token}" if verification_token else None,
+                "app_name": settings.app_name
+            }
+            
+            # HTML template
+            html_template = Template("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Welcome to Your Free Trial!</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; background: #f9fafb; }
+                    .welcome-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+                    .trial-info { background: #ecfdf5; border: 1px solid #d1fae5; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                    .footer { text-align: center; padding: 20px; color: #6b7280; }
+                    .button { display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 10px; }
+                    .verify-button { background: #10b981; }
+                    .trial-badge { background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: inline-block; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🎉 Welcome to {{ app_name }}!</h1>
+                        <p>Your 15-Day Free Trial Starts Now</p>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="welcome-box">
+                            <h2>Hi {{ user_name }}!</h2>
+                            <p>Welcome to Unitasa! Your <span class="trial-badge">15-Day Free Trial</span> has been activated and you now have full access to our AI marketing automation platform.</p>
+                        </div>
+                        
+                        {% if verification_token %}
+                        <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h3 style="color: #92400e; margin-top: 0;">📧 Please Verify Your Email</h3>
+                            <p style="color: #92400e;">To ensure you receive important updates and don't lose access to your account, please verify your email address:</p>
+                            <p style="text-align: center; margin: 20px 0;">
+                                <a href="{{ verification_url }}" class="button verify-button">Verify Email Address</a>
+                            </p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="trial-info">
+                            <h3 style="color: #065f46; margin-top: 0;">🚀 What You Get During Your Trial</h3>
+                            <ul style="color: #065f46;">
+                                <li><strong>Full Platform Access</strong> - All features unlocked for 15 days</li>
+                                <li><strong>AI Content Generation</strong> - Create engaging social media posts</li>
+                                <li><strong>CRM Integration</strong> - Connect with HubSpot, Salesforce, and more</li>
+                                <li><strong>Analytics Dashboard</strong> - Track your marketing performance</li>
+                                <li><strong>Email Support</strong> - Get help when you need it</li>
+                            </ul>
+                            <p style="color: #065f46;"><strong>Trial ends:</strong> {{ trial_end_date }}</p>
+                        </div>
+                        
+                        <h3>🎯 Get Started in 3 Easy Steps</h3>
+                        <ol>
+                            <li><strong>Complete Your Profile</strong> - Add your company details and preferences</li>
+                            <li><strong>Connect Your CRM</strong> - Integrate with your existing tools</li>
+                            <li><strong>Create Your First Campaign</strong> - Use AI to generate your first marketing content</li>
+                        </ol>
+                        
+                        <p style="text-align: center; margin: 30px 0;">
+                            <a href="https://app.unitasa.in/dashboard" class="button">Access Your Dashboard</a>
+                            <a href="https://app.unitasa.in/onboarding" class="button">Start Setup Guide</a>
+                        </p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h3>💡 Need Help Getting Started?</h3>
+                            <p>Our team is here to help you succeed:</p>
+                            <ul>
+                                <li>📚 <a href="https://docs.unitasa.in">Browse our documentation</a></li>
+                                <li>💬 <a href="mailto:support@unitasa.in">Email our support team</a></li>
+                                <li>🎥 <a href="https://unitasa.in/tutorials">Watch video tutorials</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Ready to supercharge your marketing with AI? We're excited to have you on board!</p>
+                        <p>Questions? Reply to this email or contact support@unitasa.in</p>
+                        <p>{{ app_name }} - AI Marketing Automation Platform</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """)
+            
+            # Text template
+            text_template = Template("""
+            Welcome to {{ app_name }}!
+            
+            Your 15-Day Free Trial Starts Now
+            
+            Hi {{ user_name }}!
+            
+            Welcome to Unitasa! Your 15-Day Free Trial has been activated and you now have full access to our AI marketing automation platform.
+            
+            {% if verification_token %}
+            IMPORTANT: Please verify your email address
+            Click here to verify: {{ verification_url }}
+            {% endif %}
+            
+            What You Get During Your Trial:
+            - Full Platform Access - All features unlocked for 15 days
+            - AI Content Generation - Create engaging social media posts
+            - CRM Integration - Connect with HubSpot, Salesforce, and more
+            - Analytics Dashboard - Track your marketing performance
+            - Email Support - Get help when you need it
+            
+            Trial ends: {{ trial_end_date }}
+            
+            Get Started in 3 Easy Steps:
+            1. Complete Your Profile - Add your company details and preferences
+            2. Connect Your CRM - Integrate with your existing tools
+            3. Create Your First Campaign - Use AI to generate your first marketing content
+            
+            Access your dashboard: https://app.unitasa.in/dashboard
+            Start setup guide: https://app.unitasa.in/onboarding
+            
+            Need Help Getting Started?
+            - Browse our documentation: https://docs.unitasa.in
+            - Email our support team: support@unitasa.in
+            - Watch video tutorials: https://unitasa.in/tutorials
+            
+            Ready to supercharge your marketing with AI? We're excited to have you on board!
+            
+            Questions? Reply to this email or contact support@unitasa.in
+            
+            {{ app_name }} - AI Marketing Automation Platform
+            """)
+            
+            html_content = html_template.render(**template_data)
+            text_content = text_template.render(**template_data)
+            
+            subject = f"🎉 Welcome to {settings.app_name} - Your Free Trial is Active!"
+            
+            return self.send_email(
+                to_email=user.email,
+                subject=subject,
+                html_content=html_content,
+                text_content=text_content
+            )
+            
+        except Exception as e:
+            return False, f"Failed to send welcome email: {str(e)}"
+
+    def send_email_verification(
+        self,
+        user,
+        verification_token: str
+    ) -> Tuple[bool, str]:
+        """Send email verification email"""
+        try:
+            template_data = {
+                "user": user,
+                "user_name": user.first_name or "there",
+                "verification_token": verification_token,
+                "verification_url": f"https://app.unitasa.in/verify-email?token={verification_token}",
+                "app_name": settings.app_name
+            }
+            
+            html_template = Template("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Verify Your Email Address</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #2563eb; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; background: #f9fafb; }
+                    .verify-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
+                    .footer { text-align: center; padding: 20px; color: #6b7280; }
+                    .button { display: inline-block; background: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>📧 Verify Your Email</h1>
+                        <p>{{ app_name }}</p>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="verify-box">
+                            <h2>Hi {{ user_name }}!</h2>
+                            <p>Thanks for signing up for {{ app_name }}! To complete your registration and secure your account, please verify your email address.</p>
+                            
+                            <p style="margin: 30px 0;">
+                                <a href="{{ verification_url }}" class="button">Verify Email Address</a>
+                            </p>
+                            
+                            <p style="font-size: 14px; color: #6b7280;">
+                                If the button doesn't work, copy and paste this link into your browser:<br>
+                                <a href="{{ verification_url }}">{{ verification_url }}</a>
+                            </p>
+                            
+                            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+                                This verification link will expire in 24 hours for security reasons.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>If you didn't create an account with {{ app_name }}, you can safely ignore this email.</p>
+                        <p>Questions? Contact support@unitasa.in</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """)
+            
+            html_content = html_template.render(**template_data)
+            subject = f"Verify your email address - {settings.app_name}"
+            
+            return self.send_email(
+                to_email=user.email,
+                subject=subject,
+                html_content=html_content
+            )
+            
+        except Exception as e:
+            return False, f"Failed to send verification email: {str(e)}"
+
+    def send_password_reset_email(
+        self,
+        user,
+        reset_token: str
+    ) -> Tuple[bool, str]:
+        """Send password reset email"""
+        try:
+            template_data = {
+                "user": user,
+                "user_name": user.first_name or "there",
+                "reset_token": reset_token,
+                "reset_url": f"https://app.unitasa.in/reset-password?token={reset_token}",
+                "app_name": settings.app_name
+            }
+            
+            html_template = Template("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Reset Your Password</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #dc2626; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; background: #f9fafb; }
+                    .reset-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }
+                    .footer { text-align: center; padding: 20px; color: #6b7280; }
+                    .button { display: inline-block; background: #dc2626; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; }
+                    .warning { background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 6px; margin: 20px 0; color: #991b1b; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔒 Reset Your Password</h1>
+                        <p>{{ app_name }}</p>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="reset-box">
+                            <h2>Hi {{ user_name }}!</h2>
+                            <p>We received a request to reset your password for your {{ app_name }} account.</p>
+                            
+                            <p style="margin: 30px 0;">
+                                <a href="{{ reset_url }}" class="button">Reset My Password</a>
+                            </p>
+                            
+                            <p style="font-size: 14px; color: #6b7280;">
+                                If the button doesn't work, copy and paste this link into your browser:<br>
+                                <a href="{{ reset_url }}">{{ reset_url }}</a>
+                            </p>
+                        </div>
+                        
+                        <div class="warning">
+                            <strong>Security Notice:</strong>
+                            <ul style="margin: 10px 0; text-align: left;">
+                                <li>This reset link will expire in 24 hours</li>
+                                <li>If you didn't request this reset, please ignore this email</li>
+                                <li>Your password will remain unchanged until you create a new one</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>If you didn't request a password reset, you can safely ignore this email.</p>
+                        <p>Questions? Contact support@unitasa.in</p>
+                        <p>{{ app_name }} - AI Marketing Automation Platform</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """)
+            
+            html_content = html_template.render(**template_data)
+            subject = f"Reset your password - {settings.app_name}"
+            
+            return self.send_email(
+                to_email=user.email,
+                subject=subject,
+                html_content=html_content
+            )
+            
+        except Exception as e:
+            return False, f"Failed to send password reset email: {str(e)}"
+
     def send_payment_failed_notification(
         self,
         email: str,

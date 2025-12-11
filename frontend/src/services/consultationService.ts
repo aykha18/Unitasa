@@ -19,8 +19,8 @@ interface ConsultationResponse {
 }
 
 class ConsultationService {
-  private baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8000/api/v1/consultation'
+  private baseUrl = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8001/api/v1/consultation'
     : '/api/v1/consultation';
 
   async bookConsultation(data: ConsultationBookingData): Promise<ConsultationResponse> {

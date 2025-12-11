@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, desc, select
@@ -12,7 +13,7 @@ from app.models.payment_transaction import PaymentTransaction
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Simple password-based auth (in production, use proper JWT auth)
-ADMIN_PASSWORD = "unitasa2025"  # Change this to a secure password
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "unitasa2025")  # Change this to a secure password in production
 
 def verify_admin(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):

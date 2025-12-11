@@ -89,6 +89,14 @@ try:
     from app.api.v1 import consultation
     print("Consultation module imported successfully")
     
+    print("Importing user_registration module...")
+    from app.api.v1 import user_registration
+    print("User registration module imported successfully")
+
+    print("Importing auth module...")
+    from app.api.v1 import auth
+    print("Auth module imported successfully")
+    
     print("Importing admin module...")
     from app.api.v1 import admin
     print("Admin module imported successfully")
@@ -400,6 +408,14 @@ try:
     app.include_router(consultation.router, prefix="/api/v1/consultation", tags=["consultation"])
     print("Consultation router included successfully")
     
+    print("Including user registration router...")
+    app.include_router(user_registration.router, prefix="/api/v1/auth", tags=["authentication"])
+    print("User registration router included successfully")
+
+    print("Including auth router...")
+    app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+    print("Auth router included successfully")
+    
     print("Importing ai_report module...")
     try:
         from app.api.v1 import ai_report
@@ -433,22 +449,34 @@ try:
         print(f"Social router traceback: {traceback.format_exc()}")
         raise
 
+    print("Including dashboard router...")
+    try:
+        from app.api.v1 import dashboard
+        app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
+        print("Dashboard router included successfully")
+    except Exception as e:
+        print(f"ERROR including dashboard router: {e}")
+        import traceback
+        print(f"Dashboard router traceback: {traceback.format_exc()}")
+        print("Skipping dashboard router")
+
     print("All API routers included successfully")
 except Exception as e:
     print(f"Error including API routers: {e}")
     import traceback
     traceback.print_exc()
 
-# Serve static files from React build
+# Serve static files from React build (optional for development)
 print("Checking for frontend build...")
-if os.path.exists("frontend/build"):
+if os.path.exists("frontend/build") and os.path.exists("frontend/build/static"):
     print("Frontend build found, mounting static files")
     # Only mount /static directory, not root (root is handled by catch-all route)
     app.mount("/static", StaticFiles(directory="frontend/build/static"), name="static")
     print("Static files mounted at /static")
     # Note: Root path "/" is handled by catch-all route at the end of the file
 else:
-    print("Frontend build not found!")
+    print("Frontend build not found - running in API-only mode")
+    print("Use 'cd frontend && npm run build' to create frontend build")
 
 @app.get("/health")
 async def health_check():

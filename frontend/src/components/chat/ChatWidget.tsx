@@ -80,8 +80,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       });
 
       if (response.ok) {
-        const chatSession: ChatSession = await response.json();
-        setSession(chatSession);
+        const chatSession = await response.json();
+        // Validate that the response is a valid ChatSession object
+        if (chatSession && typeof chatSession === 'object' && !Array.isArray(chatSession) && 'id' in chatSession && 'messages' in chatSession) {
+          setSession(chatSession);
+        } else {
+          console.error('Invalid chat session response:', chatSession);
+          // Don't set session, will show error message
+        }
       }
     } catch (error) {
       console.error('Failed to initialize chat:', error);
@@ -172,12 +178,29 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({
       });
 
       if (response.ok) {
-        const aiMessage: ChatMessage = await response.json();
-        // Add AI response to chat
-        setSession(prev => prev ? {
-          ...prev,
-          messages: [...prev.messages, aiMessage]
-        } : null);
+        const aiMessage = await response.json();
+        // Validate that the response is a valid ChatMessage object
+        if (aiMessage && typeof aiMessage === 'object' && !Array.isArray(aiMessage) && 'id' in aiMessage && 'content' in aiMessage && 'sender' in aiMessage) {
+          // Add AI response to chat
+          setSession(prev => prev ? {
+            ...prev,
+            messages: [...prev.messages, aiMessage]
+          } : null);
+        } else {
+          console.error('Invalid AI message response:', aiMessage);
+          // Add error message
+          const errorMessage: ChatMessage = {
+            id: Date.now().toString() + '_error',
+            content: 'Sorry, I encountered an error. Please try again.',
+            sender: 'agent',
+            timestamp: new Date(),
+            type: 'text'
+          };
+          setSession(prev => prev ? {
+            ...prev,
+            messages: [...prev.messages, errorMessage]
+          } : null);
+        }
       } else {
         console.error('Failed to get response:', response.status);
         // Add error message

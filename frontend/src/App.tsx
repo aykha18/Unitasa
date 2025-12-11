@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import LandingPage from './pages/LandingPage';
+import SignupPage from './pages/SignupPage';
+import SignupSuccessPage from './pages/SignupSuccessPage';
+import SignInPage from './pages/SignInPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import RefundPolicy from './pages/RefundPolicy';
@@ -44,10 +47,19 @@ function App() {
       window.scrollTo(0, 0); // Scroll to top on navigation
     };
 
+    // Handle programmatic navigation
+    const handleNavigation = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
     window.addEventListener('popstate', handlePopState);
+    
+    // Listen for custom navigation events
+    window.addEventListener('navigate', handleNavigation);
     
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('navigate', handleNavigation);
     };
   }, []);
 
@@ -137,6 +149,33 @@ function App() {
   // Simple routing based on pathname
   const getPageComponent = () => {
     switch (currentPath) {
+      case '/signup':
+        return <SignupPage />;
+      case '/signup/success':
+        return <SignupSuccessPage />;
+      case '/login':
+        return <SignInPage />;
+      case '/dashboard':
+        const DashboardPage = React.lazy(() => import('./pages/Dashboard/DashboardPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <DashboardPage />
+          </React.Suspense>
+        );
+      case '/verify-email':
+        const EmailVerificationPage = React.lazy(() => import('./pages/EmailVerificationPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <EmailVerificationPage />
+          </React.Suspense>
+        );
+      case '/co-creator':
+        const CoCreatorSignupPage = React.lazy(() => import('./pages/CoCreatorSignupPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <CoCreatorSignupPage />
+          </React.Suspense>
+        );
       case '/privacy-policy':
         return <PrivacyPolicy />;
       case '/terms-of-service':

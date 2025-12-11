@@ -38,8 +38,20 @@ export const useCurrency = (baseAmountUSD: number = 497): CurrencyDisplay => {
   useEffect(() => {
     const detectCurrency = async () => {
       try {
-        // Fetch user's country via IP geolocation
-        const response = await fetch('https://ipapi.co/json/');
+        // Try to fetch user's country via IP geolocation with timeout and error handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+        
+        const response = await fetch('https://ipapi.co/json/', {
+          signal: controller.signal,
+          mode: 'cors'
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
 
         const countryCode = data.country_code || 'US';
@@ -94,7 +106,8 @@ export const useCurrency = (baseAmountUSD: number = 497): CurrencyDisplay => {
           isAmerican
         });
       } catch (error) {
-        console.log('Currency detection failed, defaulting to USD');
+        // Silently handle errors (CORS, network issues, rate limiting)
+        // This prevents console spam while maintaining functionality
         // Default to USD on error
         setCurrencyDisplay({
           currency: 'USD',

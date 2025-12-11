@@ -10,7 +10,7 @@ interface ChatMessageListProps {
 const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isLoading }) => {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-      {messages.length === 0 && !isLoading && (
+      {(!messages || messages.length === 0) && !isLoading && (
         <div className="text-center text-gray-500 py-8">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
@@ -35,7 +35,7 @@ const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isLoading }
         </div>
       )}
       
-      {messages.map((message) => (
+      {messages && messages.map((message) => (
         <ChatMessageBubble key={message.id} message={message} />
       ))}
       

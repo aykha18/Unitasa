@@ -11,6 +11,7 @@ from .social import router as social_router
 from .crm_marketplace import router as crm_marketplace_router
 from .chat import router as chat_router
 from .analytics import router as analytics_router
+from .dashboard import router as dashboard_router
 
 api_router = APIRouter()
 
@@ -34,3 +35,6 @@ api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 
 # Include analytics router
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
+
+# Include dashboard router
+api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])

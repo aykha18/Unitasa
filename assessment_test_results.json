@@ -1,0 +1,193 @@
+[
+  {
+    "test": "API Health - /health",
+    "success": true,
+    "timestamp": "2025-12-09T16:32:40.900734",
+    "details": "HTTP 200",
+    "data": {
+      "status": "healthy",
+      "service": "unitasa-api",
+      "timestamp": "2025-12-09T16:32:40.897541",
+      "version": "1.0.0",
+      "features": {
+        "database": true,
+        "co_creator_program": true,
+        "assessment_engine": true,
+        "payment_processing": true
+      }
+    }
+  },
+  {
+    "test": "API Health - /api/v1/landing/health",
+    "success": true,
+    "timestamp": "2025-12-09T16:32:41.631281",
+    "details": "HTTP 200",
+    "data": {
+      "status": "healthy",
+      "service": "landing_page_working",
+      "version": "1.0.0",
+      "environment": "development",
+      "router": "landing_working",
+      "endpoints": [
+        "/health",
+        "/assessment/questions",
+        "/assessment/start",
+        "/assessment/submit",
+        "/founding-members/stats",
+        "/agent-activity/stats"
+      ]
+    }
+  },
+  {
+    "test": "Get Assessment Questions",
+    "success": true,
+    "timestamp": "2025-12-09T16:32:42.501992",
+    "details": "Retrieved 3 questions",
+    "data": {
+      "questions": [
+        {
+          "id": "crm_system",
+          "question": "Which CRM system are you currently using?",
+          "type": "multiple_choice",
+          "options": [
+            "Salesforce",
+            "HubSpot",
+            "Pipedrive",
+            "Zoho",
+            "Monday.com",
+            "Other",
+            "None"
+          ]
+        },
+        {
+          "id": "monthly_leads",
+          "question": "How many leads do you generate per month?",
+          "type": "multiple_choice",
+          "options": [
+            "0-50",
+            "51-200",
+            "201-500",
+            "501-1000",
+            "1000+"
+          ]
+        },
+        {
+          "id": "automation_level",
+          "question": "What's your current marketing automation level?",
+          "type": "scale",
+          "min": 1,
+          "max": 10
+        }
+      ],
+      "total_questions": 3,
+      "estimated_time_minutes": 5,
+      "assessment_type": "ai_business_readiness",
+      "version": "1.0"
+    }
+  },
+  {
+    "test": "Assessment Start",
+    "success": true,
+    "timestamp": "2025-12-09T16:32:44.045579",
+    "details": "Assessment ID: 1",
+    "data": {
+      "assessment_id": 1,
+      "status": "started",
+      "message": "Assessment started successfully",
+      "questions": [
+        {
+          "id": "crm_system",
+          "question": "Which CRM system are you currently using?",
+          "type": "multiple_choice",
+          "options": [
+            "Salesforce",
+            "HubSpot",
+            "Pipedrive",
+            "Zoho",
+            "Monday.com",
+            "Other",
+            "None"
+          ]
+        },
+        {
+          "id": "monthly_leads",
+          "question": "How many leads do you generate per month?",
+          "type": "multiple_choice",
+          "options": [
+            "0-50",
+            "51-200",
+            "201-500",
+            "501-1000",
+            "1000+"
+          ]
+        },
+        {
+          "id": "automation_level",
+          "question": "What's your current marketing automation level?",
+          "type": "scale",
+          "min": 1,
+          "max": 10
+        }
+      ]
+    }
+  },
+  {
+    "test": "Assessment Submit",
+    "success": true,
+    "timestamp": "2025-12-09T16:32:44.873322",
+    "details": "Score: 72.5, Level: hot",
+    "data": {
+      "assessment_id": 1,
+      "overall_score": 72.5,
+      "category_scores": {
+        "crm_integration": 75.0,
+        "technical_capability": 70.0,
+        "business_maturity": 80.0,
+        "automation_readiness": 65.0
+      },
+      "readiness_level": "hot",
+      "segment": "hot",
+      "current_crm": "hubspot",
+      "integration_recommendations": [
+        "Integrate with hubspot for automated lead capture",
+        "Set up real-time data synchronization",
+        "Configure custom field mapping"
+      ],
+      "automation_opportunities": [
+        "Automate lead scoring and qualification",
+        "Set up email nurturing sequences",
+        "Implement behavior-based triggers"
+      ],
+      "technical_requirements": [
+        "API access to your CRM system",
+        "Webhook configuration for real-time updates",
+        "Data validation and cleanup"
+      ],
+      "next_steps": [
+        "Schedule integration consultation",
+        "Review CRM data quality",
+        "Plan automation workflow"
+      ],
+      "is_completed": true,
+      "co_creator_qualified": true,
+      "co_creator_invitation": {
+        "message": "\ud83c\udf89 Congratulations! Based on your assessment results, you're qualified for our exclusive Co-Creator Program!",
+        "benefits": [
+          "Lifetime access to all platform features",
+          "Direct influence on product development",
+          "Priority support and custom integrations",
+          "Exclusive community access"
+        ],
+        "next_action": "Reserve your founding member seat now",
+        "urgency": "Only 25 seats available - program fills quickly"
+      }
+    }
+  },
+  {
+    "test": "Database Verification",
+    "success": false,
+    "timestamp": "2025-12-09T16:32:44.876009",
+    "details": "Exception: Could not locate a bind configured on mapper Mapper[Campaign(campaigns)], SQL expression or this Session.",
+    "data": null
+  }
+]

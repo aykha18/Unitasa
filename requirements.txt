@@ -18,6 +18,9 @@ email-validator==2.1.0
 # Payment Processing - ESSENTIAL
 razorpay==1.4.2
 
+# Authentication & Security
+passlib[bcrypt]==1.7.4
+
 # HTTP Client - For IP geolocation and social media APIs
 httpx==0.25.2
 requests==2.31.0

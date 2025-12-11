@@ -32,8 +32,8 @@ interface AIReportResponse {
 }
 
 class AIReportService {
-  private baseUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8000/api/v1/ai-report'
+  private baseUrl = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8001/api/v1/ai-report'
     : '/api/v1/ai-report';
 
   async generateReport(data: AIReportData): Promise<AIReportResponse> {

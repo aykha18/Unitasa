@@ -103,6 +103,12 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.production
+.env.staging
+.env.development
+.env.test
+.env.railway
 .venv
 env/
 venv/
@@ -157,17 +163,26 @@ weaviate/
 # Logs
 *.log
 logs/
+audit.log
 
 # Temporary files
 *.tmp
 *.temp
 
 # API keys and secrets
-.env.local
-.env.production
-.env.staging
-.env.railway
 secrets.json
+config.json
+credentials.json
+
+# Security - Sensitive files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+private/
+keys/
 
 # Alembic
 alembic/versions/*.pyc
@@ -203,8 +218,6 @@ yarn-error.log*
 # Temporary and test files
 tmp/
 temp/
-temp/
-check_*.py
 check_*.py
 verify_*.py
 validate_*.py
@@ -228,19 +241,3 @@ validate-*.js
 *.1761*.log
 swark-output/
 0.*
-# Security - Environment files
-.env
-.env.local
-.env.production
-
-# Security - Sensitive files
-*.pem
-*.key
-*.crt
-secrets/
-private/
-
-# Security - Logs that might contain sensitive data
-*.log
-logs/
-audit.log

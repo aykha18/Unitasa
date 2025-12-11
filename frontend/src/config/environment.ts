@@ -25,8 +25,8 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     wsBaseUrl = `${wsProtocol}//${window.location.host}`;
   } else {
     // Development: Use localhost backend
-    apiBaseUrl = 'http://localhost:8000';
-    wsBaseUrl = 'ws://localhost:8000';
+    apiBaseUrl = 'http://localhost:8001';
+    wsBaseUrl = 'ws://localhost:8001';
   }
 
   return {

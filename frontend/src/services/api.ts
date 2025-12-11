@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
   }
   
   // Development default
-  return 'http://localhost:8000';
+  return 'http://localhost:8001';
 };
 
 const API_BASE_URL = getApiBaseUrl();

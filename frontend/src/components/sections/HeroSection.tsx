@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowRight, Play, CheckCircle } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle, Zap } from 'lucide-react';
 import { Button } from '../ui';
 import AIDemoModal from '../ai-demos/AIDemoModal';
+import ConsultationBooking from '../booking/ConsultationBooking';
 
 interface HeroSectionProps {
   onStartAssessment?: () => void;
@@ -9,13 +10,29 @@ interface HeroSectionProps {
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
 
   return (
     <section className="bg-gradient-to-br from-unitasa-light via-white to-unitasa-light py-20 lg:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Launch Banner */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center bg-gradient-to-r from-unitasa-electric to-unitasa-blue text-white px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
+            <Zap className="w-4 h-4 mr-2" />
+            🚀 LAUNCHING NOW - Join 25 Founding Members
+            <span className="ml-2 bg-white/20 px-2 py-1 rounded text-xs">LIMITED SPOTS</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Content */}
           <div className="text-center lg:text-left">
+            {/* Beta Badge */}
+            <div className="inline-flex items-center bg-unitasa-electric/10 text-unitasa-blue px-4 py-2 rounded-full text-sm font-medium mb-6 border border-unitasa-electric/20">
+              <Zap className="w-4 h-4 mr-2" />
+              BETA - Built by Founders, for Founders
+            </div>
+
             {/* Main Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-unitasa-blue mb-6 leading-tight font-display">
               AI Agents That Run Your Marketing For You
@@ -34,10 +51,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
                 icon={ArrowRight}
                 iconPosition="right"
                 className="text-lg px-8 py-4"
-                onClick={() => {
-                  // TODO: Integrate Calendly
-                  window.open('https://calendly.com/unitasa/ai-strategy-session', '_blank');
-                }}
+                onClick={() => setShowBookingModal(true)}
               >
                 Book Free AI Strategy Session
               </Button>
@@ -133,6 +147,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
           onClose={() => setIsDemoModalOpen(false)}
           initialDemo="agent"
         />
+
+        {/* Consultation Booking Modal */}
+        {showBookingModal && (
+          <ConsultationBooking
+            isOpen={showBookingModal}
+            onClose={() => setShowBookingModal(false)}
+          />
+        )}
       </div>
     </section>
   );

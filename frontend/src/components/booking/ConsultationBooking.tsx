@@ -386,8 +386,8 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
 
               <div className="mt-4 text-sm text-gray-500">
                 Having trouble? Email us at{' '}
-                <a href="mailto:hello@unitasa.in" className="text-blue-600 hover:underline">
-                  hello@unitasa.in
+                <a href="mailto:support@unitasa.in" className="text-blue-600 hover:underline">
+                  support@unitasa.in
                 </a>
               </div>
             </div>
@@ -445,7 +445,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
                     variant="outline"
                     onClick={() => {
                       consultationService.trackConsultationEvent('consultation_email_clicked');
-                      window.open('mailto:hello@unitasa.in', '_blank');
+                      window.open('mailto:support@unitasa.in', '_blank');
                     }}
                     className="w-full"
                   >

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Brain, Target, Zap, Shield, BarChart3, MessageCircle } from 'lucide-react';
+import { Brain, Target, Zap, BarChart3 } from 'lucide-react';
 import Button from '../ui/Button';
 import apiClient from '../../services/api';
 import { LeadData } from './LeadCaptureForm';
+import ConsultationBooking from '../booking/ConsultationBooking';
 
 interface AssessmentQuestion {
   id: string;
@@ -33,7 +34,7 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<AssessmentResult | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
   const [assessmentId, setAssessmentId] = useState<number | null>(null);
 
   const questions: AssessmentQuestion[] = [
@@ -99,44 +100,10 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
   };
 
   const submitAssessment = async () => {
-    setIsSubmitting(true);
     try {
-      // Development bypass for testing buttons
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🚀 Development mode: Bypassing backend call for button testing');
-        
-        // Simulate successful assessment with correct type structure
-        const mockResults: AssessmentResult = {
-          aiReadinessScore: 75,
-          automationMaturity: 70,
-          dataIntelligence: 80,
-          integrationReadiness: 75,
-          overallScore: 75,
-          recommendations: [
-            'Implement data quality monitoring',
-            'Set up automated lead scoring',
-            'Integrate CRM with marketing tools'
-          ],
-          predictedROI: 150000,
-          automationOpportunities: 5,
-          co_creator_qualified: true,
-          co_creator_invitation: {
-            price: 497,
-            originalPrice: 2000,
-            spotsRemaining: 12
-          }
-        };
-        
-        setTimeout(() => {
-          setResults(mockResults);
-          setIsSubmitting(false);
-          // Note: onComplete is not available in this component's props
-        }, 1000);
-        
-        return;
-      }
+      console.log('Starting assessment submission...');
       
-      // Production code - Start assessment with real lead data including preferred CRM
+      // Start assessment with real lead data including preferred CRM
       const startResponse = await apiClient.post('/api/v1/landing/assessment/start', {
         email: leadData?.email || `test_${new Date().toISOString().slice(2,10).replace(/-/g,'')}@example.com`,
         name: leadData?.name || 'Assessment User',
@@ -196,7 +163,7 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
           completion_time_seconds: 120
         });
 
-        if (submitResponse.data) {
+        if (submitResponse.data && typeof submitResponse.data === 'object' && !Array.isArray(submitResponse.data) && 'overall_score' in submitResponse.data) {
           // Use backend results instead of local calculation
           const backendResults = submitResponse.data;
           setResults({
@@ -211,6 +178,9 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
             co_creator_qualified: backendResults.co_creator_qualified,
             co_creator_invitation: backendResults.co_creator_invitation
           });
+        } else {
+          console.error('Invalid response from backend, falling back to local calculation:', submitResponse.data);
+          calculateResults();
         }
       }
     } catch (error) {
@@ -218,7 +188,6 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
       // Fallback to local calculation if API fails
       calculateResults();
     } finally {
-      setIsSubmitting(false);
       setShowResults(true);
     }
   };
@@ -284,169 +253,184 @@ const AIReadinessAssessment: React.FC<AIReadinessAssessmentProps> = ({ leadData 
     setResults(null);
   };
 
-
-  if (showResults && results) {
-    return (
-      <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Your AI Marketing Intelligence Score
-          </h2>
-          <div className="text-6xl font-bold text-blue-600 mb-2">
-            {results.overallScore}/100
-          </div>
-          <p className="text-gray-600 mb-4">
-            {results.overallScore >= 80 ? 'AI-Ready Enterprise' :
-             results.overallScore >= 60 ? 'Advanced Automation Candidate' :
-             results.overallScore >= 40 ? 'Moderate AI Potential' :
-             'High Growth Opportunity'}
-          </p>
-          {results.co_creator_qualified && (
-            <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-              <Zap className="w-4 h-4 mr-2" />
-              Co-Creator Qualified!
+  const renderAssessmentContent = () => {
+    if (showResults && results) {
+      return (
+        <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Your AI Marketing Intelligence Score
+            </h2>
+            <div className="text-6xl font-bold text-blue-600 mb-2">
+              {results.overallScore}/100
             </div>
-          )}
-        </div>
-
-        {/* Score Breakdown */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <Brain className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-blue-600">{results.aiReadinessScore}</div>
-            <div className="text-sm text-gray-600">AI Readiness</div>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <Zap className="w-8 h-8 text-green-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-600">{results.automationMaturity}</div>
-            <div className="text-sm text-gray-600">Automation Maturity</div>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-purple-600">{results.dataIntelligence}</div>
-            <div className="text-sm text-gray-600">Data Intelligence</div>
-          </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <Target className="w-8 h-8 text-orange-600 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-orange-600">{results.integrationReadiness}</div>
-            <div className="text-sm text-gray-600">Integration Readiness</div>
-          </div>
-        </div>
-
-        {/* AI Predictions */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Potential ROI Improvement</h3>
-            <div className="text-3xl font-bold text-green-600 mb-2">High Potential</div>
-            <p className="text-sm text-gray-600">
-              Based on benchmarks from AI-driven marketing in similar organizations
+            <p className="text-gray-600 mb-4">
+              {results.overallScore >= 80 ? 'AI-Ready Enterprise' :
+               results.overallScore >= 60 ? 'Advanced Automation Candidate' :
+               results.overallScore >= 40 ? 'Moderate AI Potential' :
+               'High Growth Opportunity'}
             </p>
-          </div>
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Automation Opportunities</h3>
-            <div className="text-3xl font-bold text-purple-600 mb-2">{results.automationOpportunities}</div>
-            <p className="text-sm text-gray-600">
-              Priority areas identified for AI automation
-            </p>
-          </div>
-        </div>
-
-        {/* AI Recommendations */}
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            AI Agent Recommendations
-          </h3>
-          <div className="space-y-3">
-            {results.recommendations.map((rec, index) => (
-              <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg">
-                <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3 mt-0.5">
-                  {index + 1}
-                </div>
-                <span className="text-gray-700">{rec}</span>
+            {results.co_creator_qualified && (
+              <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                <Zap className="w-4 h-4 mr-2" />
+                Co-Creator Qualified!
               </div>
+            )}
+          </div>
+
+          {/* Score Breakdown */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <Brain className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-blue-600">{results.aiReadinessScore}</div>
+              <div className="text-sm text-gray-600">AI Readiness</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <Zap className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-green-600">{results.automationMaturity}</div>
+              <div className="text-sm text-gray-600">Automation Maturity</div>
+            </div>
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <BarChart3 className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-purple-600">{results.dataIntelligence}</div>
+              <div className="text-sm text-gray-600">Data Intelligence</div>
+            </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <Target className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-orange-600">{results.integrationReadiness}</div>
+              <div className="text-sm text-gray-600">Integration Readiness</div>
+            </div>
+          </div>
+
+          {/* AI Predictions */}
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Potential ROI Improvement</h3>
+              <div className="text-3xl font-bold text-green-600 mb-2">High Potential</div>
+              <p className="text-sm text-gray-600">
+                Based on benchmarks from AI-driven marketing in similar organizations
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Automation Opportunities</h3>
+              <div className="text-3xl font-bold text-purple-600 mb-2">{results.automationOpportunities}</div>
+              <p className="text-sm text-gray-600">
+                Priority areas identified for AI automation
+              </p>
+            </div>
+          </div>
+
+          {/* AI Recommendations */}
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              AI Agent Recommendations
+            </h3>
+            <div className="space-y-3">
+              {results.recommendations.map((rec, index) => (
+                <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg">
+                  <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3 mt-0.5">
+                    {index + 1}
+                  </div>
+                  <span className="text-gray-700">{rec}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Call to Action */}
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Ready to Plan Your AI Marketing Roadmap?
+            </h3>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                size="lg"
+                className="px-8"
+                onClick={() => setShowBookingModal(true)}
+              >
+                Book Free AI Strategy Session
+              </Button>
+              <Button variant="outline" size="lg" onClick={resetAssessment}>
+                Retake Assessment
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const question = questions[currentQuestion];
+    const progress = ((currentQuestion + 1) / questions.length) * 100;
+
+    return (
+      <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200 max-w-2xl mx-auto">
+        <div className="mb-8">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Marketing Readiness Assessment</h2>
+            <p className="text-gray-600">
+              Answer a few quick questions and get a personalized AI automation roadmap for your marketing in under 30 seconds.
+            </p>
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-gray-500">
+              {currentQuestion + 1} of {questions.length}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold text-gray-900 mb-6">
+            {question.question}
+          </h3>
+
+          <div className="space-y-3">
+            {question.options.map((option: any) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswer(option.value)}
+                className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
+                <div className="font-medium text-gray-900 mb-1">
+                  {option.label}
+                </div>
+                {option.description && (
+                  <div className="text-sm text-gray-600">
+                    {option.description}
+                  </div>
+                )}
+              </button>
             ))}
           </div>
         </div>
 
-
-        {/* Call to Action */}
-        <div className="text-center">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">
-            Ready to Plan Your AI Marketing Roadmap?
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="px-8"
-              onClick={() => window.open('https://calendly.com/unitasa/ai-strategy-session', '_blank')}
-            >
-              Book Free AI Strategy Session
-            </Button>
-            <Button variant="outline" size="lg" onClick={resetAssessment}>
-              Retake Assessment
-            </Button>
-          </div>
+        <div className="text-center text-sm text-gray-500">
+          This assessment analyzes your AI readiness, automation maturity, and integration needs
         </div>
       </div>
     );
-  }
-
-  const question = questions[currentQuestion];
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  };
 
   return (
-    <div className="bg-white rounded-xl p-8 shadow-lg border border-gray-200 max-w-2xl mx-auto">
-      <div className="mb-8">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Marketing Readiness Assessment</h2>
-          <p className="text-gray-600">
-            Answer a few quick questions and get a personalized AI automation roadmap for your marketing in under 30 seconds.
-          </p>
-        </div>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm text-gray-500">
-            {currentQuestion + 1} of {questions.length}
-          </span>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-          <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6">
-          {question.question}
-        </h3>
-
-        <div className="space-y-3">
-          {question.options.map((option: any) => (
-            <button
-              key={option.value}
-              onClick={() => handleAnswer(option.value)}
-              className="w-full text-left p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="font-medium text-gray-900 mb-1">
-                {option.label}
-              </div>
-              {option.description && (
-                <div className="text-sm text-gray-600">
-                  {option.description}
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="text-center text-sm text-gray-500">
-        This assessment analyzes your AI readiness, automation maturity, and integration needs
-      </div>
-    </div>
+    <>
+      {renderAssessmentContent()}
+      
+      {/* Consultation Booking Modal */}
+      {showBookingModal && (
+        <ConsultationBooking
+          isOpen={showBookingModal}
+          onClose={() => setShowBookingModal(false)}
+          leadData={leadData || undefined}
+        />
+      )}
+    </>
   );
 };
 

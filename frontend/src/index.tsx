@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import * as serviceWorker from './utils/serviceWorker';
+import { AuthProvider } from './context/AuthContext';
 
 // Global error handler for Chrome extension and other async errors (disabled to prevent reload loop)
 // window.addEventListener('error', (event) => {
@@ -29,7 +30,9 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 root.render(
-  <App />
+  <AuthProvider>
+    <App />
+  </AuthProvider>
 );
 
 // Register service worker for PWA features

@@ -19,6 +19,8 @@ class User(Base, TimestampMixin):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255))
+    first_name = Column(String(100))
+    last_name = Column(String(100))
     company = Column(String(255))
     role = Column(String(50), default="user")  # admin, user, agent
     is_active = Column(Boolean, default=True)
@@ -33,9 +35,10 @@ class User(Base, TimestampMixin):
     website = Column(String(255))
 
     # Subscription and limits
-    subscription_tier = Column(String(50), default="free")  # free, pro, enterprise
+    subscription_tier = Column(String(50), default="free")  # free, free_trial, pro, enterprise, co_creator
     monthly_request_limit = Column(Integer, default=1000)
     requests_this_month = Column(Integer, default=0)
+    trial_end_date = Column(DateTime)  # For free trial users
 
     # Co-creator program status
     is_co_creator = Column(Boolean, default=False, nullable=False, index=True)
@@ -43,6 +46,11 @@ class User(Base, TimestampMixin):
     lifetime_access = Column(Boolean, default=False, nullable=False)
     co_creator_seat_number = Column(Integer)  # 1-25 for founding users
     co_creator_benefits = Column(Text)  # JSON string of benefits
+    
+    # Email verification
+    email_verification_token = Column(String(255), unique=True, index=True)
+    email_verification_sent_at = Column(DateTime)
+    email_verified_at = Column(DateTime)
     
     # Timestamps (inherited from TimestampMixin)
     last_login = Column(DateTime)
@@ -110,3 +118,35 @@ class User(Base, TimestampMixin):
         self.co_creator_seat_number = None
         self.co_creator_benefits = None
         self.updated_at = datetime.utcnow()
+
+    def generate_email_verification_token(self) -> str:
+        """Generate email verification token"""
+        import secrets
+        token = secrets.token_urlsafe(32)
+        self.email_verification_token = token
+        self.email_verification_sent_at = datetime.utcnow()
+        return token
+
+    def verify_email(self, token: str) -> bool:
+        """Verify email with token"""
+        if self.email_verification_token == token:
+            self.is_verified = True
+            self.email_verified_at = datetime.utcnow()
+            self.email_verification_token = None  # Clear token after use
+            return True
+        return False
+
+    @property
+    def is_trial_active(self) -> bool:
+        """Check if free trial is still active"""
+        if self.subscription_tier != "free_trial" or not self.trial_end_date:
+            return False
+        return datetime.utcnow() < self.trial_end_date
+
+    @property
+    def trial_days_remaining(self) -> int:
+        """Get remaining trial days"""
+        if not self.is_trial_active:
+            return 0
+        delta = self.trial_end_date - datetime.utcnow()
+        return max(0, delta.days)

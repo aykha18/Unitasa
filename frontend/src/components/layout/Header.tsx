@@ -59,18 +59,25 @@ const Header: React.FC = () => {
               Take Assessment
             </Button>
             <Button
+              variant="ghost"
+              size="sm"
+              className="text-unitasa-gray hover:text-unitasa-blue"
+              onClick={() => {
+                window.history.pushState({}, '', '/login');
+                window.dispatchEvent(new Event('navigate'));
+              }}
+            >
+              Sign In
+            </Button>
+            <Button
               size="sm"
               className="bg-gradient-primary text-white hover:shadow-brand"
               onClick={() => {
-                const coCreatorSection = document.querySelector('#co-creator');
-                if (coCreatorSection) {
-                  coCreatorSection.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                  window.dispatchEvent(new CustomEvent('openAssessment'));
-                }
+                window.history.pushState({}, '', '/signup');
+                window.dispatchEvent(new Event('navigate'));
               }}
             >
-              Join Co-Creators
+              Start Free Trial
             </Button>
           </div>
 
@@ -123,9 +130,9 @@ const Header: React.FC = () => {
               </a>
               <div className="pt-4 border-t border-gray-200 space-y-2">
                 <PWAInstallButton className="w-full text-sm" />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full"
                   onClick={() => {
                     toggleMenu();
@@ -134,21 +141,29 @@ const Header: React.FC = () => {
                 >
                   Take Assessment
                 </Button>
-                <Button 
-                  variant="primary" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-gray-700 hover:text-primary-600"
+                  onClick={() => {
+                    toggleMenu();
+                    window.history.pushState({}, '', '/login');
+                    window.dispatchEvent(new Event('navigate'));
+                  }}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   className="w-full"
                   onClick={() => {
                     toggleMenu();
-                    const coCreatorSection = document.querySelector('#co-creator');
-                    if (coCreatorSection) {
-                      coCreatorSection.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                      window.dispatchEvent(new CustomEvent('openAssessment'));
-                    }
+                    window.history.pushState({}, '', '/signup');
+                    window.dispatchEvent(new Event('navigate'));
                   }}
                 >
-                  Join Co-Creators
+                  Start Free Trial
                 </Button>
               </div>
             </nav>

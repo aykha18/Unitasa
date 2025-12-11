@@ -222,6 +222,9 @@ check_*.py
 verify_*.py
 validate_*.py
 
+# Test scripts directory (excluded to avoid security scanning issues)
+test_scripts/
+
 # Documentation and summary files
 *_SUMMARY.md
 *_IMPLEMENTATION*.md

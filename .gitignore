@@ -184,6 +184,15 @@ secrets/
 private/
 keys/
 
+# Database migration and fix scripts (may contain hardcoded credentials)
+*_migration.py
+*_fix.py
+*_check.py
+db_*.py
+fix_*.py
+check_*.py
+validate_*.py
+
 # Alembic
 alembic/versions/*.pyc
 

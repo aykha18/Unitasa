@@ -187,24 +187,34 @@ async def register_user(
         await db.commit()
         
         print(f"[USER_REGISTRATION] Registration completed successfully")
-        
-        # Send welcome email with verification
-        email_service = EmailService()
-        
-        if is_co_creator:
-            # Co-creators get the existing co-creator welcome email
-            # This would be handled by the co-creator payment flow
-            pass
-        else:
-            # Free trial users get the new welcome email
-            email_sent, email_message = email_service.send_free_trial_welcome_email(
-                user=new_user,
-                verification_token=verification_token
-            )
-            
-            if not email_sent:
-                print(f"[USER_REGISTRATION] Failed to send welcome email: {email_message}")
-                # Don't fail registration if email fails
+
+        # Send welcome email with verification (async, don't block registration)
+        print(f"[USER_REGISTRATION] Starting email send process...")
+        try:
+            email_service = EmailService()
+            print(f"[USER_REGISTRATION] Email service initialized")
+
+            if is_co_creator:
+                # Co-creators get the existing co-creator welcome email
+                # This would be handled by the co-creator payment flow
+                print(f"[USER_REGISTRATION] Skipping email for co-creator")
+                pass
+            else:
+                # Free trial users get the new welcome email
+                print(f"[USER_REGISTRATION] Sending free trial welcome email...")
+                email_sent, email_message = email_service.send_free_trial_welcome_email(
+                    user=new_user,
+                    verification_token=verification_token
+                )
+
+                if email_sent:
+                    print(f"[USER_REGISTRATION] Welcome email sent successfully")
+                else:
+                    print(f"[USER_REGISTRATION] Failed to send welcome email: {email_message}")
+                    # Don't fail registration if email fails
+        except Exception as email_error:
+            print(f"[USER_REGISTRATION] Email sending failed with exception: {email_error}")
+            # Don't fail registration if email fails
         
         return UserRegistrationResponse(
             success=True,

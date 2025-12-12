@@ -53,20 +53,20 @@ def init_database():
                 echo=False,  # Set to True for SQL logging in development
             )
         else:
-            # PostgreSQL with connection pooling - Windows-friendly settings
+            # PostgreSQL with connection pooling - Railway optimized settings
             engine = create_async_engine(
                 DATABASE_URL,
                 echo=False,  # Set to True for SQL logging in development
-                pool_size=1,  # Minimal pool size for Windows
-                max_overflow=0,  # No overflow to avoid connection issues
-                pool_pre_ping=False,  # Disable pre-ping to avoid connection issues
-                pool_recycle=300,  # Short recycle time
-                pool_timeout=10,  # Quick timeout
+                pool_size=2,  # Small pool for Railway
+                max_overflow=1,  # Limited overflow
+                pool_pre_ping=True,  # Enable pre-ping for connection health
+                pool_recycle=600,  # Longer recycle time for Railway
+                pool_timeout=20,  # Longer timeout for Railway
                 connect_args={
                     "server_settings": {
                         "application_name": "unitasa_app",
                     },
-                    "command_timeout": 5
+                    "command_timeout": 10  # Longer command timeout
                 }
             )
 

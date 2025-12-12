@@ -133,29 +133,37 @@ async def register_user(
         is_co_creator = False
         if existing_lead:
             print(f"[USER_REGISTRATION] Found existing lead: {existing_lead.id}")
-            
+
             # Update lead with user_id
             existing_lead.user_id = new_user.id
-            
-            # Check if this lead has a co-creator record
-            result = await db.execute(
-                select(CoCreator).where(CoCreator.lead_id == existing_lead.id)
-            )
-            co_creator = result.scalar_one_or_none()
-            
-            if co_creator:
-                print(f"[USER_REGISTRATION] User is a co-creator: {co_creator.id}")
-                # Update user to co-creator status
-                new_user.is_co_creator = True
-                new_user.co_creator_joined_at = datetime.utcnow()
-                new_user.lifetime_access = True
-                new_user.co_creator_seat_number = co_creator.seat_number
-                new_user.subscription_tier = "co_creator"
-                
-                # Update co-creator record with user_id
-                co_creator.user_id = new_user.id
-                
-                is_co_creator = True
+
+            # TEMPORARILY DISABLE CO-CREATOR CHECK DUE TO DATABASE CONSTRAINT ISSUE
+            # TODO: Re-enable once foreign key constraint is properly fixed
+            print(f"[USER_REGISTRATION] Skipping co-creator check due to database constraint issue")
+
+            # # Check if this lead has a co-creator record
+            # try:
+            #     result = await db.execute(
+            #         select(CoCreator).where(CoCreator.lead_id == existing_lead.id)
+            #     )
+            #     co_creator = result.scalar_one_or_none()
+            #
+            #     if co_creator:
+            #         print(f"[USER_REGISTRATION] User is a co-creator: {co_creator.id}")
+            #         # Update user to co-creator status
+            #         new_user.is_co_creator = True
+            #         new_user.co_creator_joined_at = datetime.utcnow()
+            #         new_user.lifetime_access = True
+            #         new_user.co_creator_seat_number = co_creator.seat_number
+            #         new_user.subscription_tier = "co_creator"
+            #
+            #         # Update co-creator record with user_id
+            #         co_creator.user_id = new_user.id
+            #
+            #         is_co_creator = True
+            # except Exception as e:
+            #     print(f"[USER_REGISTRATION] Error checking co-creator status: {e}")
+            #     # Continue with registration without co-creator status
         
         # Generate email verification token
         verification_token = new_user.generate_email_verification_token()
@@ -399,25 +407,33 @@ async def google_oauth_signup(
         # Check for existing lead/co-creator status
         result = await db.execute(select(Lead).where(Lead.email == email))
         existing_lead = result.scalar_one_or_none()
-        
+
         is_co_creator = False
         if existing_lead:
             existing_lead.user_id = new_user.id
-            
-            # Check for co-creator status
-            result = await db.execute(
-                select(CoCreator).where(CoCreator.lead_id == existing_lead.id)
-            )
-            co_creator = result.scalar_one_or_none()
-            
-            if co_creator:
-                new_user.is_co_creator = True
-                new_user.co_creator_joined_at = datetime.utcnow()
-                new_user.lifetime_access = True
-                new_user.co_creator_seat_number = co_creator.seat_number
-                new_user.subscription_tier = "co_creator"
-                co_creator.user_id = new_user.id
-                is_co_creator = True
+
+            # TEMPORARILY DISABLE CO-CREATOR CHECK DUE TO DATABASE CONSTRAINT ISSUE
+            # TODO: Re-enable once foreign key constraint is properly fixed
+            print(f"[GOOGLE_OAUTH] Skipping co-creator check due to database constraint issue")
+
+            # # Check for co-creator status
+            # try:
+            #     result = await db.execute(
+            #         select(CoCreator).where(CoCreator.lead_id == existing_lead.id)
+            #     )
+            #     co_creator = result.scalar_one_or_none()
+            #
+            #     if co_creator:
+            #         new_user.is_co_creator = True
+            #         new_user.co_creator_joined_at = datetime.utcnow()
+            #         new_user.lifetime_access = True
+            #         new_user.co_creator_seat_number = co_creator.seat_number
+            #         new_user.subscription_tier = "co_creator"
+            #         co_creator.user_id = new_user.id
+            #         is_co_creator = True
+            # except Exception as e:
+            #     print(f"[GOOGLE_OAUTH] Error checking co-creator status: {e}")
+            #     # Continue with registration without co-creator status
         
         await db.commit()
 

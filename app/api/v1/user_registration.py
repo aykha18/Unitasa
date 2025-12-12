@@ -42,6 +42,15 @@ class GoogleOAuthRequest(BaseModel):
     credential: str  # Google ID token
     company: Optional[str] = None
 
+class GoogleOAuthResponse(BaseModel):
+    success: bool
+    message: str
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_in: int
+    user: Dict[str, Any]
+
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt directly"""
     # Use bcrypt directly to avoid passlib issues
@@ -285,56 +294,44 @@ async def resend_verification_email(
         raise HTTPException(status_code=500, detail=f"Failed to resend verification: {str(e)}")
 
 
-@router.post("/google-oauth", response_model=UserRegistrationResponse)
+@router.post("/google-oauth", response_model=GoogleOAuthResponse)
 async def google_oauth_signup(
     request: GoogleOAuthRequest,
     db: AsyncSession = Depends(get_db)
-) -> UserRegistrationResponse:
+) -> GoogleOAuthResponse:
     """Register/login user with Google OAuth"""
     try:
-        # In a real implementation, you would verify the Google ID token
-        # For now, we'll create a placeholder implementation
-        
-        # TODO: Implement Google ID token verification
-        # from google.oauth2 import id_token
-        # from google.auth.transport import requests
-        # 
-        # idinfo = id_token.verify_oauth2_token(
-        #     request.credential, 
-        #     requests.Request(), 
-        #     "YOUR_GOOGLE_CLIENT_ID"
-        # )
-        
-        # For demo purposes, we'll extract basic info from the credential
-        # In production, properly verify the JWT token
-        import json
-        import base64
-        
-        # This is a simplified approach - DO NOT use in production
-        # You must properly verify Google ID tokens
+        # Verify Google ID token
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        import os
+
+        google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        if not google_client_id:
+            raise HTTPException(status_code=500, detail="Google OAuth not configured")
+
+        # Verify the ID token
         try:
-            # Decode the JWT payload (this is unsafe without verification)
-            parts = request.credential.split('.')
-            if len(parts) != 3:
-                raise ValueError("Invalid credential format")
-            
-            # Add padding if needed
-            payload = parts[1]
-            payload += '=' * (4 - len(payload) % 4)
-            
-            decoded = base64.urlsafe_b64decode(payload)
-            user_info = json.loads(decoded)
-            
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid Google credential")
-        
-        email = user_info.get('email')
-        name = user_info.get('name', '')
-        given_name = user_info.get('given_name', '')
-        family_name = user_info.get('family_name', '')
-        
+            idinfo = id_token.verify_oauth2_token(
+                request.credential,
+                google_requests.Request(),
+                google_client_id
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid Google credential: {str(e)}")
+
+        # Extract user information from verified token
+        email = idinfo.get('email')
+        name = idinfo.get('name', '')
+        given_name = idinfo.get('given_name', '')
+        family_name = idinfo.get('family_name', '')
+        email_verified = idinfo.get('email_verified', False)
+
         if not email:
             raise HTTPException(status_code=400, detail="Email not provided by Google")
+
+        if not email_verified:
+            raise HTTPException(status_code=400, detail="Email not verified by Google")
         
         # Check if user already exists
         result = await db.execute(select(User).where(User.email == email))
@@ -342,11 +339,40 @@ async def google_oauth_signup(
         
         if existing_user:
             # User exists, log them in
-            return UserRegistrationResponse(
+            # Update last login
+            existing_user.last_login = datetime.utcnow()
+            await db.commit()
+
+            # Create tokens
+            from app.core.jwt_handler import create_user_tokens
+            tokens = create_user_tokens(existing_user)
+
+            # Prepare user data
+            user_data = {
+                "id": existing_user.id,
+                "email": existing_user.email,
+                "full_name": existing_user.full_name,
+                "first_name": existing_user.first_name,
+                "last_name": existing_user.last_name,
+                "company": existing_user.company,
+                "is_co_creator": existing_user.is_co_creator,
+                "subscription_tier": existing_user.subscription_tier,
+                "is_verified": existing_user.is_verified,
+                "trial_end_date": existing_user.trial_end_date.isoformat() if existing_user.trial_end_date else None,
+                "trial_days_remaining": existing_user.trial_days_remaining,
+                "is_trial_active": existing_user.is_trial_active,
+                "avatar_url": existing_user.avatar_url,
+                "last_login": existing_user.last_login.isoformat() if existing_user.last_login else None
+            }
+
+            return GoogleOAuthResponse(
                 success=True,
                 message="Welcome back! Logged in successfully with Google.",
-                user_id=existing_user.id,
-                is_co_creator=existing_user.is_co_creator
+                access_token=tokens["access_token"],
+                refresh_token=tokens["refresh_token"],
+                token_type=tokens["token_type"],
+                expires_in=tokens["expires_in"],
+                user=user_data
             )
         
         # Create new user
@@ -394,17 +420,42 @@ async def google_oauth_signup(
                 is_co_creator = True
         
         await db.commit()
-        
+
+        # Create tokens for the new user
+        from app.core.jwt_handler import create_user_tokens
+        tokens = create_user_tokens(new_user)
+
+        # Prepare user data
+        user_data = {
+            "id": new_user.id,
+            "email": new_user.email,
+            "full_name": new_user.full_name,
+            "first_name": new_user.first_name,
+            "last_name": new_user.last_name,
+            "company": new_user.company,
+            "is_co_creator": new_user.is_co_creator,
+            "subscription_tier": new_user.subscription_tier,
+            "is_verified": new_user.is_verified,
+            "trial_end_date": new_user.trial_end_date.isoformat() if new_user.trial_end_date else None,
+            "trial_days_remaining": new_user.trial_days_remaining,
+            "is_trial_active": new_user.is_trial_active,
+            "avatar_url": new_user.avatar_url,
+            "last_login": new_user.last_login.isoformat() if new_user.last_login else None
+        }
+
         # Send welcome email (no verification needed for Google OAuth)
         email_service = EmailService()
         if not is_co_creator:
             email_service.send_free_trial_welcome_email(user=new_user)
-        
-        return UserRegistrationResponse(
+
+        return GoogleOAuthResponse(
             success=True,
             message=f"Welcome to Unitasa! Your account has been created with Google and your 15-day free trial has started." + (" You're also a Co-Creator!" if is_co_creator else ""),
-            user_id=new_user.id,
-            is_co_creator=is_co_creator
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+            token_type=tokens["token_type"],
+            expires_in=tokens["expires_in"],
+            user=user_data
         )
         
     except HTTPException:

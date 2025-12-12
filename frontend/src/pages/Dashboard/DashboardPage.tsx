@@ -51,7 +51,7 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated && !isLoading) {
-      navigate('/signin');
+      navigate('/login');
       return;
     }
 

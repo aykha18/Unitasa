@@ -20,6 +20,7 @@ razorpay==1.4.2
 
 # Authentication & Security
 passlib[bcrypt]==1.7.4
+google-auth==2.23.4
 
 # HTTP Client - For IP geolocation and social media APIs
 httpx==0.25.2

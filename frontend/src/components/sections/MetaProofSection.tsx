@@ -167,28 +167,36 @@ const MetaProofSection: React.FC = () => {
           </h3>
 
           <div className="space-y-4">
-            {agentStats.live_activities.map((activity, index) => (
-              <div key={index} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-blue-600" />
+            {agentStats.live_activities && agentStats.live_activities.length > 0 ? (
+              agentStats.live_activities.map((activity, index) => (
+                <div key={index} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Bot className="w-4 h-4 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="text-sm font-medium text-gray-900">{activity.time}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        activity.type === 'content_creation' ? 'bg-blue-100 text-blue-800' :
+                        activity.type === 'engagement' ? 'bg-green-100 text-green-800' :
+                        'bg-purple-100 text-purple-800'
+                      }`}>
+                        {activity.type.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700">{activity.action}</p>
                   </div>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="text-sm font-medium text-gray-900">{activity.time}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      activity.type === 'content_creation' ? 'bg-blue-100 text-blue-800' :
-                      activity.type === 'engagement' ? 'bg-green-100 text-green-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
-                      {activity.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700">{activity.action}</p>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Bot className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No recent agent activities to display</p>
+                <p className="text-sm mt-2">Activities will appear here as the AI agent works</p>
               </div>
-            ))}
+            )}
           </div>
 
           <div className="mt-6 text-center">

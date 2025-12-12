@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui';
+import { config } from '../config/environment';
+import { useAuth } from '../context/AuthContext';
 
 // Google OAuth types
 declare global {
@@ -27,6 +29,8 @@ const SignInPage: React.FC = () => {
     window.history.pushState({}, '', path);
     window.dispatchEvent(new Event('navigate'));
   };
+
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState<SignInFormData>({
     email: '',
@@ -55,12 +59,17 @@ const SignInPage: React.FC = () => {
     };
 
     const initializeGoogle = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id',
-          callback: handleGoogleSignIn,
-        });
-        setIsGoogleLoaded(true);
+      if (window.google && config.googleClientId) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: config.googleClientId,
+            callback: handleGoogleSignIn,
+          });
+          setIsGoogleLoaded(true);
+        } catch (error) {
+          console.error('Google OAuth initialization failed:', error);
+          // Keep button disabled if initialization fails
+        }
       }
     };
 
@@ -109,32 +118,14 @@ const SignInPage: React.FC = () => {
     setErrors({});
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          remember_me: formData.rememberMe
-        }),
-      });
+      const success = await login(formData.email, formData.password, formData.rememberMe);
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        // Store tokens
-        localStorage.setItem('access_token', result.access_token);
-        localStorage.setItem('refresh_token', result.refresh_token);
-        localStorage.setItem('user', JSON.stringify(result.user));
-
+      if (success) {
         // Redirect to dashboard
         navigate('/dashboard');
       } else {
-        setErrors({ general: result.detail || result.message || 'Login failed' });
+        setErrors({ general: 'Invalid email or password' });
       }
-
     } catch (error) {
       console.error('Sign in failed:', error);
       setErrors({ general: 'Network error. Please try again.' });
@@ -147,7 +138,8 @@ const SignInPage: React.FC = () => {
     try {
       setIsSubmitting(true);
 
-      const result = await fetch('/api/v1/auth/google-oauth', {
+      // For Google OAuth, we still need to make a direct API call since AuthContext doesn't handle OAuth
+      const result = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/api/v1/auth/google-oauth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,9 +152,13 @@ const SignInPage: React.FC = () => {
       const data = await result.json();
 
       if (result.ok && data.success) {
-        // For OAuth, we need to create tokens on the backend
-        // For now, redirect to dashboard
-        navigate('/dashboard');
+        // Store tokens and user data
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Trigger auth context update by reloading the page or dispatching an event
+        window.location.href = '/dashboard';
       } else {
         setErrors({ general: data.message || 'Google sign in failed' });
       }

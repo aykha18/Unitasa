@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, CheckCircle, Mail, Lock, User, Building } from 'lucide-react';
 import { Button } from '../components/ui';
+import { config } from '../config/environment';
 // Removed React Router dependency - using custom navigation
 
 // Google OAuth types
@@ -54,9 +55,9 @@ const SignupPage: React.FC = () => {
     };
 
     const initializeGoogle = () => {
-      if (window.google) {
+      if (window.google && config.googleClientId) {
         window.google.accounts.id.initialize({
-          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || 'your-google-client-id',
+          client_id: config.googleClientId,
           callback: handleGoogleSignup,
         });
         setIsGoogleLoaded(true);
@@ -84,6 +85,11 @@ const SignupPage: React.FC = () => {
       const data = await result.json();
 
       if (result.ok && data.success) {
+        // Store tokens and user data
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
         alert(`🎉 ${data.message}`);
         navigate('/dashboard');
       } else {

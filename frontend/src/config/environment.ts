@@ -9,6 +9,7 @@ export interface EnvironmentConfig {
   environment: 'development' | 'production';
   isProduction: boolean;
   isDevelopment: boolean;
+  googleClientId: string;
 }
 
 const getEnvironmentConfig = (): EnvironmentConfig => {
@@ -34,7 +35,8 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     wsBaseUrl,
     environment: isProduction ? 'production' : 'development',
     isProduction,
-    isDevelopment
+    isDevelopment,
+    googleClientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || ''
   };
 };
 

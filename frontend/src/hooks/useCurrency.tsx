@@ -37,21 +37,42 @@ export const useCurrency = (baseAmountUSD: number = 497): CurrencyDisplay => {
 
   useEffect(() => {
     const detectCurrency = async () => {
+      // Skip geolocation API call in development to avoid CORS issues
+      if (process.env.NODE_ENV === 'development') {
+        // Default to INR for development (common for Indian developers)
+        const currency: 'USD' | 'INR' | 'EUR' = 'INR';
+        const symbol = '₹';
+        const rate = EXCHANGE_RATES.INR;
+        const amount = Math.round(baseAmountUSD * rate);
+        const displayText = `₹${amount.toLocaleString('en-IN')}`;
+
+        setCurrencyDisplay({
+          currency,
+          symbol,
+          amount,
+          displayText,
+          isIndian: true,
+          isEuropean: false,
+          isAmerican: false
+        });
+        return;
+      }
+
       try {
         // Try to fetch user's country via IP geolocation with timeout and error handling
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-        
+
         const response = await fetch('https://ipapi.co/json/', {
           signal: controller.signal,
           mode: 'cors'
         });
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const data = await response.json();
 
         const countryCode = data.country_code || 'US';

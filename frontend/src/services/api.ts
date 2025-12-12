@@ -2,8 +2,19 @@ import axios from 'axios';
 
 // API Configuration - Use environment variable or detect environment
 const getApiBaseUrl = () => {
-  // TEMPORARY FIX: Always use backend URL for development
-  // TODO: Fix the hostname detection logic
+  // Check for explicit environment variable first
+  if (process.env.REACT_APP_API_URL &&
+      !process.env.REACT_APP_API_URL.includes('your-backend-service.railway.app')) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // Production detection - if not localhost, use relative URLs for same-domain deployment
+  if (process.env.NODE_ENV === 'production' || (typeof window !== 'undefined' && window.location.hostname !== 'localhost')) {
+    // Backend and frontend are on the same domain in production
+    return '';
+  }
+
+  // Development default
   return 'http://localhost:8001';
 };
 

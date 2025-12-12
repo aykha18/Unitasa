@@ -72,34 +72,50 @@ async def register_user(
 ) -> UserRegistrationResponse:
     """Register a new user account"""
     try:
-        print(f"[USER_REGISTRATION] Starting registration for: {request.email}")
-        
+        print(f"[USER_REGISTRATION] ===== STARTING REGISTRATION =====")
+        print(f"[USER_REGISTRATION] Email: {request.email}")
+        print(f"[USER_REGISTRATION] FirstName: {request.firstName}")
+        print(f"[USER_REGISTRATION] LastName: {request.lastName}")
+        print(f"[USER_REGISTRATION] Company: {request.company}")
+        print(f"[USER_REGISTRATION] AgreeToTerms: {request.agreeToTerms}")
+
         # Validate passwords match
         if request.password != request.confirmPassword:
+            print(f"[USER_REGISTRATION] ERROR: Passwords don't match")
             raise HTTPException(status_code=400, detail="Passwords do not match")
-        
+
         # Validate password length (bcrypt has 72 byte limit)
         if len(request.password.encode('utf-8')) > 72:
+            print(f"[USER_REGISTRATION] ERROR: Password too long")
             raise HTTPException(status_code=400, detail="Password is too long (max 72 characters)")
-        
+
         # Validate password strength
         if len(request.password) < 8:
+            print(f"[USER_REGISTRATION] ERROR: Password too short")
             raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
-        
+
         # Validate terms agreement
         if not request.agreeToTerms:
+            print(f"[USER_REGISTRATION] ERROR: Terms not agreed")
             raise HTTPException(status_code=400, detail="You must agree to the terms of service")
-        
+
+        print(f"[USER_REGISTRATION] Validation passed, checking for existing user...")
+
         # Check if user already exists
         result = await db.execute(select(User).where(User.email == request.email))
         existing_user = result.scalar_one_or_none()
-        
+
         if existing_user:
+            print(f"[USER_REGISTRATION] ERROR: User already exists with ID: {existing_user.id}")
             raise HTTPException(status_code=400, detail="User with this email already exists")
-        
+
+        print(f"[USER_REGISTRATION] User doesn't exist, checking for existing lead...")
+
         # Check if there's an existing lead for this email (from assessment)
+        print(f"[USER_REGISTRATION] Querying leads table for email: {request.email}")
         result = await db.execute(select(Lead).where(Lead.email == request.email))
         existing_lead = result.scalar_one_or_none()
+        print(f"[USER_REGISTRATION] Lead query result: {existing_lead}")
         
         # Hash password
         from app.core.jwt_handler import get_password_hash

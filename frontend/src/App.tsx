@@ -7,7 +7,6 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import RefundPolicy from './pages/RefundPolicy';
 import Contact from './pages/Contact';
-import SocialDashboard from './pages/SocialDashboard';
 import PerformanceDashboard from './components/dev/PerformanceDashboard';
 
 import { initializeSecurity } from './utils/security';
@@ -156,10 +155,10 @@ function App() {
       case '/login':
         return <SignInPage />;
       case '/dashboard':
-        const DashboardPage = React.lazy(() => import('./pages/Dashboard/DashboardPage'));
+        const UnifiedDashboard = React.lazy(() => import('./pages/Dashboard/UnifiedDashboard'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-            <DashboardPage />
+            <UnifiedDashboard />
           </React.Suspense>
         );
       case '/verify-email':
@@ -184,8 +183,6 @@ function App() {
         return <RefundPolicy />;
       case '/contact':
         return <Contact />;
-      case '/social':
-        return <SocialDashboard />;
       case '/admin':
         // Lazy load admin dashboard
         const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));

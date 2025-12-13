@@ -525,6 +525,14 @@ async def cors_debug(request: Request):
         "all_headers": dict(request.headers)
     }
 
+@app.get("/api/v1/config/google-client-id")
+async def get_google_client_id():
+    """Serve Google Client ID to frontend"""
+    google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not google_client_id:
+        return {"error": "Google OAuth not configured"}
+    return {"googleClientId": google_client_id}
+
 @app.get("/debug/routes")
 async def debug_routes():
     """Debug available routes"""

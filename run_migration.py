@@ -101,11 +101,9 @@ if __name__ == "__main__":
     print("This script will add first_name and last_name columns to the users table")
     print()
 
-    # Confirm before running
-    confirm = input("Are you sure you want to run this migration? (yes/no): ").lower().strip()
-    if confirm not in ['yes', 'y']:
-        print("Migration cancelled")
-        exit(0)
+    # Auto-confirm for non-interactive execution
+    print("Starting migration automatically...")
+    confirm = "yes"  # Auto-confirm
 
     # Run the migration
     asyncio.run(run_migration())

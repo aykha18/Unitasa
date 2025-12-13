@@ -22,12 +22,16 @@ class EmailService:
     """Service for sending co-creator program emails"""
 
     def __init__(self):
-        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        # Default to Hostinger SMTP settings
+        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.hostinger.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.smtp_username = os.getenv("SMTP_USERNAME")
-        self.smtp_password = os.getenv("SMTP_PASSWORD")
+        self.smtp_username = os.getenv("SMTP_USERNAME", "support@unitasa.in")
+        self.smtp_password = os.getenv("SMTP_PASSWORD", "Miral@18")
         self.from_email = os.getenv("FROM_EMAIL", "support@unitasa.in")
         self.from_name = os.getenv("FROM_NAME", "Unitasa")
+
+        print(f"[EMAIL_SERVICE] Initialized with server: {self.smtp_server}, port: {self.smtp_port}")
+        print(f"[EMAIL_SERVICE] From: {self.from_name} <{self.from_email}>")
     
     def send_email(
         self,

@@ -436,6 +436,7 @@ async def google_oauth_signup(
 
         is_co_creator = False
         if existing_lead:
+            print(f"[GOOGLE_OAUTH] Found existing lead: {existing_lead.id}")
             existing_lead.user_id = new_user.id
 
             # TEMPORARILY DISABLE CO-CREATOR CHECK DUE TO DATABASE CONSTRAINT ISSUE
@@ -460,6 +461,21 @@ async def google_oauth_signup(
             # except Exception as e:
             #     print(f"[GOOGLE_OAUTH] Error checking co-creator status: {e}")
             #     # Continue with registration without co-creator status
+        else:
+            # Create a new lead record for Google OAuth users
+            print(f"[GOOGLE_OAUTH] Creating new lead record for Google OAuth user")
+            new_lead = Lead(
+                email=email,
+                full_name=name,
+                first_name=given_name,
+                last_name=family_name,
+                company=request.company or "",
+                user_id=new_user.id,
+                source="google_oauth",
+                status="converted"
+            )
+            db.add(new_lead)
+            print(f"[GOOGLE_OAUTH] Created lead record with ID will be assigned after commit")
         
         await db.commit()
 

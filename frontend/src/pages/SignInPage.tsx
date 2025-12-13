@@ -211,8 +211,79 @@ const SignInPage: React.FC = () => {
   };
 
   const handleGoogleButtonClick = () => {
-    if (window.google) {
-      window.google.accounts.id.prompt();
+    console.log('🔍 DEBUG: SignInPage Google button clicked');
+
+    if (!window.google) {
+      console.log('🔍 DEBUG: window.google not available');
+      setErrors({ general: 'Google OAuth not loaded. Please refresh the page.' });
+      return;
+    }
+
+    // First try One Tap prompt
+    console.log('🔍 DEBUG: Attempting One Tap prompt');
+    window.google.accounts.id.prompt((notification: any) => {
+      console.log('🔍 DEBUG: One Tap notification:', notification);
+
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        console.log('🔍 DEBUG: One Tap not displayed, trying manual trigger');
+        renderGoogleButton();
+      }
+    });
+  };
+
+  const renderGoogleButton = () => {
+    console.log('🔍 DEBUG: Attempting to render Google button programmatically');
+    try {
+      // Create a visible container for the button
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = 'google-signin-button-signin-page';
+      buttonContainer.style.position = 'fixed';
+      buttonContainer.style.top = '-1000px';
+      buttonContainer.style.left = '-1000px';
+      buttonContainer.style.zIndex = '-1';
+
+      document.body.appendChild(buttonContainer);
+      console.log('🔍 DEBUG: Created button container');
+
+      window.google.accounts.id.renderButton(buttonContainer, {
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left'
+      });
+
+      console.log('🔍 DEBUG: Rendered Google button');
+
+      // Trigger click on the rendered button after a short delay
+      setTimeout(() => {
+        const renderedButton = buttonContainer.querySelector('div[role="button"]') as HTMLElement;
+        console.log('🔍 DEBUG: Looking for rendered button element:', renderedButton);
+        if (renderedButton) {
+          console.log('🔍 DEBUG: Found rendered button, clicking it');
+          renderedButton.click();
+          console.log('🔍 DEBUG: Clicked rendered Google button');
+        } else {
+          console.log('🔍 DEBUG: Could not find rendered button element');
+          // Try alternative selectors
+          const altButton = buttonContainer.querySelector('button') as HTMLElement;
+          if (altButton) {
+            console.log('🔍 DEBUG: Found button with alt selector, clicking');
+            altButton.click();
+          } else {
+            console.log('🔍 DEBUG: No button found with any selector');
+            console.log('🔍 DEBUG: Container HTML:', buttonContainer.innerHTML);
+          }
+        }
+
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(buttonContainer);
+          console.log('🔍 DEBUG: Cleaned up button container');
+        }, 1000);
+      }, 200);
+    } catch (error) {
+      console.error('🔍 DEBUG: Error rendering Google button:', error);
     }
   };
 

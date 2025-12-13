@@ -42,11 +42,15 @@ if __name__ == "__main__":
     # Import the app after setting environment variables
     from app.main import app
     
+    # Get port from environment (Railway sets PORT)
+    port = int(os.getenv("PORT", 8001))
+    print(f"Starting server on port {port}")
+
     # Start the server
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8001,
+        port=port,
         log_level="info",
         access_log=False  # Reduce log noise
     )

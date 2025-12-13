@@ -48,7 +48,10 @@ console.log('🔧 Environment Configuration:', {
   apiBaseUrl: config.apiBaseUrl,
   wsBaseUrl: config.wsBaseUrl,
   hostname: window.location.hostname,
-  protocol: window.location.protocol
+  protocol: window.location.protocol,
+  googleClientId: config.googleClientId ? 'SET' : 'NOT SET',
+  googleClientIdLength: config.googleClientId.length,
+  allEnvVars: Object.keys(process.env).filter(key => key.includes('GOOGLE') || key.includes('REACT_APP'))
 });
 
 export default config;

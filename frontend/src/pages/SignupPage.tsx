@@ -108,8 +108,13 @@ const SignupPage: React.FC = () => {
   }, []);
 
   const handleGoogleSignup = async (response: any) => {
+    console.log('🔍 DEBUG: handleGoogleSignup called');
+    console.log('🔍 DEBUG: Google response:', response);
+    console.log('🔍 DEBUG: response.credential exists:', !!response.credential);
+
     try {
       setIsSubmitting(true);
+      console.log('🔍 DEBUG: Starting Google signup API call');
 
       const result = await fetch('/api/v1/auth/google-oauth', {
         method: 'POST',
@@ -122,30 +127,48 @@ const SignupPage: React.FC = () => {
         }),
       });
 
+      console.log('🔍 DEBUG: API response status:', result.status);
       const data = await result.json();
+      console.log('🔍 DEBUG: API response data:', data);
 
       if (result.ok && data.success) {
+        console.log('🔍 DEBUG: Google signup successful, storing tokens');
         // Store tokens and user data
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
         alert(`🎉 ${data.message}`);
+        console.log('🔍 DEBUG: Navigating to dashboard');
         navigate('/dashboard');
       } else {
+        console.log('🔍 DEBUG: Google signup failed with API error');
         throw new Error(data.message || 'Google signup failed');
       }
     } catch (error) {
-      console.error('Google signup failed:', error);
+      console.error('🔍 DEBUG: Google signup failed with exception:', error);
       setErrors({ email: 'Google signup failed. Please try again.' });
     } finally {
       setIsSubmitting(false);
+      console.log('🔍 DEBUG: handleGoogleSignup completed');
     }
   };
 
   const handleGoogleButtonClick = () => {
+    console.log('🔍 DEBUG: Google button clicked');
+    console.log('🔍 DEBUG: window.google exists:', !!window.google);
+    console.log('🔍 DEBUG: isGoogleLoaded state:', isGoogleLoaded);
+
     if (window.google) {
-      window.google.accounts.id.prompt();
+      console.log('🔍 DEBUG: Calling window.google.accounts.id.prompt()');
+      try {
+        window.google.accounts.id.prompt();
+        console.log('🔍 DEBUG: window.google.accounts.id.prompt() called successfully');
+      } catch (error) {
+        console.error('🔍 DEBUG: Error calling window.google.accounts.id.prompt():', error);
+      }
+    } else {
+      console.log('🔍 DEBUG: window.google is not available');
     }
   };
   const [formData, setFormData] = useState<SignupFormData>({

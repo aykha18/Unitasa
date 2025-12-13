@@ -178,8 +178,23 @@ const SignInPage: React.FC = () => {
     try {
       setIsSubmitting(true);
 
+      // Get the correct API URL using the same logic as other components
+      const getApiBaseUrl = () => {
+        if (process.env.REACT_APP_API_URL &&
+            !process.env.REACT_APP_API_URL.includes('your-backend-service.railway.app')) {
+          return process.env.REACT_APP_API_URL;
+        }
+        if (process.env.NODE_ENV === 'production' || (typeof window !== 'undefined' && window.location.hostname !== 'localhost')) {
+          return '';
+        }
+        return 'http://localhost:8001';
+      };
+
+      const apiBaseUrl = getApiBaseUrl();
+      console.log('🔍 DEBUG: Using API base URL for Google OAuth:', apiBaseUrl);
+
       // For Google OAuth, we still need to make a direct API call since AuthContext doesn't handle OAuth
-      const result = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8001'}/api/v1/auth/google-oauth`, {
+      const result = await fetch(`${apiBaseUrl}/api/v1/auth/google-oauth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

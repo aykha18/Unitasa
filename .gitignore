@@ -234,6 +234,9 @@ validate_*.py
 # Test scripts directory (excluded to avoid security scanning issues)
 test_scripts/
 
+# Specific test files that may contain credentials
+test_email.py
+
 # Documentation and summary files
 *_SUMMARY.md
 *_IMPLEMENTATION*.md

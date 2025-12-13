@@ -39,7 +39,7 @@ class FacebookOAuthService:
         params = {
             'client_id': self.app_id,
             'redirect_uri': self.redirect_uri,
-            'scope': 'pages_manage_posts,pages_read_engagement,pages_show_list',
+            'scope': 'pages_show_list,email,public_profile',
             'response_type': 'code',
             'state': state
         }

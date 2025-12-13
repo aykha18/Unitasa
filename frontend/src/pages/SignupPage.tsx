@@ -159,16 +159,62 @@ const SignupPage: React.FC = () => {
     console.log('🔍 DEBUG: window.google exists:', !!window.google);
     console.log('🔍 DEBUG: isGoogleLoaded state:', isGoogleLoaded);
 
-    if (window.google) {
-      console.log('🔍 DEBUG: Calling window.google.accounts.id.prompt()');
+    if (window.google && isGoogleLoaded) {
+      console.log('🔍 DEBUG: Attempting to show Google One Tap');
       try {
-        window.google.accounts.id.prompt();
+        // Try the One Tap prompt first
+        window.google.accounts.id.prompt((notification: any) => {
+          console.log('🔍 DEBUG: One Tap notification:', notification);
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            console.log('🔍 DEBUG: One Tap not displayed, trying manual trigger');
+            // If One Tap doesn't work, we might need to use a different approach
+            // For now, let's try to render a button programmatically
+            renderGoogleButton();
+          }
+        });
         console.log('🔍 DEBUG: window.google.accounts.id.prompt() called successfully');
       } catch (error) {
-        console.error('🔍 DEBUG: Error calling window.google.accounts.id.prompt():', error);
+        console.error('🔍 DEBUG: Error with One Tap, trying button render:', error);
+        renderGoogleButton();
       }
     } else {
-      console.log('🔍 DEBUG: window.google is not available');
+      console.log('🔍 DEBUG: window.google not available or not loaded');
+    }
+  };
+
+  const renderGoogleButton = () => {
+    console.log('🔍 DEBUG: Attempting to render Google button programmatically');
+    try {
+      const buttonContainer = document.createElement('div');
+      buttonContainer.id = 'google-signin-button';
+      buttonContainer.style.display = 'none';
+
+      // Find the existing button and replace it temporarily
+      const existingButton = document.querySelector('[data-google-button]');
+      if (existingButton) {
+        existingButton.appendChild(buttonContainer);
+
+        window.google.accounts.id.renderButton(buttonContainer, {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left'
+        });
+
+        // Trigger click on the rendered button
+        setTimeout(() => {
+          const renderedButton = buttonContainer.querySelector('div[role="button"]') as HTMLElement;
+          if (renderedButton) {
+            console.log('🔍 DEBUG: Clicking rendered Google button');
+            renderedButton.click();
+          } else {
+            console.log('🔍 DEBUG: Could not find rendered button element');
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('🔍 DEBUG: Error rendering Google button:', error);
     }
   };
   const [formData, setFormData] = useState<SignupFormData>({

@@ -36,7 +36,7 @@ const getEnvironmentConfig = (): EnvironmentConfig => {
     environment: isProduction ? 'production' : 'development',
     isProduction,
     isDevelopment,
-    googleClientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || ''
+    googleClientId: process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
   };
 };
 

@@ -14,7 +14,7 @@
       "variables": {
         "NODE_ENV": "production",
         "REACT_APP_API_URL": "${{ RAILWAY_STATIC_URL }}",
-        "REACT_APP_GOOGLE_CLIENT_ID": "${{ GOOGLE_CLIENT_ID }}"
+        "GOOGLE_CLIENT_ID": "${{ GOOGLE_CLIENT_ID }}"
       }
     }
   }

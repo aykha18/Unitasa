@@ -484,6 +484,17 @@ else:
     print("Frontend build not found - running in API-only mode")
     print("Use 'cd frontend && npm run build' to create frontend build")
 
+@app.get("/api/v1/health")
+async def railway_health_check():
+    """Railway health check endpoint - ultra simple, never fails"""
+    return {
+        "status": "healthy",
+        "service": "unitasa-api",
+        "timestamp": "2025-01-01T00:00:00.000000",
+        "version": "1.0.0",
+        "ready": True
+    }
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Railway"""

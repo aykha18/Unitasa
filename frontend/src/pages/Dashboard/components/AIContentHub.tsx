@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, PenTool, Image, MessageSquare, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, PenTool, Image, MessageSquare, Zap, Loader2 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 
 interface User {
@@ -13,10 +13,68 @@ interface AIContentHubProps {
 }
 
 const AIContentHub: React.FC<AIContentHubProps> = ({ user }) => {
+  const [loading, setLoading] = useState<{[key: string]: boolean}>({});
+  const [generatedContent, setGeneratedContent] = useState<{[key: string]: any[]}>({});
+
   // Custom navigation function
   const navigate = (path: string) => {
     window.history.pushState({}, '', path);
     window.dispatchEvent(new Event('navigate'));
+  };
+
+  // API Configuration - Use environment variable or detect environment
+  const getApiBaseUrl = () => {
+    // If REACT_APP_API_URL is set and it's not the placeholder, use it
+    if (process.env.REACT_APP_API_URL &&
+        !process.env.REACT_APP_API_URL.includes('your-backend-service.railway.app')) {
+      return process.env.REACT_APP_API_URL;
+    }
+
+    // If we're in production (Railway), use relative URLs for same-service deployment
+    if (process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost') {
+      // Backend and frontend are on the same Railway service
+      return ''; // Relative URLs will use the same domain
+    }
+
+    // Development default
+    return 'http://localhost:8001';
+  };
+
+  const handleGenerateContent = async (featureKey: string, platform: string) => {
+    setLoading(prev => ({ ...prev, [`${featureKey}_${platform}`]: true }));
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/social/content/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          feature_key: featureKey,
+          platform: platform,
+          content_type: 'educational'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setGeneratedContent(prev => ({
+          ...prev,
+          [`${featureKey}_${platform}`]: data.content || []
+        }));
+        alert(`Generated ${data.content?.length || 0} content pieces for ${platform}!`);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.detail || 'Failed to generate content'}`);
+      }
+    } catch (error) {
+      console.error('Content generation error:', error);
+      alert('Failed to generate content. Please try again.');
+    } finally {
+      setLoading(prev => ({ ...prev, [`${featureKey}_${platform}`]: false }));
+    }
   };
 
   const aiFeatures = [
@@ -94,10 +152,21 @@ const AIContentHub: React.FC<AIContentHubProps> = ({ user }) => {
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() => navigate(`/${feature.action}`)}
+                onClick={() => {
+                  if (feature.action === 'generate-content') {
+                    handleGenerateContent('automated_social_posting', 'twitter');
+                  } else {
+                    navigate(`/${feature.action}`);
+                  }
+                }}
+                disabled={loading[`automated_social_posting_twitter`]}
               >
-                <Zap className="w-4 h-4 mr-2" />
-                Try Now
+                {loading[`automated_social_posting_twitter`] ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="w-4 h-4 mr-2" />
+                )}
+                {loading[`automated_social_posting_twitter`] ? 'Generating...' : 'Try Now'}
               </Button>
             ) : (
               <div className="text-center">

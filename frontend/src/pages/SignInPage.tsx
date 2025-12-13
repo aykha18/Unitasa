@@ -44,32 +44,51 @@ const SignInPage: React.FC = () => {
 
   // Load Google OAuth script
   useEffect(() => {
+    console.log('🔍 DEBUG: SignInPage useEffect triggered');
+    console.log('🔍 DEBUG: config.googleClientId:', config.googleClientId);
+    console.log('🔍 DEBUG: config.googleClientId length:', config.googleClientId.length);
+    console.log('🔍 DEBUG: window.location.hostname:', window.location.hostname);
+
     const loadGoogleScript = () => {
+      console.log('🔍 DEBUG: loadGoogleScript called');
       if (window.google) {
+        console.log('🔍 DEBUG: window.google already exists, calling initializeGoogle');
         initializeGoogle();
         return;
       }
 
+      console.log('🔍 DEBUG: Creating Google script element');
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.async = true;
       script.defer = true;
-      script.onload = initializeGoogle;
+      script.onload = () => {
+        console.log('🔍 DEBUG: Google script loaded, calling initializeGoogle');
+        initializeGoogle();
+      };
       document.head.appendChild(script);
     };
 
     const initializeGoogle = () => {
+      console.log('🔍 DEBUG: initializeGoogle called');
+      console.log('🔍 DEBUG: window.google exists:', !!window.google);
+      console.log('🔍 DEBUG: config.googleClientId exists:', !!config.googleClientId);
+
       if (window.google && config.googleClientId) {
+        console.log('🔍 DEBUG: Initializing Google OAuth with client_id:', config.googleClientId.substring(0, 20) + '...');
         try {
           window.google.accounts.id.initialize({
             client_id: config.googleClientId,
             callback: handleGoogleSignIn,
           });
+          console.log('🔍 DEBUG: Google OAuth initialized successfully');
           setIsGoogleLoaded(true);
         } catch (error) {
-          console.error('Google OAuth initialization failed:', error);
+          console.error('🔍 DEBUG: Google OAuth initialization failed:', error);
           // Keep button disabled if initialization fails
         }
+      } else {
+        console.log('🔍 DEBUG: Cannot initialize - window.google or config.googleClientId missing');
       }
     };
 

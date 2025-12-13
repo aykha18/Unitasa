@@ -1,13 +1,16 @@
 import React from 'react';
-import { 
-  PenTool, 
-  Calendar, 
-  Link, 
-  BarChart3, 
-  Users, 
+import {
+  PenTool,
+  Calendar,
+  Link,
+  BarChart3,
+  Users,
   Zap,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Hash,
+  Image,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 
@@ -102,6 +105,39 @@ const QuickActions: React.FC<QuickActionsProps> = ({ user }) => {
       textColor: 'text-indigo-600',
       bgColor: 'bg-indigo-50',
       available: isFeatureAvailable('insights'),
+      new: true,
+    },
+    {
+      id: 'smart-hashtags',
+      title: 'Smart Hashtags',
+      description: 'Generate trending hashtags for your content',
+      icon: Hash,
+      color: 'bg-cyan-500 hover:bg-cyan-600',
+      textColor: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
+      available: true, // Always available for demo
+      new: true,
+    },
+    {
+      id: 'image-suggestions',
+      title: 'Image Suggestions',
+      description: 'Find perfect images for your social posts',
+      icon: Image,
+      color: 'bg-emerald-500 hover:bg-emerald-600',
+      textColor: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+      available: true, // Always available for demo
+      new: true,
+    },
+    {
+      id: 'chat-assistant',
+      title: 'AI Content Assistant',
+      description: 'Chat with AI for content strategy advice',
+      icon: MessageCircle,
+      color: 'bg-violet-500 hover:bg-violet-600',
+      textColor: 'text-violet-600',
+      bgColor: 'bg-violet-50',
+      available: true, // Always available for demo
       new: true,
     },
   ];

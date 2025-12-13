@@ -199,6 +199,30 @@ function App() {
             <SchedulePostsPage />
           </React.Suspense>
         );
+      case '/smart-hashtags':
+        // Lazy load smart hashtags page
+        const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <SmartHashtagsPage />
+          </React.Suspense>
+        );
+      case '/image-suggestions':
+        // Lazy load image suggestions page
+        const ImageSuggestionsPage = React.lazy(() => import('./pages/ImageSuggestionsPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <ImageSuggestionsPage />
+          </React.Suspense>
+        );
+      case '/chat-assistant':
+        // Lazy load chat assistant page
+        const ChatAssistantPage = React.lazy(() => import('./pages/ChatAssistantPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <ChatAssistantPage />
+          </React.Suspense>
+        );
       default:
         return <LandingPage />;
     }

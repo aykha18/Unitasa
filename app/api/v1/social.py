@@ -1260,3 +1260,209 @@ async def get_scheduled_posts(
     except Exception as e:
         logger.error(f"Failed to fetch scheduled posts: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch scheduled posts: {str(e)}")
+
+
+# AI Content Hub API Endpoints
+class HashtagGenerationRequest(BaseModel):
+    topic: str = Field(..., description="Topic or keyword to generate hashtags for")
+    platform: str = Field("twitter", description="Target social media platform")
+    count: int = Field(10, description="Number of hashtags to generate", ge=5, le=30)
+
+
+class ImageGenerationRequest(BaseModel):
+    query: str = Field(..., description="Image search query or description")
+    count: int = Field(6, description="Number of images to generate", ge=1, le=12)
+
+
+class ChatAssistantRequest(BaseModel):
+    message: str = Field(..., description="User message to the AI assistant")
+    context: Optional[str] = Field(None, description="Optional context about the conversation")
+
+
+@router.post("/content/generate-hashtags")
+async def generate_hashtags(request: HashtagGenerationRequest):
+    """Generate relevant hashtags for a given topic and platform"""
+    try:
+        # Mock hashtag generation based on topic and platform
+        base_hashtags = {
+            "marketing": ["#Marketing", "#DigitalMarketing", "#MarketingTips", "#MarketingStrategy", "#MarketingAutomation"],
+            "business": ["#Business", "#Entrepreneurship", "#BusinessTips", "#BusinessGrowth", "#BusinessStrategy"],
+            "technology": ["#Technology", "#Tech", "#Innovation", "#TechTrends", "#DigitalTransformation"],
+            "social media": ["#SocialMedia", "#SocialMediaMarketing", "#SocialMediaTips", "#SocialMediaStrategy", "#ContentMarketing"],
+            "ai": ["#AI", "#ArtificialIntelligence", "#MachineLearning", "#AI", "#TechInnovation"],
+            "sales": ["#Sales", "#SalesTips", "#SalesStrategy", "#BusinessDevelopment", "#LeadGeneration"],
+            "startup": ["#Startup", "#Entrepreneur", "#StartupLife", "#BusinessGrowth", "#Innovation"],
+            "finance": ["#Finance", "#FinancialPlanning", "#Investment", "#MoneyManagement", "#FinancialFreedom"],
+            "health": ["#Health", "#Wellness", "#HealthyLiving", "#Fitness", "#Nutrition"],
+            "education": ["#Education", "#Learning", "#OnlineLearning", "#Knowledge", "#PersonalDevelopment"]
+        }
+
+        # Platform-specific hashtag variations
+        platform_modifiers = {
+            "twitter": ["#Twitter", "#TwitterMarketing", "#Tweet"],
+            "instagram": ["#Instagram", "#InstaDaily", "#PhotoOfTheDay"],
+            "facebook": ["#Facebook", "#FacebookMarketing", "#SocialMedia"],
+            "linkedin": ["#LinkedIn", "#ProfessionalDevelopment", "#BusinessNetworking"],
+            "tiktok": ["#TikTok", "#Viral", "#Trending"]
+        }
+
+        # Get base hashtags for the topic
+        topic_lower = request.topic.lower()
+        hashtags = []
+
+        # Find matching topic categories
+        for category, category_hashtags in base_hashtags.items():
+            if category in topic_lower or any(word in topic_lower for word in category.split()):
+                hashtags.extend(category_hashtags)
+                break
+
+        # If no specific category found, use general marketing/business hashtags
+        if not hashtags:
+            hashtags = base_hashtags["marketing"] + base_hashtags["business"]
+
+        # Add platform-specific hashtags
+        platform_hashtags = platform_modifiers.get(request.platform, platform_modifiers["twitter"])
+        hashtags.extend(platform_hashtags)
+
+        # Add some trending/popular hashtags
+        trending_hashtags = ["#Viral", "#Trending", "#ContentMarketing", "#DigitalMarketing", "#BusinessGrowth"]
+        hashtags.extend(trending_hashtags)
+
+        # Remove duplicates and limit to requested count
+        unique_hashtags = list(set(hashtags))[:request.count]
+
+        # Create response with metadata
+        hashtag_objects = []
+        for i, hashtag in enumerate(unique_hashtags):
+            hashtag_objects.append({
+                "id": f"hashtag_{i+1}",
+                "text": hashtag,
+                "category": "topic" if i < len(unique_hashtags) - len(trending_hashtags) - len(platform_hashtags) else "trending",
+                "popularity_score": 0.5 + (i * 0.1) % 0.5,  # Mock popularity score
+                "usage_count": 1000 + (i * 500)  # Mock usage count
+            })
+
+        return {
+            "success": True,
+            "topic": request.topic,
+            "platform": request.platform,
+            "hashtags": hashtag_objects,
+            "total_count": len(hashtag_objects),
+            "generated_at": datetime.utcnow().isoformat(),
+            "source": "mock_ai"
+        }
+
+    except Exception as e:
+        logger.error(f"Hashtag generation failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Hashtag generation failed: {str(e)}")
+
+
+@router.post("/content/generate-images")
+async def generate_images(request: ImageGenerationRequest):
+    """Generate image suggestions based on search query"""
+    try:
+        # Mock image generation - in production this would call an AI image service
+        mock_images = []
+
+        # Generate mock image data based on query
+        for i in range(request.count):
+            image_id = f"img_{int(datetime.utcnow().timestamp())}_{i+1}"
+            mock_images.append({
+                "id": image_id,
+                "url": f"https://picsum.photos/400/300?random={i+1}",  # Using Lorem Picsum for demo
+                "thumbnail_url": f"https://picsum.photos/200/150?random={i+1}",
+                "title": f"Image suggestion {i+1} for '{request.query}'",
+                "description": f"AI-generated image related to {request.query}",
+                "width": 400,
+                "height": 300,
+                "format": "jpg",
+                "source": "mock_ai",
+                "tags": [request.query, "ai_generated", f"suggestion_{i+1}"],
+                "generated_at": datetime.utcnow().isoformat(),
+                "download_url": f"https://picsum.photos/800/600?random={i+1}"
+            })
+
+        return {
+            "success": True,
+            "query": request.query,
+            "images": mock_images,
+            "total_count": len(mock_images),
+            "generated_at": datetime.utcnow().isoformat(),
+            "source": "mock_ai",
+            "note": "Using mock image data. In production, this would connect to an AI image generation service."
+        }
+
+    except Exception as e:
+        logger.error(f"Image generation failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+
+@router.post("/content/chat-assistant")
+async def chat_assistant(request: ChatAssistantRequest):
+    """AI-powered chat assistant for content strategy advice"""
+    try:
+        # Mock AI responses based on user message content
+        responses = {
+            "hashtag": [
+                "For optimal hashtag performance, use a mix of popular (#Viral with 10M+ posts) and niche hashtags specific to your audience. Aim for 5-10 hashtags per post, and track which combinations drive the most engagement.",
+                "Hashtag strategy tip: Research trending hashtags in your niche using tools like Instagram's search, then combine them with branded hashtags to increase discoverability."
+            ],
+            "content": [
+                "Great content strategy involves understanding your audience's pain points and providing value. Focus on educational content that positions your brand as an expert in your field.",
+                "Content calendar tip: Plan your posts around key themes and events. Consistency matters, but quality always trumps quantity."
+            ],
+            "engagement": [
+                "Boost engagement by asking questions in your captions, responding to comments within 24 hours, and creating content that encourages shares and saves.",
+                "Engagement strategy: Use Stories for quick polls and questions, and leverage user-generated content to build community around your brand."
+            ],
+            "time": [
+                "Best posting times vary by platform and audience. Generally: Instagram & TikTok work well 7-9 PM weekdays, Facebook 1-3 PM weekdays, Twitter anytime but especially 8-10 AM and 5-7 PM.",
+                "Posting time tip: Test different times with your specific audience and use analytics to determine what works best for your content."
+            ],
+            "analytics": [
+                "Track engagement rate, reach, and click-through rates. Focus on content that drives meaningful actions, not just vanity metrics like likes.",
+                "Analytics insight: Look at which content types perform best and double down on those formats while experimenting with new approaches."
+            ]
+        }
+
+        # Default response
+        default_responses = [
+            "I'd be happy to help with your content strategy! Could you tell me more about what specific aspect you'd like advice on - hashtags, posting times, content creation, or analytics?",
+            "That's an interesting question about social media marketing. Based on current best practices, here are some key insights...",
+            "Great question! Let me share some proven strategies that have helped businesses like yours succeed on social media."
+        ]
+
+        # Find relevant response based on message content
+        message_lower = request.message.lower()
+        response_text = default_responses[0]  # Default fallback
+
+        for keyword, keyword_responses in responses.items():
+            if keyword in message_lower:
+                response_text = keyword_responses[0]  # Use first response for that keyword
+                break
+
+        # If no specific keyword match, use a general response
+        if response_text == default_responses[0]:
+            response_text = default_responses[1]
+
+        return {
+            "success": True,
+            "response": {
+                "id": f"chat_{int(datetime.utcnow().timestamp())}",
+                "message": response_text,
+                "timestamp": datetime.utcnow().isoformat(),
+                "source": "mock_ai",
+                "confidence": 0.85,  # Mock confidence score
+                "suggestions": [
+                    "Would you like me to elaborate on this topic?",
+                    "I can also help with hashtag research or content ideas.",
+                    "Let me know if you need platform-specific advice."
+                ]
+            },
+            "conversation_context": request.context,
+            "processing_time_ms": 150 + (datetime.utcnow().microsecond % 500)  # Mock processing time
+        }
+
+    except Exception as e:
+        logger.error(f"Chat assistant failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Chat assistant failed: {str(e)}")

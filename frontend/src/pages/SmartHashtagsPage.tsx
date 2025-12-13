@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Sparkles, Hash, Copy, RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '../components/ui';
+import { aiContentHubService, Hashtag } from '../services/aiContentHubService';
 
 const SmartHashtagsPage: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [platform, setPlatform] = useState('twitter');
-  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtags, setHashtags] = useState<Hashtag[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Mock hashtag data - in production this would come from an API
   const mockHashtags = {
@@ -32,29 +34,26 @@ const SmartHashtagsPage: React.FC = () => {
     if (!topic.trim()) return;
 
     setLoading(true);
+    setError(null);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      const topicKey = topic.toLowerCase().includes('market') ? 'marketing' :
-                      topic.toLowerCase().includes('tech') ? 'technology' : 'business';
+    try {
+      const response = await aiContentHubService.generateHashtags({
+        topic: topic.trim(),
+        platform: platform as 'twitter' | 'instagram' | 'linkedin'
+      });
 
-      const platformHashtags = mockHashtags[platform as keyof typeof mockHashtags][topicKey] || [];
-
-      // Add some dynamic hashtags based on the topic
-      const dynamicHashtags = [
-        `#${topic.replace(/\s+/g, '')}`,
-        `#${topic.split(' ')[0]}`,
-        `#${platform === 'twitter' ? 'Twitter' : platform === 'instagram' ? 'Instagram' : 'LinkedIn'}Marketing`
-      ];
-
-      setHashtags([...platformHashtags, ...dynamicHashtags]);
+      setHashtags(response.hashtags);
+    } catch (err) {
+      console.error('Failed to generate hashtags:', err);
+      setError('Failed to generate hashtags. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
-  const copyHashtag = async (hashtag: string, index: number) => {
+  const copyHashtag = async (hashtag: Hashtag, index: number) => {
     try {
-      await navigator.clipboard.writeText(hashtag);
+      await navigator.clipboard.writeText(hashtag.text);
       setCopiedIndex(index);
       setTimeout(() => setCopiedIndex(null), 2000);
     } catch (err) {
@@ -176,7 +175,7 @@ const SmartHashtagsPage: React.FC = () => {
                   onClick={() => copyHashtag(hashtag, index)}
                 >
                   <span className="text-sm font-medium text-gray-900 truncate">
-                    {hashtag}
+                    {hashtag.text}
                   </span>
                   {copiedIndex === index ? (
                     <span className="text-xs text-green-600 font-medium">Copied!</span>

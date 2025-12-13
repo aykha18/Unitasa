@@ -1,130 +1,58 @@
 import React, { useState } from 'react';
 import { Image, Search, Download, Heart, Share2, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui';
-
-interface SuggestedImage {
-  id: string;
-  url: string;
-  thumbnail: string;
-  title: string;
-  source: string;
-  tags: string[];
-  width: number;
-  height: number;
-}
+import { aiContentHubService, ImageSuggestion } from '../services/aiContentHubService';
 
 const ImageSuggestionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [images, setImages] = useState<SuggestedImage[]>([]);
+  const [images, setImages] = useState<ImageSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<SuggestedImage | null>(null);
+  const [selectedImage, setSelectedImage] = useState<ImageSuggestion | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock image data - in production this would come from an image API
-  const mockImages: SuggestedImage[] = [
-    {
-      id: '1',
-      url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
-      title: 'Modern Office Workspace',
-      source: 'Unsplash',
-      tags: ['office', 'workspace', 'business', 'modern'],
-      width: 800,
-      height: 600
-    },
-    {
-      id: '2',
-      url: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400&h=300&fit=crop',
-      title: 'Team Collaboration',
-      source: 'Unsplash',
-      tags: ['team', 'collaboration', 'meeting', 'business'],
-      width: 800,
-      height: 600
-    },
-    {
-      id: '3',
-      url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
-      title: 'Data Analytics Dashboard',
-      source: 'Unsplash',
-      tags: ['analytics', 'dashboard', 'data', 'technology'],
-      width: 800,
-      height: 600
-    },
-    {
-      id: '4',
-      url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
-      title: 'AI Technology Concept',
-      source: 'Unsplash',
-      tags: ['AI', 'technology', 'innovation', 'future'],
-      width: 800,
-      height: 600
-    },
-    {
-      id: '5',
-      url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
-      title: 'Growth Chart Visualization',
-      source: 'Unsplash',
-      tags: ['growth', 'chart', 'analytics', 'business'],
-      width: 800,
-      height: 600
-    },
-    {
-      id: '6',
-      url: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=600&fit=crop',
-      thumbnail: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400&h=300&fit=crop',
-      title: 'Marketing Strategy Session',
-      source: 'Unsplash',
-      tags: ['marketing', 'strategy', 'planning', 'business'],
-      width: 800,
-      height: 600
-    }
-  ];
 
   const searchImages = async () => {
     if (!searchQuery.trim()) return;
 
     setLoading(true);
+    setError(null);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Filter mock images based on search query
-      const filteredImages = mockImages.filter(image =>
-        image.tags.some(tag =>
-          tag.toLowerCase().includes(searchQuery.toLowerCase())
-        ) ||
-        image.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    try {
+      const response = await aiContentHubService.generateImages({
+        query: searchQuery.trim(),
+        count: 12
+      });
 
-      // If no matches, return some default images
-      setImages(filteredImages.length > 0 ? filteredImages : mockImages.slice(0, 6));
+      setImages(response.images);
+    } catch (err) {
+      console.error('Failed to generate images:', err);
+      setError('Failed to generate images. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
-  const downloadImage = async (image: SuggestedImage) => {
+  const downloadImage = async (image: ImageSuggestion) => {
     try {
       // In a real implementation, this would download the image
       // For now, we'll just open it in a new tab
-      window.open(image.url, '_blank');
+      window.open(image.download_url || image.url, '_blank');
     } catch (error) {
       console.error('Error downloading image:', error);
     }
   };
 
-  const shareImage = async (image: SuggestedImage) => {
+  const shareImage = async (image: ImageSuggestion) => {
     try {
       if (navigator.share) {
         await navigator.share({
           title: image.title,
           text: `Check out this image: ${image.title}`,
-          url: image.url
+          url: image.download_url || image.url
         });
       } else {
         // Fallback: copy URL to clipboard
-        await navigator.clipboard.writeText(image.url);
+        await navigator.clipboard.writeText(image.download_url || image.url);
         alert('Image URL copied to clipboard!');
       }
     } catch (error) {
@@ -206,7 +134,7 @@ const ImageSuggestionsPage: React.FC = () => {
               >
                 <div className="aspect-video relative">
                   <img
-                    src={image.thumbnail}
+                    src={image.thumbnail_url}
                     alt={image.title}
                     className="w-full h-full object-cover"
                   />
@@ -272,8 +200,8 @@ const ImageSuggestionsPage: React.FC = () => {
             <p className="text-gray-600 mb-4">
               Try searching with different keywords or browse popular categories.
             </p>
-            <Button onClick={() => setImages(mockImages)} className="bg-green-600 hover:bg-green-700">
-              Browse Popular Images
+            <Button onClick={() => searchImages()} className="bg-green-600 hover:bg-green-700">
+              Try Popular Search
             </Button>
           </div>
         )}

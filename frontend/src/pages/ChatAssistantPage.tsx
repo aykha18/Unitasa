@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles, MessageCircle } from 'lucide-react';
 import { Button } from '../components/ui';
+import { aiContentHubService } from '../services/aiContentHubService';
 
 interface Message {
   id: string;
@@ -28,33 +29,6 @@ const ChatAssistantPage: React.FC = () => {
     }
   }, [messages]);
 
-  const mockAIResponse = (userMessage: string): string => {
-    const responses = [
-      "That's a great idea! For optimal engagement, consider posting this during peak hours for your target audience.",
-      "I recommend using a mix of popular and niche hashtags. Popular ones get visibility, while niche ones attract the right audience.",
-      "Based on current trends, content about [topic] is performing well. You might want to create a series around this theme.",
-      "Try using storytelling in your captions - it increases engagement by 20-30% according to recent studies.",
-      "Consider collaborating with micro-influencers in your niche. They often have higher engagement rates than larger accounts.",
-      "A/B testing different post times and caption styles can help you understand what works best for your audience.",
-      "User-generated content is gold! Encourage your followers to share their experiences with your brand.",
-      "Video content is king right now. Short, authentic videos perform much better than polished ones.",
-      "Don't forget about the power of questions in your captions - they boost comments and interaction.",
-      "Consistency is key, but quality over quantity. Focus on creating valuable content that serves your audience.",
-    ];
-
-    // Simple keyword matching for more relevant responses
-    if (userMessage.toLowerCase().includes('hashtag')) {
-      return "For hashtags, aim for a mix of 5-10 per post. Include 2-3 popular hashtags (1M+ posts) and the rest niche-specific. Tools like Instagram's search can help you find trending ones in your niche.";
-    }
-    if (userMessage.toLowerCase().includes('time') || userMessage.toLowerCase().includes('schedule')) {
-      return "Best posting times vary by platform and audience. Generally: Instagram & TikTok work well 7-9 PM weekdays, Facebook 1-3 PM weekdays, Twitter anytime but especially 8-10 AM and 5-7 PM. Test and analyze what works for your specific audience!";
-    }
-    if (userMessage.toLowerCase().includes('engagement')) {
-      return "To boost engagement: Ask questions, respond to comments within 24 hours, use relevant emojis, collaborate with others, and post consistently. Stories and Reels often get more interaction than feed posts.";
-    }
-
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
@@ -70,17 +44,30 @@ const ChatAssistantPage: React.FC = () => {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
+    try {
+      const response = await aiContentHubService.chatWithAssistant({
+        message: userMessage.content,
+      });
+
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
-        content: mockAIResponse(userMessage.content),
+        content: response.response.message,
         role: 'assistant',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Failed to get AI response:', error);
+      const errorResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, I'm having trouble connecting right now. Please try again later.",
+        role: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1000 + Math.random() * 2000); // 1-3 second delay
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

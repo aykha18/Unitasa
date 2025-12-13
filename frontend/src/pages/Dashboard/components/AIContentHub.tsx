@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, PenTool, Image, MessageSquare, Zap, Loader2 } from 'lucide-react';
+import { Sparkles, PenTool, Image, MessageSquare, Zap, Loader2, Calendar } from 'lucide-react';
 import { Button } from '../../../components/ui';
 
 interface User {
@@ -84,6 +84,14 @@ const AIContentHub: React.FC<AIContentHubProps> = ({ user }) => {
       icon: PenTool,
       action: 'generate-content',
       color: 'bg-blue-500 hover:bg-blue-600',
+      available: true,
+    },
+    {
+      title: 'Schedule Posts',
+      description: 'Schedule your content for optimal posting times',
+      icon: Calendar,
+      action: 'schedule-posts',
+      color: 'bg-indigo-500 hover:bg-indigo-600',
       available: true,
     },
     {

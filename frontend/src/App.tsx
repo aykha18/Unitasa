@@ -191,6 +191,14 @@ function App() {
             <AdminDashboard />
           </React.Suspense>
         );
+      case '/schedule-posts':
+        // Lazy load schedule posts page
+        const SchedulePostsPage = React.lazy(() => import('./pages/SchedulePostsPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <SchedulePostsPage />
+          </React.Suspense>
+        );
       default:
         return <LandingPage />;
     }

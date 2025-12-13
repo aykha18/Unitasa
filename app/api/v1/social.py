@@ -71,6 +71,20 @@ class EngagementRequest(BaseModel):
     comment_text: Optional[str] = Field(None, description="Comment text if applicable")
 
 
+class ContentGenerationRequest(BaseModel):
+    feature_key: str = Field(..., description="Unitasa feature to generate content for")
+    platform: str = Field(..., description="Target social media platform")
+    content_type: str = Field("educational", description="Type of content (educational, benefit_focused, social_proof)")
+    tone: str = Field("professional", description="Content tone")
+
+
+class SchedulePostRequest(BaseModel):
+    content: str = Field(..., description="Content to post")
+    platforms: List[str] = Field(..., description="Platforms to post to")
+    scheduled_at: datetime = Field(..., description="When to post")
+    campaign_id: Optional[int] = Field(None, description="Associated campaign")
+
+
 # Dependencies
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     """Get current authenticated user"""
@@ -1061,3 +1075,172 @@ async def get_analytics(
             # ... more data points
         ]
     }
+
+
+@router.post("/content/generate")
+async def generate_content(
+    request: ContentGenerationRequest,
+    user: User = Depends(get_current_user)
+):
+    """Generate AI-powered social media content"""
+    try:
+        # Import the content generator agent
+        from app.agents.social_content_generator import create_social_content_generator
+        from langchain_openai import ChatOpenAI
+        import os
+
+        # Initialize LLM (use OpenAI if available, fallback to mock)
+        llm = None
+        try:
+            if os.getenv("OPENAI_API_KEY"):
+                llm = ChatOpenAI(
+                    model="gpt-4",
+                    temperature=0.7,
+                    api_key=os.getenv("OPENAI_API_KEY")
+                )
+        except Exception as e:
+            logger.warning(f"OpenAI LLM initialization failed: {e}")
+
+        if not llm:
+            # Return mock content for development
+            mock_content = {
+                "success": True,
+                "content": [
+                    {
+                        "id": f"mock_{request.feature_key}_{request.platform}",
+                        "feature": request.feature_key,
+                        "platform": request.platform,
+                        "type": request.content_type,
+                        "content": f"🚀 Transform your marketing with Unitasa's AI agents! Save 15+ hours/week with automated {request.feature_key.replace('_', ' ')}. #MarketingAutomation #AI",
+                        "hashtags": ["#MarketingAutomation", "#AI", "#SaaS"],
+                        "call_to_action": "Book a demo today!",
+                        "character_count": 120,
+                        "generated_at": datetime.utcnow().isoformat(),
+                        "source": "mock"
+                    }
+                ],
+                "message": "Content generated successfully (using mock data - OpenAI API key not configured)"
+            }
+            return mock_content
+
+        # Create content generator agent
+        content_generator = create_social_content_generator(llm)
+
+        # Generate content
+        generated_content = await content_generator.generate_feature_content(
+            feature_key=request.feature_key,
+            platform=request.platform,
+            content_types=[request.content_type]
+        )
+
+        return {
+            "success": True,
+            "content": generated_content,
+            "message": f"Generated {len(generated_content)} content pieces for {request.platform}"
+        }
+
+    except Exception as e:
+        logger.error(f"Content generation failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
+
+
+@router.post("/schedule")
+async def schedule_post(
+    request: SchedulePostRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Schedule a social media post for future publishing"""
+    try:
+        from app.models.social_account import SocialPost
+
+        scheduled_posts = []
+
+        # Validate scheduled time is in the future
+        if request.scheduled_at <= datetime.utcnow():
+            raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
+
+        # Create scheduled posts for each platform
+        for platform in request.platforms:
+            # Get user's account for this platform
+            account = await db.execute(
+                select(SocialAccount).where(
+                    SocialAccount.user_id == user.id,
+                    SocialAccount.platform == platform,
+                    SocialAccount.is_active == True
+                )
+            )
+            account = account.scalar_one_or_none()
+
+            if not account:
+                continue  # Skip platforms where user doesn't have an account
+
+            # Create scheduled post
+            scheduled_post = SocialPost(
+                user_id=user.id,
+                social_account_id=account.id,
+                campaign_id=request.campaign_id,
+                platform=platform,
+                content=request.content,
+                status="scheduled",
+                scheduled_at=request.scheduled_at,
+                generated_by_ai=False
+            )
+
+            db.add(scheduled_post)
+            scheduled_posts.append({
+                "id": scheduled_post.id,
+                "platform": platform,
+                "scheduled_at": request.scheduled_at.isoformat(),
+                "status": "scheduled"
+            })
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "message": f"Scheduled post for {len(scheduled_posts)} platforms",
+            "scheduled_posts": scheduled_posts
+        }
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Post scheduling failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Post scheduling failed: {str(e)}")
+
+
+@router.get("/scheduled")
+async def get_scheduled_posts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all scheduled posts for the user"""
+    try:
+        from app.models.social_account import SocialPost
+
+        result = await db.execute(
+            select(SocialPost).where(
+                SocialPost.user_id == user.id,
+                SocialPost.status == "scheduled",
+                SocialPost.scheduled_at > datetime.utcnow()
+            ).order_by(SocialPost.scheduled_at)
+        )
+        posts = result.scalars().all()
+
+        return {
+            "scheduled_posts": [
+                {
+                    "id": post.id,
+                    "platform": post.platform,
+                    "content": post.content,
+                    "scheduled_at": post.scheduled_at.isoformat(),
+                    "campaign_id": post.campaign_id,
+                    "created_at": post.created_at.isoformat()
+                }
+                for post in posts
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch scheduled posts: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch scheduled posts: {str(e)}")

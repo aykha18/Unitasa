@@ -225,16 +225,19 @@ async def lifespan(app: FastAPI):
             try:
                 from app.core.token_refresh_service import scheduled_token_refresh
                 from app.core.client_notification_service import scheduled_client_notifications
+                from app.core.scheduler import start_scheduler
 
                 # Create background tasks
                 token_refresh_task = asyncio.create_task(scheduled_token_refresh())
                 client_notification_task = asyncio.create_task(scheduled_client_notifications())
+                scheduler_task = asyncio.create_task(start_scheduler())
 
-                background_tasks.extend([token_refresh_task, client_notification_task])
+                background_tasks.extend([token_refresh_task, client_notification_task, scheduler_task])
 
                 print("✅ Background services started:")
                 print("   • Token refresh service (runs every 4 hours)")
                 print("   • Client notification service (runs daily)")
+                print("   • Social media scheduler (runs every 60 seconds)")
 
             except ImportError as e:
                 print(f"⚠️  Background services not available: {e}")

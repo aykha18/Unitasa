@@ -307,20 +307,32 @@ def get_allowed_origins():
         "https://www.unitasa.in",  # Production website
         "https://unitasa.in",      # Production website (without www)
         "https://unitas.up.railway.app",  # Railway frontend
+        "https://railway.com",     # Railway domain for CORS
+        "https://*.railway.app",   # Railway wildcard for subdomains
     ]
-    
+
     # Add environment-specific origins
     frontend_url = os.getenv("FRONTEND_URL")
     if frontend_url:
         origins.append(frontend_url)
-    
+
+    # Check for Railway deployment
+    railway_env = os.getenv("RAILWAY_ENVIRONMENT")
+    railway_project_id = os.getenv("RAILWAY_PROJECT_ID")
+
+    if railway_env or railway_project_id:
+        # In Railway environment, also allow Railway-specific origins
+        origins.extend([
+            "https://railway.com",
+            "https://*.railway.app",
+            "https://railway.app",
+        ])
+
     # In development or if no specific environment, allow all
     environment = os.getenv("ENVIRONMENT", "development")
-    railway_env = os.getenv("RAILWAY_ENVIRONMENT")
-    
-    if environment == "development" and not railway_env:
+    if environment == "development" and not railway_env and not railway_project_id:
         return ["*"]
-    
+
     return origins
 
 allowed_origins = get_allowed_origins()

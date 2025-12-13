@@ -7,10 +7,7 @@
   "deploy": {
     "numReplicas": 1,
     "sleepApplication": false,
-    "restartPolicyType": "ON_FAILURE",
-    "healthcheckPath": "/api/v1/health",
-    "healthcheckTimeout": 300,
-    "restartPolicyMaxRetries": 10
+    "restartPolicyType": "ON_FAILURE"
   },
   "environments": {
     "production": {

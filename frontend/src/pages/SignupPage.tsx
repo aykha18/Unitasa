@@ -38,18 +38,39 @@ const SignupPage: React.FC = () => {
     window.dispatchEvent(new Event('navigate'));
   };
 
-  // Load Google OAuth script
+  // Load Google OAuth script and fetch client ID
   useEffect(() => {
     console.log('🔍 DEBUG: SignupPage useEffect triggered');
-    console.log('🔍 DEBUG: config.googleClientId:', config.googleClientId);
-    console.log('🔍 DEBUG: config.googleClientId length:', config.googleClientId.length);
-    console.log('🔍 DEBUG: window.location.hostname:', window.location.hostname);
 
-    const loadGoogleScript = () => {
+    const fetchGoogleClientId = async () => {
+      try {
+        console.log('🔍 DEBUG: Fetching Google Client ID from API');
+        const response = await fetch('/api/v1/config/google-client-id');
+        const data = await response.json();
+        console.log('🔍 DEBUG: API response:', data);
+
+        if (data.googleClientId) {
+          console.log('🔍 DEBUG: Google Client ID received, length:', data.googleClientId.length);
+          return data.googleClientId;
+        } else {
+          console.log('🔍 DEBUG: No Google Client ID in API response');
+          return null;
+        }
+      } catch (error) {
+        console.error('🔍 DEBUG: Failed to fetch Google Client ID:', error);
+        return null;
+      }
+    };
+
+    const loadGoogleScript = async () => {
       console.log('🔍 DEBUG: loadGoogleScript called');
+
+      // First fetch the client ID
+      const googleClientId = await fetchGoogleClientId();
+
       if (window.google) {
         console.log('🔍 DEBUG: window.google already exists, calling initializeGoogle');
-        initializeGoogle();
+        initializeGoogle(googleClientId);
         return;
       }
 
@@ -60,26 +81,26 @@ const SignupPage: React.FC = () => {
       script.defer = true;
       script.onload = () => {
         console.log('🔍 DEBUG: Google script loaded, calling initializeGoogle');
-        initializeGoogle();
+        initializeGoogle(googleClientId);
       };
       document.head.appendChild(script);
     };
 
-    const initializeGoogle = () => {
+    const initializeGoogle = (googleClientId: string | null) => {
       console.log('🔍 DEBUG: initializeGoogle called');
       console.log('🔍 DEBUG: window.google exists:', !!window.google);
-      console.log('🔍 DEBUG: config.googleClientId exists:', !!config.googleClientId);
+      console.log('🔍 DEBUG: googleClientId exists:', !!googleClientId);
 
-      if (window.google && config.googleClientId) {
-        console.log('🔍 DEBUG: Initializing Google OAuth with client_id:', config.googleClientId.substring(0, 20) + '...');
+      if (window.google && googleClientId) {
+        console.log('🔍 DEBUG: Initializing Google OAuth with client_id:', googleClientId.substring(0, 20) + '...');
         window.google.accounts.id.initialize({
-          client_id: config.googleClientId,
+          client_id: googleClientId,
           callback: handleGoogleSignup,
         });
         console.log('🔍 DEBUG: Google OAuth initialized successfully');
         setIsGoogleLoaded(true);
       } else {
-        console.log('🔍 DEBUG: Cannot initialize - window.google or config.googleClientId missing');
+        console.log('🔍 DEBUG: Cannot initialize - window.google or googleClientId missing');
       }
     };
 

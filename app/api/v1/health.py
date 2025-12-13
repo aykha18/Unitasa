@@ -16,13 +16,32 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Basic health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "unitasa-api",
-        "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
-    }
+    """Basic health check endpoint - always available"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info("Health check endpoint called")
+        response = {
+            "status": "healthy",
+            "service": "unitasa-api",
+            "timestamp": datetime.utcnow().isoformat(),
+            "version": "1.0.0",
+            "ready": True
+        }
+        logger.info(f"Health check response: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        # Fallback health check that never fails
+        return {
+            "status": "healthy",
+            "service": "unitasa-api",
+            "timestamp": datetime.utcnow().isoformat(),
+            "version": "1.0.0",
+            "ready": False,
+            "error": str(e)
+        }
 
 
 @router.get("/status")

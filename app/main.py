@@ -340,6 +340,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # Include API routers
 print("Including API routers...")
 try:
+    # Include health router FIRST to ensure it's available immediately
     print("Including health router...")
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     print("Health router included successfully")

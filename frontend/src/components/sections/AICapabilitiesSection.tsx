@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Brain, Target, MessageCircle, Zap, Shield, BarChart3, CheckCircle, Share2 } from 'lucide-react';
+import { Brain, Target, MessageCircle, Zap, Shield, BarChart3, Share2, Sparkles } from 'lucide-react';
 import Button from '../ui/Button';
 import AIDemoModal from '../ai-demos/AIDemoModal';
-import RazorpayCheckout from '../payment/RazorpayCheckout';
-import { useCurrency } from '../../hooks/useCurrency';
 
 interface AICapability {
   id: string;
@@ -17,9 +15,6 @@ interface AICapability {
 const AICapabilitiesSection: React.FC = () => {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const currency = useCurrency(497);
 
   // Map capability IDs to demo types
   const getDemoType = (capabilityId: string): string => {
@@ -30,26 +25,12 @@ const AICapabilitiesSection: React.FC = () => {
       'conversational-ai': 'conversational',
       'real-time-optimization': 'optimization',
       'enterprise-security': 'security',
-      'advanced-analytics': 'analytics'
+      'advanced-analytics': 'analytics',
+      'ai-content-hub': 'content-hub'
     };
     return demoMapping[capabilityId] || 'agent';
   };
 
-  // Helper functions for dynamic pricing
-  const getConvertedAmount = (usdAmount: number) => {
-    const rate = currency.currency === 'INR' ? 83 : currency.currency === 'EUR' ? 0.85 : 1;
-    return Math.round(usdAmount * rate);
-  };
-
-  const formatAmount = (amount: number) => {
-    if (currency.currency === 'INR') {
-      return amount.toLocaleString('en-IN');
-    } else if (currency.currency === 'EUR') {
-      return amount.toString();
-    } else {
-      return amount.toString();
-    }
-  };
 
   const capabilities: AICapability[] = [
     {
@@ -127,6 +108,18 @@ const AICapabilitiesSection: React.FC = () => {
         'Cross-channel attribution tracking',
         'Predictive analytics for campaign performance',
         'Real-time performance monitoring with circuit breakers'
+      ]
+    },
+    {
+      id: 'ai-content-hub',
+      title: 'AI Content Hub',
+      description: 'Generate viral content with AI-powered hashtags, images, and strategic insights',
+      icon: <Sparkles className="w-8 h-8" />,
+      metrics: [
+        'Generate 100+ relevant hashtags in seconds',
+        'AI-curated images from millions of sources',
+        'Expert social media strategy recommendations',
+        'Cross-platform content optimization'
       ]
     }
   ];
@@ -213,54 +206,6 @@ const AICapabilitiesSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Call to Action */}
-        <div className="text-center mt-16">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            Ready to Get Everything IN One Platform?
-          </h3>
-          <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join 25 founding entrepreneurs who get lifetime access to unified marketing intelligence - 
-            everything you need IN one complete platform.
-          </p>
-          
-          {/* Founder Offer Highlight */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 max-w-lg mx-auto mb-8">
-            <div className="flex items-center justify-center mb-3">
-              <span className="bg-red-500 text-white text-xs px-3 py-1 rounded-full font-bold animate-pulse">
-                LIMITED TIME
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-blue-600 mb-1">{currency.displayText}</div>
-            <div className="text-sm text-gray-500 line-through mb-2 mt-1">
-              Regular: {currency.symbol}{formatAmount(getConvertedAmount(2000))}+
-            </div>
-            <div className="text-sm text-gray-700 font-medium">
-              🚀 Founding Member Price • ⚡ Only 12 spots left
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="px-8"
-              onClick={() => setShowPaymentModal(true)}
-            >
-              Secure Founding Spot
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="px-8"
-              onClick={() => setIsDemoModalOpen(true)}
-            >
-              Watch AI Demo
-            </Button>
-          </div>
-          
-          <div className="text-sm text-gray-500 mt-4">
-            💡 Take AI assessment first to qualify for founder pricing
-          </div>
-        </div>
 
         {/* AI Demo Modal */}
         <AIDemoModal
@@ -269,54 +214,6 @@ const AICapabilitiesSection: React.FC = () => {
           initialDemo={activeDemo || 'agent'}
         />
 
-        {/* Payment Modal */}
-        {showPaymentModal && !paymentSuccess && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="relative">
-              <RazorpayCheckout
-                onSuccess={(paymentData) => {
-                  console.log('Payment successful:', paymentData);
-                  setPaymentSuccess(true);
-                  setShowPaymentModal(false);
-                  alert(`🎉 Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}\n\nYou'll receive onboarding instructions via email shortly.`);
-                }}
-                onError={(error) => {
-                  console.error('Payment error:', error);
-                  alert(`❌ Payment failed: ${error}\n\nPlease try again or contact support@unitasa.in`);
-                }}
-                onCancel={() => {
-                  setShowPaymentModal(false);
-                }}
-                customerEmail=""
-                customerName=""
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Success State */}
-        {paymentSuccess && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-8 max-w-md mx-auto text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome to the Co-Creator Program!</h3>
-              <p className="text-gray-600 mb-6">
-                Your payment was successful. You'll receive onboarding instructions via email shortly.
-              </p>
-              <Button
-                onClick={() => {
-                  setPaymentSuccess(false);
-                  setShowPaymentModal(false);
-                }}
-                className="w-full"
-              >
-                Continue
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );

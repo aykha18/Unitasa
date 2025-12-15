@@ -40,6 +40,25 @@ class OpenAISettings(BaseSettings):
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     model: str = "gpt-4"
     temperature: float = 0.7
+    max_tokens: int = 4096
+
+
+class OpenRouterSettings(BaseSettings):
+    """OpenRouter configuration"""
+    api_key: str = Field(default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""))
+    model: str = "anthropic/claude-3-haiku"
+    temperature: float = 0.7
+    max_tokens: int = 4096
+    cost_per_1k_tokens: float = 0.00025
+
+
+class GroqSettings(BaseSettings):
+    """Groq configuration"""
+    api_key: str = Field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
+    model: str = "llama2-70b-4096"
+    temperature: float = 0.7
+    max_tokens: int = 4096
+    cost_per_1k_tokens: float = 0.0007
 
 
 class EmailSettings(BaseSettings):
@@ -69,6 +88,8 @@ class Settings(BaseSettings):
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     wise: WiseSettings = Field(default_factory=WiseSettings)
     openai: OpenAISettings = Field(default_factory=OpenAISettings)
+    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+    groq: GroqSettings = Field(default_factory=GroqSettings)
     email: EmailSettings = Field(default_factory=EmailSettings)
     
     # Railway specific

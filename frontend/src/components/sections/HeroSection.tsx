@@ -43,6 +43,19 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
               Unitasa connects to your CRM, social accounts, and ad platforms so autonomous agents can plan, post, and optimize campaigns while you focus on building your product.
             </p>
 
+            {/* Cost Savings Highlight */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 max-w-lg mx-auto lg:mx-0 mb-8">
+              <div className="flex items-center justify-center lg:justify-start">
+                <div className="bg-green-100 rounded-full p-2 mr-3">
+                  <Zap className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-green-800 font-semibold text-sm">60-80% Cost Savings</div>
+                  <div className="text-green-700 text-xs">vs traditional AI marketing tools</div>
+                </div>
+              </div>
+            </div>
+
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Button

@@ -2,9 +2,9 @@ import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Layout } from '../components/layout';
 import {
   HeroSection,
-  BenefitCardsSection,
-  PlatformPositioningSection
+  BenefitCardsSection
 } from '../components/sections';
+import AgentWorkflowSection from '../components/sections/AgentWorkflowSection';
 import { CRMAssessmentResult } from '../types';
 import { trackPageView } from '../utils/analytics';
 import LeadCaptureForm, { LeadData } from '../components/assessment/LeadCaptureForm';
@@ -19,6 +19,12 @@ const SocialProofSection = lazy(() => import('../components/sections/SocialProof
 const MetaProofSection = lazy(() => import('../components/sections/MetaProofSection'));
 const CRMMarketplaceSection = lazy(() => import('../components/sections/CRMMarketplaceSection'));
 const ThoughtLeadershipSection = lazy(() => import('../components/sections/ThoughtLeadershipSection'));
+const ROICalculator = lazy(() => import('../components/sections/ROICalculator'));
+const CompetitorComparison = lazy(() => import('../components/sections/CompetitorComparison'));
+const FounderMatching = lazy(() => import('../components/sections/FounderMatching'));
+const InteractiveDemo = lazy(() => import('../components/sections/InteractiveDemo'));
+const EnhancedSocialProof = lazy(() => import('../components/sections/EnhancedSocialProof'));
+const TrialMessaging = lazy(() => import('../components/sections/TrialMessaging'));
 const AssessmentModal = lazy(() => import('../components/assessment/AssessmentModal'));
 const ChatWidget = lazy(() => import('../components/chat/ChatWidget'));
 const ChatProvider = lazy(() => import('../components/chat/ChatProvider'));
@@ -139,9 +145,33 @@ const LandingPage: React.FC = () => {
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <AICapabilitiesSection />
             </Suspense>
-            
-            <PlatformPositioningSection />
-            
+
+            <AgentWorkflowSection />
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <ROICalculator />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <CompetitorComparison />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <FounderMatching />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <InteractiveDemo />
+            </Suspense>
+
+            {/* <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <EnhancedSocialProof />
+            </Suspense> */}
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <TrialMessaging />
+            </Suspense>
+
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <CRMMarketplaceSection />
             </Suspense>

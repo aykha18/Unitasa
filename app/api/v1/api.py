@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.agents import router as agents_router
 from app.api.client_onboarding import router as client_onboarding_router
+from .ai_agents import router as ai_agents_router
 from .landing import router as landing_router
 from .social import router as social_router
 from .crm_marketplace import router as crm_marketplace_router
@@ -15,8 +16,11 @@ from .dashboard import router as dashboard_router
 
 api_router = APIRouter()
 
-# Include existing agents router
+# Include existing agents router (legacy)
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
+
+# Include new AI agents router (cost-optimized)
+api_router.include_router(ai_agents_router, prefix="/ai", tags=["ai-agents"])
 
 # Include client onboarding router
 api_router.include_router(client_onboarding_router, prefix="/clients", tags=["clients"])

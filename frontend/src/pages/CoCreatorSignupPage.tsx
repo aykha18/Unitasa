@@ -57,7 +57,7 @@ const CoCreatorSignupPage: React.FC = () => {
             </div>
             <h1 className="text-4xl font-bold mb-4">Join 25 Founding Members</h1>
             <p className="text-xl text-white/90 mb-6">
-              Get lifetime access at founding pricing - Only ₹41,251 (vs ₹1,67,000+ later)
+              Get lifetime access at founding pricing - Only ₹29,999 (vs ₹1,67,000+ later)
             </p>
             <div className="flex items-center justify-center space-x-8 text-sm">
               <div className="flex items-center">
@@ -119,9 +119,9 @@ const CoCreatorSignupPage: React.FC = () => {
                   <h3 className="text-xl font-bold text-center mb-4">Founding Member Pricing</h3>
                   
                   <div className="text-center mb-6">
-                    <div className="text-3xl font-bold text-purple-600">₹41,251</div>
+                    <div className="text-3xl font-bold text-purple-600">₹29,999</div>
                     <div className="text-sm text-gray-500 line-through">Regular Price: ₹1,67,000+</div>
-                    <div className="text-green-600 font-semibold">Save 75% as Founding Member</div>
+                    <div className="text-green-600 font-semibold">Save 82% as Founding Member</div>
                   </div>
 
                   <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 mb-6">

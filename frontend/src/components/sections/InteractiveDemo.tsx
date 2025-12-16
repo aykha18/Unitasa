@@ -306,7 +306,7 @@ const InteractiveDemo: React.FC = () => {
             <div className="text-center">
               <button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('openAssessment'));
+                  window.dispatchEvent(new CustomEvent('openLeadCapture'));
                 }}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center mx-auto"
               >
@@ -336,7 +336,7 @@ const InteractiveDemo: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent('openAssessment'));
+                    window.dispatchEvent(new CustomEvent('openLeadCapture'));
                   }}
                   className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
                 >

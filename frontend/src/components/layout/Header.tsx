@@ -116,7 +116,7 @@ const Header: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   toggleMenu();
-                  window.dispatchEvent(new CustomEvent('openAssessment'));
+                  window.dispatchEvent(new CustomEvent('openLeadCapture'));
                 }}
               >
                 Assessment

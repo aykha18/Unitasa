@@ -612,7 +612,7 @@ const CRMMarketplaceSection: React.FC = () => {
               icon={Zap}
               className="bg-gradient-primary text-white hover:shadow-brand"
               onClick={() => {
-                window.dispatchEvent(new CustomEvent('openAssessment'));
+                window.dispatchEvent(new CustomEvent('openLeadCapture'));
               }}
             >
               Assess Your AI Readiness

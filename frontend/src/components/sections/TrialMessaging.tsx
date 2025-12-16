@@ -131,7 +131,7 @@ const TrialMessaging: React.FC = () => {
           {/* Main CTA Button */}
           <button
             onClick={() => {
-              window.dispatchEvent(new CustomEvent('openAssessment'));
+              window.dispatchEvent(new CustomEvent('openLeadCapture'));
             }}
             className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-12 py-4 rounded-full font-bold text-lg shadow-2xl transform hover:scale-105 transition-all duration-200 mb-4"
           >
@@ -230,7 +230,7 @@ const TrialMessaging: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('openAssessment'));
+                  window.dispatchEvent(new CustomEvent('openLeadCapture'));
                 }}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center"
               >

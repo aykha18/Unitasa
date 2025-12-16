@@ -200,7 +200,7 @@ const PlatformPositioningSection: React.FC = () => {
             <button
               className="bg-gradient-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-brand transition-all duration-200"
               onClick={() => {
-                window.dispatchEvent(new CustomEvent('openAssessment'));
+                window.dispatchEvent(new CustomEvent('openLeadCapture'));
               }}
             >
               Start Free Assessment

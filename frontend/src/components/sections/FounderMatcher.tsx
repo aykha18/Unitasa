@@ -316,7 +316,7 @@ const FounderMatcher: React.FC = () => {
             </p>
             <button
               onClick={() => {
-                window.dispatchEvent(new CustomEvent('openAssessment'));
+                window.dispatchEvent(new CustomEvent('openLeadCapture'));
               }}
               className="bg-white text-purple-600 px-8 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors flex items-center justify-center mx-auto"
             >

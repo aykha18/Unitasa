@@ -20,6 +20,7 @@ interface SignupFormData {
   confirmPassword: string;
   agreeToTerms: boolean;
   pricingTier: 'pro' | 'enterprise';
+  billingCycle: 'monthly' | 'quarterly' | 'annual';
 }
 
 interface SignupErrors {
@@ -31,6 +32,7 @@ interface SignupErrors {
   confirmPassword?: string;
   agreeToTerms?: string;
   pricingTier?: string;
+  billingCycle?: string;
 }
 
 const SignupPage: React.FC = () => {
@@ -247,7 +249,8 @@ const SignupPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     agreeToTerms: false,
-    pricingTier: 'pro'
+    pricingTier: 'pro',
+    billingCycle: 'monthly'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<SignupErrors>({});
@@ -282,6 +285,7 @@ const SignupPage: React.FC = () => {
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     if (!formData.agreeToTerms) newErrors.agreeToTerms = 'You must agree to the terms';
     if (!formData.pricingTier) newErrors.pricingTier = 'Please select a pricing plan';
+    if (!formData.billingCycle) newErrors.billingCycle = 'Please select a billing cycle';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -303,7 +307,8 @@ const SignupPage: React.FC = () => {
         },
         body: JSON.stringify({
           ...formData,
-          pricingTier: formData.pricingTier // Ensure pricing tier is included
+          pricingTier: formData.pricingTier, // Ensure pricing tier is included
+          billingCycle: formData.billingCycle // Ensure billing cycle is included
         }),
       });
 
@@ -494,6 +499,75 @@ const SignupPage: React.FC = () => {
               {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
             </div>
 
+            {/* Billing Cycle Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Choose Billing Cycle *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'monthly' }))}
+                  className={`p-4 border-2 rounded-lg text-center transition-all ${
+                    formData.billingCycle === 'monthly'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="font-semibold text-gray-900 mb-1">Monthly</div>
+                  <div className="text-sm text-gray-600">Pay month-to-month</div>
+                  <div className={`w-4 h-4 rounded-full border-2 mx-auto mt-2 ${
+                    formData.billingCycle === 'monthly' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                  }`}>
+                    {formData.billingCycle === 'monthly' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'quarterly' }))}
+                  className={`p-4 border-2 rounded-lg text-center transition-all relative ${
+                    formData.billingCycle === 'quarterly'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300'
+                  }`}
+                >
+                  <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                    Save 10%
+                  </div>
+                  <div className="font-semibold text-gray-900 mb-1">3 Months</div>
+                  <div className="text-sm text-gray-600">Quarterly billing</div>
+                  <div className={`w-4 h-4 rounded-full border-2 mx-auto mt-2 ${
+                    formData.billingCycle === 'quarterly' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                  }`}>
+                    {formData.billingCycle === 'quarterly' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'annual' }))}
+                  className={`p-4 border-2 rounded-lg text-center transition-all relative ${
+                    formData.billingCycle === 'annual'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  <div className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                    Save 15%
+                  </div>
+                  <div className="font-semibold text-gray-900 mb-1">Annual</div>
+                  <div className="text-sm text-gray-600">Yearly billing</div>
+                  <div className={`w-4 h-4 rounded-full border-2 mx-auto mt-2 ${
+                    formData.billingCycle === 'annual' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+                  }`}>
+                    {formData.billingCycle === 'annual' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                  </div>
+                </button>
+              </div>
+              {errors.billingCycle && <p className="text-red-500 text-sm mt-1">{errors.billingCycle}</p>}
+            </div>
+
             {/* Pricing Tier Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-4">
@@ -517,7 +591,11 @@ const SignupPage: React.FC = () => {
                       {formData.pricingTier === 'pro' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-green-600 mb-2">₹4,999<span className="text-sm font-normal">/month</span></p>
+                  <div className="mb-2">
+                    {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">₹4,999<span className="text-sm font-normal">/month</span></p>}
+                    {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">₹13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">(₹4,499/mo)</span></p>}
+                    {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">₹42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">(₹3,540/mo)</span></p>}
+                  </div>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• 5 CRM integrations</li>
                     <li>• Unlimited leads</li>
@@ -542,7 +620,11 @@ const SignupPage: React.FC = () => {
                       {formData.pricingTier === 'enterprise' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-purple-600 mb-2">₹19,999<span className="text-sm font-normal">/month</span></p>
+                  <div className="mb-2">
+                    {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">₹19,999<span className="text-sm font-normal">/month</span></p>}
+                    {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">₹53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">(₹17,999/mo)</span></p>}
+                    {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">₹1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">(₹13,999/mo)</span></p>}
+                  </div>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Unlimited CRM integrations</li>
                     <li>• White-label solution</li>

@@ -1,519 +1,351 @@
-import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, Zap, Target, TrendingUp, Users, MessageSquare, Image, Hash, BarChart3, CheckCircle } from 'lucide-react';
-
-export {};
+import React, { useState } from 'react';
+import { Play, Pause, RotateCcw, Zap, TrendingUp, Users, Target, ArrowRight, CheckCircle } from 'lucide-react';
+import { useIndustryDetection } from '../../hooks/useIndustryDetection';
 
 interface DemoScenario {
   id: string;
-  title: string;
-  description: string;
   industry: string;
-  challenge: string;
-  steps: DemoStep[];
-  results: DemoResult[];
-}
-
-interface DemoStep {
-  id: string;
   title: string;
   description: string;
-  icon: React.ReactNode;
-  duration: number; // in seconds
-  status: 'pending' | 'active' | 'completed';
-}
-
-interface DemoResult {
-  metric: string;
-  value: string;
-  icon: React.ReactNode;
+  challenge: string;
+  solution: string;
+  steps: {
+    time: string;
+    action: string;
+    result: string;
+  }[];
+  metrics: {
+    label: string;
+    value: string;
+    change: string;
+  }[];
+  cta: string;
 }
 
 const InteractiveDemo: React.FC = () => {
-  const [selectedScenario, setSelectedScenario] = useState<string>('tech-startup');
-  const [isPlaying, setIsPlaying] = useState(false);
+  const { industry: detectedIndustry } = useIndustryDetection();
+  const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
-  const demoScenarios: Record<string, DemoScenario> = {
-    'tech-startup': {
-      id: 'tech-startup',
-      title: 'Tech Startup Growth',
-      description: 'AI-powered marketing automation for a SaaS company',
-      industry: 'Technology',
-      challenge: 'Struggling with consistent lead generation and brand awareness',
+  const demoScenarios: DemoScenario[] = [
+    {
+      id: 'saas-lead-gen',
+      industry: 'saas',
+      title: 'SaaS Lead Generation Automation',
+      description: 'Watch how AI agents transform cold leads into qualified prospects in real-time',
+      challenge: 'Manual lead qualification taking 2 hours per day, 40% of leads going cold',
+      solution: 'AI agents automatically score, nurture, and qualify leads 24/7',
       steps: [
-        {
-          id: 'analyze',
-          title: 'AI Analysis',
-          description: 'Analyzing your industry, competitors, and target audience',
-          icon: <BarChart3 className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'content',
-          title: 'Content Creation',
-          description: 'Generating viral content and social media posts',
-          icon: <MessageSquare className="w-5 h-5" />,
-          duration: 4,
-          status: 'pending'
-        },
-        {
-          id: 'hashtags',
-          title: 'Smart Hashtags',
-          description: 'AI-curated hashtags for maximum reach and engagement',
-          icon: <Hash className="w-5 h-5" />,
-          duration: 2,
-          status: 'pending'
-        },
-        {
-          id: 'images',
-          title: 'Image Optimization',
-          description: 'Creating and optimizing visuals for social platforms',
-          icon: <Image className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'posting',
-          title: 'Automated Posting',
-          description: 'Strategic scheduling and posting across all platforms',
-          icon: <Zap className="w-5 h-5" />,
-          duration: 2,
-          status: 'pending'
-        },
-        {
-          id: 'engagement',
-          title: 'Engagement Optimization',
-          description: 'Real-time engagement and conversation management',
-          icon: <Users className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        }
+        { time: '0:00', action: 'New lead submits contact form', result: 'AI immediately analyzes intent and company data' },
+        { time: '0:05', action: 'Lead scoring algorithm runs', result: 'Lead scored 8.5/10 based on job title, company size, and behavior' },
+        { time: '0:10', action: 'Personalized nurture sequence starts', result: 'Custom email sequence with relevant case studies sent' },
+        { time: '2:00', action: 'Lead engages with content', result: 'AI detects engagement, adjusts messaging strategy' },
+        { time: '24:00', action: 'Lead becomes sales-ready', result: 'High-priority notification sent to sales team' }
       ],
-      results: [
-        { metric: 'Content Generated', value: '50 posts/week', icon: <MessageSquare className="w-4 h-4" /> },
-        { metric: 'Reach Increase', value: '300%', icon: <TrendingUp className="w-4 h-4" /> },
-        { metric: 'Lead Generation', value: '5x more', icon: <Target className="w-4 h-4" /> },
-        { metric: 'Time Saved', value: '15 hours/week', icon: <Zap className="w-4 h-4" /> }
-      ]
+      metrics: [
+        { label: 'Lead Response Time', value: '< 5 min', change: '95% faster' },
+        { label: 'Lead Qualification Rate', value: '85%', change: '+60%' },
+        { label: 'Sales-Ready Leads', value: '3x more', change: '200% increase' }
+      ],
+      cta: 'Start Your Lead Generation Demo'
     },
-    'healthcare': {
-      id: 'healthcare',
-      title: 'Healthcare Practice Growth',
-      description: 'Patient engagement and reputation management',
-      industry: 'Healthcare',
-      challenge: 'Building trust and patient engagement online',
+    {
+      id: 'ecommerce-content',
+      industry: 'ecommerce',
+      title: 'E-commerce Content Automation',
+      description: 'See how AI creates viral product content and manages social commerce campaigns',
+      challenge: 'Creating product descriptions and social posts for 500+ SKUs manually',
+      solution: 'AI generates optimized content and manages multi-platform campaigns',
       steps: [
-        {
-          id: 'analyze',
-          title: 'Patient Analysis',
-          description: 'Understanding patient demographics and healthcare needs',
-          icon: <BarChart3 className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'education',
-          title: 'Health Education',
-          description: 'Creating informative content about health topics',
-          icon: <MessageSquare className="w-5 h-5" />,
-          duration: 4,
-          status: 'pending'
-        },
-        {
-          id: 'compliance',
-          title: 'Compliance Check',
-          description: 'Ensuring all content meets healthcare regulations',
-          icon: <Target className="w-5 h-5" />,
-          duration: 2,
-          status: 'pending'
-        },
-        {
-          id: 'community',
-          title: 'Community Building',
-          description: 'Building patient community and support groups',
-          icon: <Users className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'reviews',
-          title: 'Review Management',
-          description: 'Monitoring and responding to patient reviews',
-          icon: <TrendingUp className="w-5 h-5" />,
-          duration: 2,
-          status: 'pending'
-        }
+        { time: '0:00', action: 'New product added to catalog', result: 'AI analyzes product details, target audience, and competitors' },
+        { time: '0:02', action: 'Content generation begins', result: 'Creates SEO-optimized descriptions, social posts, and email copy' },
+        { time: '0:05', action: 'Multi-platform scheduling', result: 'Posts scheduled across Instagram, Facebook, and Pinterest' },
+        { time: '1:00', action: 'Performance monitoring starts', result: 'AI tracks engagement, clicks, and conversions in real-time' },
+        { time: '4:00', action: 'Optimization triggers', result: 'Best-performing content gets amplified, underperformers get replaced' }
       ],
-      results: [
-        { metric: 'Patient Engagement', value: '250% increase', icon: <Users className="w-4 h-4" /> },
-        { metric: 'Review Rating', value: '4.8/5 stars', icon: <TrendingUp className="w-4 h-4" /> },
-        { metric: 'New Patients', value: '40% more', icon: <Target className="w-4 h-4" /> },
-        { metric: 'Response Time', value: '< 1 hour', icon: <Zap className="w-4 h-4" /> }
-      ]
+      metrics: [
+        { label: 'Content Output', value: '50 posts/day', change: '10x increase' },
+        { label: 'Engagement Rate', value: '4.2%', change: '+180%' },
+        { label: 'Conversion Rate', value: '3.8%', change: '+120%' }
+      ],
+      cta: 'Launch E-commerce Demo'
     },
-    'ecommerce': {
-      id: 'ecommerce',
-      title: 'E-commerce Sales Boost',
-      description: 'Product promotion and customer acquisition',
-      industry: 'Retail',
-      challenge: 'Driving product sales and customer loyalty',
+    {
+      id: 'consulting-thought-leadership',
+      industry: 'consulting',
+      title: 'Consulting Thought Leadership',
+      description: 'Experience how AI builds your expertise and attracts high-value clients',
+      challenge: 'Struggling to establish thought leadership with inconsistent content output',
+      solution: 'AI creates expert content and manages client relationship automation',
       steps: [
-        {
-          id: 'analyze',
-          title: 'Market Analysis',
-          description: 'Analyzing product trends and customer preferences',
-          icon: <BarChart3 className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'product',
-          title: 'Product Content',
-          description: 'Creating compelling product descriptions and features',
-          icon: <MessageSquare className="w-5 h-5" />,
-          duration: 4,
-          status: 'pending'
-        },
-        {
-          id: 'visuals',
-          title: 'Visual Marketing',
-          description: 'Generating product images and promotional graphics',
-          icon: <Image className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'campaigns',
-          title: 'Campaign Creation',
-          description: 'Designing targeted marketing campaigns',
-          icon: <Target className="w-5 h-5" />,
-          duration: 3,
-          status: 'pending'
-        },
-        {
-          id: 'automation',
-          title: 'Sales Automation',
-          description: 'Automated customer nurturing and follow-ups',
-          icon: <Zap className="w-5 h-5" />,
-          duration: 2,
-          status: 'pending'
-        }
+        { time: '0:00', action: 'Industry trend detected', result: 'AI identifies emerging topic in your consulting niche' },
+        { time: '0:15', action: 'Expert article generated', result: 'Creates 2,000-word article with data, examples, and actionable insights' },
+        { time: '0:30', action: 'Multi-channel distribution', result: 'Published on blog, LinkedIn, and shared with client database' },
+        { time: '2:00', action: 'Client engagement tracking', result: 'AI monitors which clients engage with your thought leadership' },
+        { time: '24:00', action: 'Follow-up automation', result: 'Personalized outreach to engaged prospects with consultation offers' }
       ],
-      results: [
-        { metric: 'Sales Conversion', value: '180% increase', icon: <TrendingUp className="w-4 h-4" /> },
-        { metric: 'Customer Acquisition', value: '3x faster', icon: <Target className="w-4 h-4" /> },
-        { metric: 'Marketing ROI', value: '5x return', icon: <BarChart3 className="w-4 h-4" /> },
-        { metric: 'Time to Sale', value: '60% faster', icon: <Zap className="w-4 h-4" /> }
-      ]
+      metrics: [
+        { label: 'Content Quality Score', value: '9.2/10', change: '+45%' },
+        { label: 'Client Acquisition', value: '150%', change: '+200%' },
+        { label: 'Thought Leadership Reach', value: '10x', change: '+900%' }
+      ],
+      cta: 'Experience Consulting Demo'
+    },
+    {
+      id: 'healthcare-patient-engagement',
+      industry: 'healthcare',
+      title: 'Healthcare Patient Engagement',
+      description: 'See compliant AI patient communication and appointment optimization',
+      challenge: 'Manual patient follow-ups and appointment reminders causing no-shows',
+      solution: 'HIPAA-compliant AI manages patient communication and optimizes scheduling',
+      steps: [
+        { time: '0:00', action: 'Patient books appointment', result: 'AI confirms details and checks for conflicts or optimizations' },
+        { time: '0:01', action: 'Automated confirmation sent', result: 'Personalized SMS/email with preparation instructions' },
+        { time: '24:00', action: 'Day-before reminder', result: 'Automated reminder with directions and parking info' },
+        { time: '2:00', action: 'Post-visit follow-up', result: 'AI sends satisfaction survey and care instructions' },
+        { time: '48:00', action: 'Engagement analysis', result: 'AI identifies patients needing additional care or education' }
+      ],
+      metrics: [
+        { label: 'Appointment Show Rate', value: '92%', change: '+25%' },
+        { label: 'Patient Satisfaction', value: '4.8/5', change: '+0.6 stars' },
+        { label: 'Patient Retention', value: '88%', change: '+15%' }
+      ],
+      cta: 'View Healthcare Demo'
     }
-  };
+  ];
 
-  const currentScenario = demoScenarios[selectedScenario];
+  // Filter scenarios based on detected industry
+  const relevantScenarios = demoScenarios.filter(scenario => {
+    if (detectedIndustry === scenario.industry) return true;
+    // Show related scenarios for consulting (works for most industries)
+    if (detectedIndustry !== 'consulting' && scenario.industry === 'consulting') return true;
+    // Show SaaS demo as fallback
+    if (detectedIndustry !== 'saas' && scenario.industry === 'saas') return true;
+    return false;
+  }).slice(0, 3);
 
-  // Auto-play functionality
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (isPlaying && currentStep < currentScenario.steps.length) {
-      const stepDuration = currentScenario.steps[currentStep].duration * 1000; // Convert to milliseconds
-      const progressInterval = 50; // Update progress every 50ms
-      const totalUpdates = stepDuration / progressInterval;
-      let currentUpdate = 0;
-
-      interval = setInterval(() => {
-        currentUpdate++;
-        const stepProgress = (currentUpdate / totalUpdates) * 100;
-        setProgress(stepProgress);
-
-        if (currentUpdate >= totalUpdates) {
-          // Move to next step
-          setCurrentStep(prev => {
-            const nextStep = prev + 1;
-            if (nextStep >= currentScenario.steps.length) {
-              setIsPlaying(false);
-              setProgress(100);
-              return prev;
-            }
-            return nextStep;
-          });
-          setProgress(0);
-        }
-      }, progressInterval);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isPlaying, currentStep, currentScenario.steps]);
+  const selectedDemo = selectedScenario ? demoScenarios.find(s => s.id === selectedScenario) : null;
 
   const handlePlay = () => {
-    if (currentStep >= currentScenario.steps.length) {
-      // Reset demo
-      setCurrentStep(0);
-      setProgress(0);
-    }
-    setIsPlaying(!isPlaying);
+    if (!selectedDemo) return;
+
+    setIsPlaying(true);
+    const playSteps = () => {
+      setCurrentStep(prev => {
+        if (prev >= selectedDemo.steps.length - 1) {
+          setIsPlaying(false);
+          return 0;
+        }
+        return prev + 1;
+      });
+    };
+
+    // Auto-play through steps
+    const interval = setInterval(playSteps, 3000);
+    setTimeout(() => clearInterval(interval), selectedDemo.steps.length * 3000);
   };
 
   const handleReset = () => {
     setIsPlaying(false);
     setCurrentStep(0);
-    setProgress(0);
-  };
-
-  const handleScenarioChange = (scenarioId: string) => {
-    setSelectedScenario(scenarioId);
-    setIsPlaying(false);
-    setCurrentStep(0);
-    setProgress(0);
   };
 
   return (
-    <section className="py-20 bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
+          <div className="inline-flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Play className="w-4 h-4 mr-2" />
-            Interactive Demo
+            Interactive Demos
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            See Unitasa AI Agents in Action
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            See Unitasa in Action
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Experience how our AI agents analyze, learn, and execute marketing strategies in real-time.
-            Choose a scenario and watch the magic happen.
+            Experience real-time AI automation scenarios tailored to your industry.
+            Watch how our agents transform business processes in minutes.
           </p>
         </div>
 
         {/* Scenario Selector */}
-        <div className="flex flex-wrap justify-center gap-4 mb-12">
-          {Object.values(demoScenarios).map((scenario) => (
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {relevantScenarios.map((scenario) => (
             <button
               key={scenario.id}
-              onClick={() => handleScenarioChange(scenario.id)}
-              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              onClick={() => {
+                setSelectedScenario(scenario.id);
+                setCurrentStep(0);
+                setIsPlaying(false);
+              }}
+              className={`p-6 rounded-xl border-2 transition-all ${
                 selectedScenario === scenario.id
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:shadow-md'
+                  ? 'border-blue-500 bg-blue-50 shadow-lg'
+                  : 'border-gray-200 hover:border-blue-300 bg-white hover:shadow-md'
               }`}
             >
-              {scenario.title}
+              <div className="text-left">
+                <h3 className="font-semibold text-gray-900 mb-2">{scenario.title}</h3>
+                <p className="text-sm text-gray-600 mb-3">{scenario.description}</p>
+                <div className="flex items-center text-blue-600 text-sm font-medium">
+                  <Play className="w-4 h-4 mr-1" />
+                  Watch Demo
+                </div>
+              </div>
             </button>
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12">
-          {/* Demo Visualization */}
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
+        {/* Interactive Demo Player */}
+        {selectedDemo && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-12">
+            {/* Demo Header */}
+            <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">{currentScenario.title}</h3>
-                <p className="text-gray-600">{currentScenario.description}</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedDemo.title}</h3>
+                <p className="text-gray-600">{selectedDemo.description}</p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePlay}
-                  className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                  disabled={currentStep >= currentScenario.steps.length && !isPlaying}
-                >
-                  {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                </button>
+              <div className="flex items-center space-x-3">
                 <button
                   onClick={handleReset}
-                  className="p-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="Reset Demo"
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
+                <button
+                  onClick={handlePlay}
+                  disabled={isPlaying}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                  {isPlaying ? 'Playing...' : 'Play Demo'}
+                </button>
               </div>
             </div>
 
-            {/* Challenge Display */}
-            <div className="bg-red-50 rounded-lg p-4 mb-6">
-              <h4 className="font-semibold text-red-800 mb-2">Challenge:</h4>
-              <p className="text-red-700">{currentScenario.challenge}</p>
+            {/* Challenge & Solution */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h4 className="font-semibold text-red-800 mb-3 flex items-center">
+                  <Target className="w-5 h-5 mr-2" />
+                  Challenge
+                </h4>
+                <p className="text-red-700">{selectedDemo.challenge}</p>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <h4 className="font-semibold text-green-800 mb-3 flex items-center">
+                  <Zap className="w-5 h-5 mr-2" />
+                  AI Solution
+                </h4>
+                <p className="text-green-700">{selectedDemo.solution}</p>
+              </div>
             </div>
 
-            {/* Steps Visualization */}
-            <div className="space-y-4">
-              {currentScenario.steps.map((step, index) => (
-                <div
-                  key={step.id}
-                  className={`flex items-center p-4 rounded-lg border transition-all duration-300 ${
-                    index === currentStep && isPlaying
-                      ? 'bg-indigo-50 border-indigo-200 shadow-md'
-                      : index < currentStep
-                      ? 'bg-green-50 border-green-200'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <div className={`p-2 rounded-lg mr-4 ${
-                    index === currentStep && isPlaying
-                      ? 'bg-indigo-100 text-indigo-600'
-                      : index < currentStep
-                      ? 'bg-green-100 text-green-600'
-                      : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {step.icon}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-semibold ${
-                      index === currentStep && isPlaying
-                        ? 'text-indigo-900'
-                        : index < currentStep
-                        ? 'text-green-900'
-                        : 'text-gray-900'
-                    }`}>
-                      {step.title}
-                    </h4>
-                    <p className={`text-sm ${
-                      index === currentStep && isPlaying
-                        ? 'text-indigo-700'
-                        : index < currentStep
-                        ? 'text-green-700'
-                        : 'text-gray-600'
-                    }`}>
-                      {step.description}
-                    </p>
-                  </div>
-                  {index === currentStep && isPlaying && (
-                    <div className="ml-4">
-                      <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                  {index < currentStep && (
-                    <div className="ml-4">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <CheckCircle className="w-5 h-5 text-white" />
+            {/* Timeline Visualization */}
+            <div className="mb-8">
+              <h4 className="font-semibold text-gray-900 mb-4">Demo Timeline</h4>
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-20 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+                {/* Timeline steps */}
+                <div className="space-y-6">
+                  {selectedDemo.steps.map((step, index) => (
+                    <div key={index} className="flex items-start">
+                      {/* Time indicator */}
+                      <div className={`flex-shrink-0 w-16 text-sm font-medium ${
+                        index <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                      }`}>
+                        {step.time}
+                      </div>
+
+                      {/* Step circle */}
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full border-4 flex items-center justify-center mr-4 ${
+                        index < currentStep
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : index === currentStep
+                          ? 'bg-blue-500 border-blue-500 text-white animate-pulse'
+                          : 'bg-white border-gray-300 text-gray-400'
+                      }`}>
+                        {index < currentStep ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : (
+                          <span className="text-xs font-bold">{index + 1}</span>
+                        )}
+                      </div>
+
+                      {/* Step content */}
+                      <div className={`flex-1 p-4 rounded-lg ${
+                        index <= currentStep ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'
+                      }`}>
+                        <div className="font-medium text-gray-900 mb-1">{step.action}</div>
+                        <div className={`text-sm ${index <= currentStep ? 'text-blue-700' : 'text-gray-600'}`}>
+                          {step.result}
+                        </div>
                       </div>
                     </div>
-                  )}
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Results Metrics */}
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {selectedDemo.metrics.map((metric, index) => (
+                <div key={index} className="text-center">
+                  <div className="text-2xl font-bold text-green-600 mb-1">{metric.value}</div>
+                  <div className="text-sm text-gray-600 mb-1">{metric.label}</div>
+                  <div className="text-sm font-medium text-green-600">{metric.change}</div>
                 </div>
               ))}
             </div>
 
-            {/* Progress Bar */}
-            <div className="mt-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Progress</span>
-                <span>{Math.round((currentStep / currentScenario.steps.length) * 100)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${currentStep >= currentScenario.steps.length ? 100 : ((currentStep + (progress / 100)) / currentScenario.steps.length) * 100}%`
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Results Display */}
-          <div className="space-y-6">
-            {currentStep >= currentScenario.steps.length ? (
-              <>
-                {/* Completion Message */}
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white text-center">
-                  <div className="text-6xl mb-4">🎉</div>
-                  <h3 className="text-2xl font-bold mb-2">Demo Complete!</h3>
-                  <p className="text-green-100">
-                    Watch how Unitasa AI agents transformed this business challenge into measurable results.
-                  </p>
-                </div>
-
-                {/* Results */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                    <TrendingUp className="w-6 h-6 mr-3 text-green-600" />
-                    Results Achieved
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {currentScenario.results.map((result, index) => (
-                      <div key={index} className="bg-gray-50 rounded-lg p-4 text-center">
-                        <div className="text-green-600 mb-2">{result.icon}</div>
-                        <div className="font-bold text-gray-900 text-lg">{result.value}</div>
-                        <div className="text-sm text-gray-600">{result.metric}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Current Step Details */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <h4 className="text-xl font-bold text-gray-900 mb-4">What's Happening Now</h4>
-                  {currentStep < currentScenario.steps.length ? (
-                    <div className="flex items-start">
-                      <div className="p-3 bg-indigo-100 text-indigo-600 rounded-lg mr-4">
-                        {currentScenario.steps[currentStep].icon}
-                      </div>
-                      <div>
-                        <h5 className="font-semibold text-gray-900 mb-1">
-                          {currentScenario.steps[currentStep].title}
-                        </h5>
-                        <p className="text-gray-600 text-sm">
-                          {currentScenario.steps[currentStep].description}
-                        </p>
-                        {isPlaying && (
-                          <div className="mt-3">
-                            <div className="text-xs text-gray-500 mb-1">Processing...</div>
-                            <div className="w-full bg-gray-200 rounded-full h-1">
-                              <div
-                                className="bg-indigo-600 h-1 rounded-full transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">Click play to start the demo!</p>
-                  )}
-                </div>
-
-                {/* Preview of Results */}
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-200">
-                  <h4 className="text-lg font-bold text-gray-900 mb-4">Expected Results</h4>
-                  <div className="space-y-3">
-                    {currentScenario.results.slice(0, 2).map((result, index) => (
-                      <div key={index} className="flex items-center">
-                        <div className="text-indigo-600 mr-3">{result.icon}</div>
-                        <div>
-                          <div className="font-semibold text-gray-900">{result.value}</div>
-                          <div className="text-sm text-gray-600">{result.metric}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-4">
-                    Complete the demo to see all results and how Unitasa achieves them.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* Call to Action */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 text-center">
-              <h4 className="text-lg font-bold text-gray-900 mb-2">Ready to Get These Results?</h4>
-              <p className="text-gray-600 mb-4">
-                Experience the power of AI-driven marketing automation for your business.
-              </p>
+            {/* CTA */}
+            <div className="text-center">
               <button
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('openAssessment'));
                 }}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center mx-auto"
               >
-                Get Your Free AI Assessment
+                {selectedDemo.cta}
+                <ArrowRight className="w-4 h-4 ml-2" />
               </button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Call to Action */}
+        {!selectedScenario && (
+          <div className="text-center">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+              <h3 className="text-2xl font-bold mb-4">
+                Ready to See Your Industry in Action?
+              </h3>
+              <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+                Choose a demo scenario above to experience how Unitasa transforms business processes with AI automation.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => setSelectedScenario(relevantScenarios[0]?.id || null)}
+                  className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                >
+                  Start Demo
+                </button>
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('openAssessment'));
+                  }}
+                  className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
+                >
+                  Get Free Assessment
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -6,6 +6,8 @@ export { default as IndustryValuePropsSection } from './IndustryValuePropsSectio
 export { default as ROICalculator } from './ROICalculator';
 export { default as CompetitorComparison } from './CompetitorComparison';
 export { default as FounderMatcher } from './FounderMatcher';
+export { default as InteractiveDemo } from './InteractiveDemo';
+export { default as TrialEnhancementSection } from './TrialEnhancementSection';
 export { default as FounderStorySection } from './FounderStorySection';
 export { default as PlatformPositioningSection } from './PlatformPositioningSection';
 export { default as SocialProofSection } from './SocialProofSection';

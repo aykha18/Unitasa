@@ -18,6 +18,8 @@ const IndustryValuePropsSection = lazy(() => import('../components/sections/Indu
 const ROICalculator = lazy(() => import('../components/sections/ROICalculator'));
 const CompetitorComparison = lazy(() => import('../components/sections/CompetitorComparison'));
 const FounderMatcher = lazy(() => import('../components/sections/FounderMatcher'));
+const InteractiveDemo = lazy(() => import('../components/sections/InteractiveDemo'));
+const TrialEnhancementSection = lazy(() => import('../components/sections/TrialEnhancementSection'));
 const FounderStorySection = lazy(() => import('../components/sections/FounderStorySection'));
 const SocialProofSection = lazy(() => import('../components/sections/SocialProofSection'));
 const MetaProofSection = lazy(() => import('../components/sections/MetaProofSection'));
@@ -210,6 +212,14 @@ const LandingPage: React.FC = () => {
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <FounderMatcher />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <InteractiveDemo />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <TrialEnhancementSection />
             </Suspense>
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>

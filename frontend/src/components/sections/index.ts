@@ -1,7 +1,9 @@
 export { default as HeroSection } from './HeroSection';
 export { default as BenefitCardsSection } from './BenefitCardsSection';
+export { default as AICapabilitiesSection } from './AICapabilitiesSection';
 export { default as FounderStorySection } from './FounderStorySection';
 export { default as PlatformPositioningSection } from './PlatformPositioningSection';
 export { default as SocialProofSection } from './SocialProofSection';
+export { default as MetaProofSection } from './MetaProofSection';
 export { default as CRMMarketplaceSection } from './CRMMarketplaceSection';
 export { default as ThoughtLeadershipSection } from './ThoughtLeadershipSection';

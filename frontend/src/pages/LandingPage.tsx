@@ -153,9 +153,9 @@ const LandingPage: React.FC = () => {
               <MetaProofSection />
             </Suspense>
 
-            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+            {/* <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <FounderStorySection />
-            </Suspense>
+            </Suspense> */}
             
             <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse"></div>}>
               <ThoughtLeadershipSection isCoCreator={assessmentResult?.readinessLevel === 'priority_integration'} />

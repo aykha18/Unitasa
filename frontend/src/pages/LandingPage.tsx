@@ -4,7 +4,6 @@ import {
   HeroSection,
   BenefitCardsSection
 } from '../components/sections';
-import AgentWorkflowSection from '../components/sections/AgentWorkflowSection';
 import { CRMAssessmentResult } from '../types';
 import { trackPageView } from '../utils/analytics';
 import LeadCaptureForm, { LeadData } from '../components/assessment/LeadCaptureForm';

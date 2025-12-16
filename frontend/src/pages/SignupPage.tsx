@@ -19,6 +19,7 @@ interface SignupFormData {
   password: string;
   confirmPassword: string;
   agreeToTerms: boolean;
+  pricingTier: 'pro' | 'enterprise';
 }
 
 interface SignupErrors {
@@ -29,6 +30,7 @@ interface SignupErrors {
   password?: string;
   confirmPassword?: string;
   agreeToTerms?: string;
+  pricingTier?: string;
 }
 
 const SignupPage: React.FC = () => {
@@ -244,7 +246,8 @@ const SignupPage: React.FC = () => {
     company: '',
     password: '',
     confirmPassword: '',
-    agreeToTerms: false
+    agreeToTerms: false,
+    pricingTier: 'pro'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<SignupErrors>({});
@@ -278,6 +281,7 @@ const SignupPage: React.FC = () => {
     else if (formData.password.length < 8) newErrors.password = 'Password must be at least 8 characters';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     if (!formData.agreeToTerms) newErrors.agreeToTerms = 'You must agree to the terms';
+    if (!formData.pricingTier) newErrors.pricingTier = 'Please select a pricing plan';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -297,7 +301,10 @@ const SignupPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          pricingTier: formData.pricingTier // Ensure pricing tier is included
+        }),
       });
 
       const result = await response.json();
@@ -485,6 +492,65 @@ const SignupPage: React.FC = () => {
                 />
               </div>
               {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
+            </div>
+
+            {/* Pricing Tier Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-4">
+                Choose Your Plan *
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'pro' }))}
+                  className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    formData.pricingTier === 'pro'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Pro Plan</h4>
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      formData.pricingTier === 'pro' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                    }`}>
+                      {formData.pricingTier === 'pro' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 mb-2">₹4,999<span className="text-sm font-normal">/month</span></p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• 5 CRM integrations</li>
+                    <li>• Unlimited leads</li>
+                    <li>• Advanced AI features</li>
+                  </ul>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'enterprise' }))}
+                  className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    formData.pricingTier === 'enterprise'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">Enterprise Plan</h4>
+                    <div className={`w-4 h-4 rounded-full border-2 ${
+                      formData.pricingTier === 'enterprise' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+                    }`}>
+                      {formData.pricingTier === 'enterprise' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-purple-600 mb-2">₹19,999<span className="text-sm font-normal">/month</span></p>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Unlimited CRM integrations</li>
+                    <li>• White-label solution</li>
+                    <li>• Custom AI training</li>
+                  </ul>
+                </button>
+              </div>
+              {errors.pricingTier && <p className="text-red-500 text-sm mt-1">{errors.pricingTier}</p>}
             </div>
 
             {/* Password */}

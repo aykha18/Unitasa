@@ -1,336 +1,288 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, TrendingUp, DollarSign, Clock, Users, Target } from 'lucide-react';
+import { Calculator, TrendingUp, DollarSign, Clock, Users, Target, ArrowRight } from 'lucide-react';
 import { useCurrency } from '../../hooks/useCurrency';
-
-export {};
 
 interface ROIData {
   currentSpend: number;
-  weeklyHours: number;
-  industry: string;
-  companySize: string;
-}
-
-interface ROICalculation {
-  monthlySavings: number;
-  annualSavings: number;
-  timeSavedHours: number;
-  timeSavedWeeks: number;
-  productivityGain: number;
-  roiPercentage: number;
-  breakevenMonths: number;
+  teamSize: number;
+  hoursSaved: number;
+  conversionIncrease: number;
 }
 
 const ROICalculator: React.FC = () => {
   const currency = useCurrency(497);
   const [roiData, setRoiData] = useState<ROIData>({
-    currentSpend: 50000, // ₹50,000/month (typical Indian agency cost)
-    weeklyHours: 20, // More hours due to manual processes in India
-    industry: 'technology',
-    companySize: '25-50'
+    currentSpend: 5000,
+    teamSize: 3,
+    hoursSaved: 15,
+    conversionIncrease: 40
   });
 
-  const [calculation, setCalculation] = useState<ROICalculation | null>(null);
+  const [calculation, setCalculation] = useState({
+    monthlySavings: 0,
+    annualSavings: 0,
+    roiPercentage: 0,
+    paybackPeriod: 0,
+    productivityGain: 0
+  });
 
-  // Industry benchmarks for realistic calculations
-  const industryBenchmarks = {
-    technology: { efficiency: 0.75, timeMultiplier: 1.2 },
-    healthcare: { efficiency: 0.65, timeMultiplier: 1.1 },
-    finance: { efficiency: 0.70, timeMultiplier: 1.15 },
-    retail: { efficiency: 0.80, timeMultiplier: 1.3 },
-    consulting: { efficiency: 0.60, timeMultiplier: 1.0 },
-    manufacturing: { efficiency: 0.55, timeMultiplier: 0.9 },
-    default: { efficiency: 0.70, timeMultiplier: 1.0 }
-  };
-
-  // Company size multipliers
-  const sizeMultipliers = {
-    '1-10': 0.8,
-    '11-25': 0.9,
-    '25-50': 1.0,
-    '51-100': 1.1,
-    '100+': 1.2
-  };
-
-  const calculateROI = (data: ROIData): ROICalculation => {
-    const benchmark = industryBenchmarks[data.industry as keyof typeof industryBenchmarks] || industryBenchmarks.default;
-    const sizeMultiplier = sizeMultipliers[data.companySize as keyof typeof sizeMultipliers] || 1.0;
-
-    // Base Unitasa cost (Indian pricing)
-    const unitasaMonthlyCost = 4999; // ₹4,999/month starting price
-
-    // Calculate current inefficiencies
-    const currentMonthlyCost = data.currentSpend;
-    const currentWeeklyHours = data.weeklyHours;
-
-    // Unitasa efficiency improvements
-    const costReductionFactor = 0.65; // 65% cost reduction
-    const timeReductionFactor = 0.75; // 75% time reduction
-    const productivityGain = 0.40; // 40% overall productivity gain
-
-    // Monthly savings calculation
-    const monthlySavings = Math.max(0, currentMonthlyCost * costReductionFactor - unitasaMonthlyCost);
-
-    // Time savings
-    const timeSavedHours = currentWeeklyHours * timeReductionFactor;
-    const timeSavedWeeks = timeSavedHours / currentWeeklyHours;
-
-    // ROI calculation
-    const annualSavings = monthlySavings * 12;
-    const annualInvestment = unitasaMonthlyCost * 12;
-    const roiPercentage = annualInvestment > 0 ? ((annualSavings - annualInvestment) / annualInvestment) * 100 : 0;
-
-    // Breakeven calculation
-    const breakevenMonths = unitasaMonthlyCost > 0 ? Math.ceil(unitasaMonthlyCost / (currentMonthlyCost * costReductionFactor / 12)) : 0;
-
-    return {
-      monthlySavings: Math.round(monthlySavings),
-      annualSavings: Math.round(annualSavings),
-      timeSavedHours: Math.round(timeSavedHours * 10) / 10, // Round to 1 decimal
-      timeSavedWeeks: Math.round(timeSavedWeeks * 10) / 10,
-      productivityGain: Math.round(productivityGain * 100),
-      roiPercentage: Math.round(roiPercentage),
-      breakevenMonths: Math.max(1, breakevenMonths)
-    };
-  };
-
+  // Calculate ROI when data changes
   useEffect(() => {
-    const calc = calculateROI(roiData);
-    setCalculation(calc);
-  }, [roiData]);
+    const monthlyMarketingCost = roiData.currentSpend;
+    const teamHourlyRate = 25; // Average marketing salary per hour
+    const monthlyHours = roiData.teamSize * roiData.hoursSaved * 4.33; // Weekly hours * 4.33 weeks
+    const timeSavingsValue = monthlyHours * teamHourlyRate;
+    const conversionValue = monthlyMarketingCost * (roiData.conversionIncrease / 100);
+
+    const totalMonthlySavings = timeSavingsValue + conversionValue;
+    const annualSavings = totalMonthlySavings * 12;
+    const unitasaMonthlyCost = currency.currency === 'INR' ? 35000 : 450; // Monthly subscription
+    const roiPercentage = ((annualSavings - (unitasaMonthlyCost * 12)) / (unitasaMonthlyCost * 12)) * 100;
+    const paybackPeriod = unitasaMonthlyCost > 0 ? (unitasaMonthlyCost * 12) / annualSavings : 0;
+    const productivityGain = (roiData.hoursSaved / 40) * 100; // Percentage of work week saved
+
+    setCalculation({
+      monthlySavings: Math.round(totalMonthlySavings),
+      annualSavings: Math.round(annualSavings),
+      roiPercentage: Math.round(roiPercentage),
+      paybackPeriod: Math.round(paybackPeriod * 10) / 10, // Round to 1 decimal
+      productivityGain: Math.round(productivityGain)
+    });
+  }, [roiData, currency]);
 
   const formatAmount = (amount: number) => {
     if (currency.currency === 'INR') {
       return amount.toLocaleString('en-IN');
     } else if (currency.currency === 'EUR') {
       return amount.toString();
-    } else {
-      return amount.toString();
     }
+    return amount.toLocaleString('en-US');
   };
 
-  const getIndustryDisplayName = (industry: string) => {
-    const names = {
-      technology: 'Technology/SaaS',
-      healthcare: 'Healthcare',
-      finance: 'Finance',
-      retail: 'Retail/E-commerce',
-      consulting: 'Consulting',
-      manufacturing: 'Manufacturing',
-      default: 'General Business'
-    };
-    return names[industry as keyof typeof names] || names.default;
+  const handleInputChange = (field: keyof ROIData, value: number) => {
+    setRoiData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
-    <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 bg-gradient-to-br from-green-50 to-blue-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium mb-4">
             <Calculator className="w-4 h-4 mr-2" />
             ROI Calculator
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Calculate Your AI Marketing ROI
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            Calculate Your Marketing ROI
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            See exactly how much time and money Unitasa can save your business with intelligent marketing automation.
+            See exactly how much time and money Unitasa saves your business.
+            Customize the inputs below based on your current marketing setup.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Input Form */}
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Input Section */}
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">Your Current Situation</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Your Current Marketing Setup</h3>
 
             <div className="space-y-6">
-              {/* Current Monthly Spend */}
+              {/* Current Monthly Marketing Spend */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Current Monthly Marketing Spend ({currency.symbol})
                 </label>
                 <input
-                  type="number"
+                  type="range"
+                  min="1000"
+                  max="50000"
+                  step="1000"
                   value={roiData.currentSpend}
-                  onChange={(e) => setRoiData({...roiData, currentSpend: Number(e.target.value)})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="50000"
-                  min="0"
+                  onChange={(e) => handleInputChange('currentSpend', Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
-                <p className="text-xs text-gray-500 mt-1">Marketing agencies, tools, freelancers, etc.</p>
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>{currency.symbol}1,000</span>
+                  <span className="font-semibold">{currency.symbol}{formatAmount(roiData.currentSpend)}</span>
+                  <span>{currency.symbol}50,000</span>
+                </div>
               </div>
 
-              {/* Weekly Hours */}
+              {/* Team Size */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Hours Spent on Marketing/Week
+                  Marketing Team Size
                 </label>
                 <input
-                  type="number"
-                  value={roiData.weeklyHours}
-                  onChange={(e) => setRoiData({...roiData, weeklyHours: Number(e.target.value)})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="20"
-                  min="0"
-                  max="168"
+                  type="range"
+                  min="1"
+                  max="20"
+                  step="1"
+                  value={roiData.teamSize}
+                  onChange={(e) => handleInputChange('teamSize', Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
-                <p className="text-xs text-gray-500 mt-1">Content creation, social media management, customer engagement</p>
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>1 person</span>
+                  <span className="font-semibold">{roiData.teamSize} people</span>
+                  <span>20 people</span>
+                </div>
               </div>
 
-              {/* Industry */}
+              {/* Hours Saved Per Week */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Industry
+                  Hours Saved Per Person Per Week
                 </label>
-                <select
-                  value={roiData.industry}
-                  onChange={(e) => setRoiData({...roiData, industry: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="technology">Technology/SaaS</option>
-                  <option value="healthcare">Healthcare</option>
-                  <option value="finance">Finance</option>
-                  <option value="retail">Retail/E-commerce</option>
-                  <option value="consulting">Consulting</option>
-                  <option value="manufacturing">Manufacturing</option>
-                </select>
+                <input
+                  type="range"
+                  min="5"
+                  max="30"
+                  step="1"
+                  value={roiData.hoursSaved}
+                  onChange={(e) => handleInputChange('hoursSaved', Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>5 hours</span>
+                  <span className="font-semibold">{roiData.hoursSaved} hours</span>
+                  <span>30 hours</span>
+                </div>
               </div>
 
-              {/* Company Size */}
+              {/* Expected Conversion Increase */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Company Size (Employees)
+                  Expected Conversion Rate Increase (%)
                 </label>
-                <select
-                  value={roiData.companySize}
-                  onChange={(e) => setRoiData({...roiData, companySize: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="1-10">1-10 employees</option>
-                  <option value="11-25">11-25 employees</option>
-                  <option value="25-50">25-50 employees</option>
-                  <option value="51-100">51-100 employees</option>
-                  <option value="100+">100+ employees</option>
-                </select>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="5"
+                  value={roiData.conversionIncrease}
+                  onChange={(e) => handleInputChange('conversionIncrease', Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>10%</span>
+                  <span className="font-semibold">{roiData.conversionIncrease}%</span>
+                  <span>100%</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Results Display */}
+          {/* Results Section */}
           <div className="space-y-6">
-            {calculation && (
-              <>
-                {/* Main ROI Result */}
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-8 text-white shadow-lg">
-                  <div className="flex items-center mb-4">
-                    <TrendingUp className="w-8 h-8 mr-3" />
-                    <h3 className="text-2xl font-bold">Your Potential Savings</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center">
-                      <div className="text-4xl font-bold mb-1">
-                        {currency.symbol}{formatAmount(calculation.monthlySavings)}
-                      </div>
-                      <div className="text-green-100 text-sm">Monthly Savings</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-4xl font-bold mb-1">
-                        {currency.symbol}{formatAmount(calculation.annualSavings)}
-                      </div>
-                      <div className="text-green-100 text-sm">Annual Savings</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-6 border-t border-green-400">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-yellow-300 mb-1">
-                        {calculation.roiPercentage > 0 ? '+' : ''}{calculation.roiPercentage}%
-                      </div>
-                      <div className="text-green-100 text-sm">ROI in Year 1</div>
-                    </div>
+            {/* Monthly Savings */}
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Monthly Savings</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {currency.symbol}{formatAmount(calculation.monthlySavings)}
                   </div>
                 </div>
+                <TrendingUp className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
 
-                {/* Detailed Breakdown */}
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Detailed Breakdown</h4>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center p-4 bg-blue-50 rounded-lg">
-                      <Clock className="w-8 h-8 text-blue-600 mr-3" />
-                      <div>
-                        <div className="font-semibold text-gray-900">{calculation.timeSavedHours} hours/week</div>
-                        <div className="text-sm text-gray-600">Time Saved</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center p-4 bg-purple-50 rounded-lg">
-                      <Users className="w-8 h-8 text-purple-600 mr-3" />
-                      <div>
-                        <div className="font-semibold text-gray-900">{calculation.productivityGain}%</div>
-                        <div className="text-sm text-gray-600">Productivity Gain</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center p-4 bg-orange-50 rounded-lg">
-                      <Target className="w-8 h-8 text-orange-600 mr-3" />
-                      <div>
-                        <div className="font-semibold text-gray-900">{calculation.breakevenMonths} months</div>
-                        <div className="text-sm text-gray-600">Breakeven Period</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center p-4 bg-green-50 rounded-lg">
-                      <DollarSign className="w-8 h-8 text-green-600 mr-3" />
-                      <div>
-                        <div className="font-semibold text-gray-900">{currency.symbol}{currency.displayText}</div>
-                        <div className="text-sm text-gray-600">Monthly Investment</div>
-                      </div>
-                    </div>
+            {/* Annual Savings */}
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Annual Savings</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {currency.symbol}{formatAmount(calculation.annualSavings)}
                   </div>
                 </div>
+                <DollarSign className="w-8 h-8 text-green-500" />
+              </div>
+            </div>
 
-                {/* Industry Context */}
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <p className="text-sm text-gray-600">
-                    <strong>Based on your {getIndustryDisplayName(roiData.industry)} business:</strong> Indian companies in your industry typically see {industryBenchmarks[roiData.industry as keyof typeof industryBenchmarks]?.efficiency * 100 || 70}% efficiency improvements with AI automation, saving ₹2-6 lakh monthly on average.
-                  </p>
+            {/* ROI Percentage */}
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">ROI</div>
+                  <div className="text-3xl font-bold text-blue-600">
+                    {calculation.roiPercentage}%
+                  </div>
                 </div>
-              </>
-            )}
+                <Target className="w-8 h-8 text-blue-500" />
+              </div>
+            </div>
+
+            {/* Payback Period */}
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Payback Period</div>
+                  <div className="text-3xl font-bold text-purple-600">
+                    {calculation.paybackPeriod} months
+                  </div>
+                </div>
+                <Clock className="w-8 h-8 text-purple-500" />
+              </div>
+            </div>
+
+            {/* Productivity Gain */}
+            <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600 mb-1">Productivity Increase</div>
+                  <div className="text-3xl font-bold text-orange-600">
+                    {calculation.productivityGain}%
+                  </div>
+                </div>
+                <Users className="w-8 h-8 text-orange-500" />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Call to Action */}
-        <div className="text-center mt-12">
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 max-w-2xl mx-auto">
-            <h3 className="text-xl font-bold text-gray-900 mb-3">
-              Ready to Start Saving?
+        {/* CTA Section */}
+        <div className="mt-16 text-center">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+            <h3 className="text-2xl font-bold mb-4">
+              Ready to Achieve These Results?
             </h3>
-            <p className="text-gray-600 mb-6">
-              Join 25 founding entrepreneurs who get lifetime access to this ROI-generating platform.
+            <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+              Join hundreds of businesses that have transformed their marketing ROI with Unitasa's AI automation platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                className="bg-gradient-primary text-white px-8 py-3 rounded-lg font-semibold hover:shadow-brand transition-all duration-200"
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('openAssessment'));
                 }}
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center"
               >
-                Get Free AI Assessment
+                Start Free Assessment
+                <ArrowRight className="w-4 h-4 ml-2" />
               </button>
               <button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('openDemo'));
+                  // Scroll to pricing or open demo
+                  document.querySelector('#pricing')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="border-2 border-unitasa-electric text-unitasa-electric px-8 py-3 rounded-lg font-semibold hover:bg-unitasa-electric hover:text-white transition-all duration-200"
+                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
               >
-                See Live Demo
+                View Pricing
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+            *Calculations are estimates based on industry averages and your inputs.
+            Actual results may vary depending on your specific marketing setup and implementation.
+          </p>
         </div>
       </div>
     </section>

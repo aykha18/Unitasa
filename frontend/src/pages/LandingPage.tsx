@@ -15,6 +15,9 @@ import { LandingPageAPI } from '../services/landingPageApi';
 const AICapabilitiesSection = lazy(() => import('../components/sections/AICapabilitiesSection'));
 const AgentWorkflowSection = lazy(() => import('../components/sections/AgentWorkflowSection'));
 const IndustryValuePropsSection = lazy(() => import('../components/sections/IndustryValuePropsSection'));
+const ROICalculator = lazy(() => import('../components/sections/ROICalculator'));
+const CompetitorComparison = lazy(() => import('../components/sections/CompetitorComparison'));
+const FounderMatcher = lazy(() => import('../components/sections/FounderMatcher'));
 const FounderStorySection = lazy(() => import('../components/sections/FounderStorySection'));
 const SocialProofSection = lazy(() => import('../components/sections/SocialProofSection'));
 const MetaProofSection = lazy(() => import('../components/sections/MetaProofSection'));
@@ -195,6 +198,18 @@ const LandingPage: React.FC = () => {
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <IndustryValuePropsSection />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <ROICalculator />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <CompetitorComparison />
+            </Suspense>
+
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <FounderMatcher />
             </Suspense>
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>

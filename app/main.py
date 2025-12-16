@@ -156,9 +156,9 @@ async def create_default_data(engine):
                 )
                 session.add(user)
                 await session.flush()
-                print(f"✅ Created system user with ID: {user.id}")
+                print(f"SUCCESS Created system user with ID: {user.id}")
             else:
-                print(f"✅ System user already exists with ID: {user.id}")
+                print(f"SUCCESS System user already exists with ID: {user.id}")
             
             # Check if default campaign exists
             result = await session.execute(select(Campaign).where(Campaign.id == 1))
@@ -178,15 +178,15 @@ async def create_default_data(engine):
                 )
                 session.add(campaign)
                 await session.flush()
-                print(f"✅ Created default campaign with ID: {campaign.id}")
+                print(f"SUCCESS Created default campaign with ID: {campaign.id}")
             else:
-                print(f"✅ Default campaign already exists with ID: {campaign.id}")
+                print(f"SUCCESS Default campaign already exists with ID: {campaign.id}")
             
             await session.commit()
-            print("✅ Default data creation completed successfully")
+            print("SUCCESS Default data creation completed successfully")
             
     except Exception as e:
-        print(f"❌ Error creating default data: {e}")
+        print(f"ERROR creating default data: {e}")
         import traceback
         print(f"Traceback: {traceback.format_exc()}")
 

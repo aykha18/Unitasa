@@ -36,7 +36,7 @@ class User(Base, TimestampMixin):
 
     # Subscription and limits
     subscription_tier = Column(String(50), default="free")  # free, free_trial, pro, enterprise, co_creator
-    billing_cycle = Column(String(20), default="monthly")  # monthly, quarterly, annual
+    # billing_cycle = Column(String(20), default="monthly")  # monthly, quarterly, annual
     monthly_request_limit = Column(Integer, default=1000)
     requests_this_month = Column(Integer, default=0)
     trial_end_date = Column(DateTime)  # For free trial users

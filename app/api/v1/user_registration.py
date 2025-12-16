@@ -72,25 +72,32 @@ async def register_user(
     db: AsyncSession = Depends(get_db)
 ) -> UserRegistrationResponse:
     """Register a new user account"""
+    print(f"[REGISTRATION] Starting registration for email: {request.email}")
     try:
         # Validate passwords match
+        print(f"[REGISTRATION] Validating passwords for {request.email}")
         if request.password != request.confirmPassword:
+            print(f"[REGISTRATION] Password validation failed for {request.email}")
             raise HTTPException(
                 status_code=400,
                 detail="Passwords do not match"
             )
 
         # Check if user already exists
+        print(f"[REGISTRATION] Checking if user exists: {request.email}")
         result = await db.execute(select(User).where(User.email == request.email))
         existing_user = result.scalar_one_or_none()
 
         if existing_user:
+            print(f"[REGISTRATION] User already exists: {request.email}")
             raise HTTPException(
                 status_code=400,
                 detail="User with this email already exists"
             )
+        print(f"[REGISTRATION] User does not exist, proceeding: {request.email}")
 
         # Hash password
+        print(f"[REGISTRATION] Hashing password for {request.email}")
         hashed_password = bcrypt.hashpw(request.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
         # Determine subscription tier and trial settings
@@ -102,6 +109,8 @@ async def register_user(
             subscription_tier = request.pricingTier or "pro"
             trial_end_date = None  # Paid plans don't need trial
 
+        print(f"[REGISTRATION] Creating user with tier: {subscription_tier}, email: {request.email}")
+
         # Create new user
         new_user = User(
             first_name=request.firstName,
@@ -110,23 +119,30 @@ async def register_user(
             company=request.company,
             hashed_password=hashed_password,
             subscription_tier=subscription_tier,
-            billing_cycle=request.billingCycle or "monthly",
+            # billing_cycle=request.billingCycle or "monthly",
             is_active=True,
             is_verified=False,
             trial_end_date=trial_end_date,
         )
 
+        print(f"[REGISTRATION] Adding user to database: {request.email}")
         db.add(new_user)
         await db.commit()
+        print(f"[REGISTRATION] Committed user to database: {request.email}")
         await db.refresh(new_user)
+        print(f"[REGISTRATION] User created successfully with ID: {new_user.id}")
 
         # Send welcome email
-        email_service = EmailService()
-        email_sent, email_message = email_service.send_welcome_email(new_user)
+        print(f"[REGISTRATION] Skipping welcome email sending for debugging")
+        # email_service = EmailService()
+        # email_sent, email_message = email_service.send_welcome_email(new_user)
 
-        if not email_sent:
-            print(f"[REGISTRATION] Failed to send welcome email: {email_message}")
+        # if not email_sent:
+        #     print(f"[REGISTRATION] Failed to send welcome email: {email_message}")
+        # else:
+        #     print(f"[REGISTRATION] Welcome email sent successfully to {new_user.email}")
 
+        print(f"[REGISTRATION] Registration completed successfully for {new_user.email}")
         return UserRegistrationResponse(
             success=True,
             message="Account created successfully! Please check your email for verification instructions.",
@@ -137,7 +153,10 @@ async def register_user(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[REGISTRATION] Error: {e}")
+        print(f"[REGISTRATION] Unexpected error for {request.email}: {str(e)}")
+        print(f"[REGISTRATION] Error type: {type(e).__name__}")
+        import traceback
+        print(f"[REGISTRATION] Full traceback: {traceback.format_exc()}")
         await db.rollback()
         raise HTTPException(
             status_code=500,

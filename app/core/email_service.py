@@ -237,7 +237,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🎉 Welcome to the Co-Creator Program!</h1>
+                        <h1>Welcome to the Co-Creator Program!</h1>
                         <p>{{ app_name }} Founding Users</p>
                     </div>
                     
@@ -320,7 +320,7 @@ class EmailService:
             html_content = html_template.render(**template_data)
             text_content = text_template.render(**template_data)
             
-            subject = f"🎉 Welcome to Co-Creator Program - Seat #{co_creator.seat_number}!"
+            subject = f"Welcome to Co-Creator Program - Seat #{co_creator.seat_number}!"
             
             return self.send_email(
                 to_email=email,
@@ -373,7 +373,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🎉 Welcome to {{ app_name }}!</h1>
+                        <h1>Welcome to {{ app_name }}!</h1>
                         <p>Your 15-Day Free Trial Starts Now</p>
                     </div>
                     
@@ -385,7 +385,7 @@ class EmailService:
                         
                         {% if verification_token %}
                         <div style="background: #fef3c7; border: 1px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                            <h3 style="color: #92400e; margin-top: 0;">📧 Please Verify Your Email</h3>
+                            <h3 style="color: #92400e; margin-top: 0;">Please Verify Your Email</h3>
                             <p style="color: #92400e;">To ensure you receive important updates and don't lose access to your account, please verify your email address:</p>
                             <p style="text-align: center; margin: 20px 0;">
                                 <a href="{{ verification_url }}" class="button verify-button">Verify Email Address</a>
@@ -394,7 +394,7 @@ class EmailService:
                         {% endif %}
                         
                         <div class="trial-info">
-                            <h3 style="color: #065f46; margin-top: 0;">🚀 What You Get During Your Trial</h3>
+                            <h3 style="color: #065f46; margin-top: 0;">What You Get During Your Trial</h3>
                             <ul style="color: #065f46;">
                                 <li><strong>Full Platform Access</strong> - All features unlocked for 15 days</li>
                                 <li><strong>AI Content Generation</strong> - Create engaging social media posts</li>
@@ -405,7 +405,7 @@ class EmailService:
                             <p style="color: #065f46;"><strong>Trial ends:</strong> {{ trial_end_date }}</p>
                         </div>
                         
-                        <h3>🎯 Get Started in 3 Easy Steps</h3>
+                        <h3>Get Started in 3 Easy Steps</h3>
                         <ol>
                             <li><strong>Complete Your Profile</strong> - Add your company details and preferences</li>
                             <li><strong>Connect Your CRM</strong> - Integrate with your existing tools</li>
@@ -418,12 +418,12 @@ class EmailService:
                         </p>
                         
                         <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                            <h3>💡 Need Help Getting Started?</h3>
+                            <h3>Need Help Getting Started?</h3>
                             <p>Our team is here to help you succeed:</p>
                             <ul>
-                                <li>📚 <a href="https://docs.unitasa.in">Browse our documentation</a></li>
-                                <li>💬 <a href="mailto:support@unitasa.in">Email our support team</a></li>
-                                <li>🎥 <a href="https://unitasa.in/tutorials">Watch video tutorials</a></li>
+                                <li><a href="https://docs.unitasa.in">Browse our documentation</a></li>
+                                <li><a href="mailto:support@unitasa.in">Email our support team</a></li>
+                                <li><a href="https://unitasa.in/tutorials">Watch video tutorials</a></li>
                             </ul>
                         </div>
                     </div>
@@ -485,7 +485,7 @@ class EmailService:
             html_content = html_template.render(**template_data)
             text_content = text_template.render(**template_data)
             
-            subject = f"🎉 Welcome to {settings.app_name} - Your Free Trial is Active!"
+            subject = f"Welcome to {settings.app_name} - Your Free Trial is Active!"
             
             return self.send_email(
                 to_email=user.email,
@@ -531,7 +531,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>📧 Verify Your Email</h1>
+                        <h1>Verify Your Email</h1>
                         <p>{{ app_name }}</p>
                     </div>
                     
@@ -611,7 +611,7 @@ class EmailService:
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>🔒 Reset Your Password</h1>
+                        <h1>Reset Your Password</h1>
                         <p>{{ app_name }}</p>
                     </div>
                     

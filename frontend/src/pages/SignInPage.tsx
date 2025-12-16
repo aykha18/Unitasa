@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Zap, Star } from 'lucide-react';
 import { Button } from '../components/ui';
 import { config } from '../config/environment';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../hooks/useCurrency';
 
 // Google OAuth types
 declare global {
@@ -15,6 +16,8 @@ interface SignInFormData {
   email: string;
   password: string;
   rememberMe: boolean;
+  pricingTier?: 'pro' | 'enterprise';
+  billingCycle?: 'monthly' | 'quarterly' | 'annual';
 }
 
 interface SignInErrors {
@@ -35,12 +38,16 @@ const SignInPage: React.FC = () => {
   const [formData, setFormData] = useState<SignInFormData>({
     email: '',
     password: '',
-    rememberMe: false
+    rememberMe: false,
+    pricingTier: 'pro',
+    billingCycle: 'monthly'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<SignInErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
+  const currency = useCurrency(49);
 
   // Load Google OAuth script and fetch client ID
   useEffect(() => {
@@ -161,8 +168,9 @@ const SignInPage: React.FC = () => {
       const success = await login(formData.email, formData.password, formData.rememberMe);
 
       if (success) {
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Check if user has selected a plan
+        // For now, show plan selection after sign-in
+        setShowPlanSelection(true);
       } else {
         setErrors({ general: 'Invalid email or password' });
       }
@@ -459,16 +467,129 @@ const SignInPage: React.FC = () => {
             </div>
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Signing In...' : 'Sign In'}
-            </Button>
-          </form>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </form>
+  
+            {/* Plan Selection Section */}
+            {showPlanSelection && (
+              <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl border border-blue-200">
+                <div className="text-center mb-6">
+                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h3>
+                  <p className="text-gray-600">Choose your plan to continue</p>
+                </div>
+  
+                {/* Billing Cycle Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Billing Cycle
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(['monthly', 'quarterly', 'annual'] as const).map((cycle) => (
+                      <button
+                        key={cycle}
+                        onClick={() => setFormData(prev => ({ ...prev, billingCycle: cycle }))}
+                        className={`p-3 border-2 rounded-lg text-center transition-all ${
+                          formData.billingCycle === cycle
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="font-semibold text-sm capitalize">{cycle}</div>
+                        {cycle !== 'monthly' && (
+                          <div className="text-xs text-green-600 mt-1">
+                            Save {cycle === 'quarterly' ? '10%' : '15%'}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+  
+                {/* Pricing Tier Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-4">
+                    Choose Your Plan
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'pro' }))}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        formData.pricingTier === 'pro'
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-900">Pro Plan</h4>
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          formData.pricingTier === 'pro' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                        }`}>
+                          {formData.pricingTier === 'pro' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">{currency.symbol}4,999<span className="text-sm font-normal">/month</span></p>}
+                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">{currency.symbol}13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">({currency.symbol}4,499/mo)</span></p>}
+                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">{currency.symbol}42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">({currency.symbol}3,540/mo)</span></p>}
+                      </div>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• 5 CRM integrations</li>
+                        <li>• Unlimited leads</li>
+                        <li>• Advanced AI features</li>
+                      </ul>
+                    </button>
+  
+                    <button
+                      onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'enterprise' }))}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        formData.pricingTier === 'enterprise'
+                          ? 'border-purple-500 bg-purple-50'
+                          : 'border-gray-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-gray-900">Enterprise Plan</h4>
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          formData.pricingTier === 'enterprise' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+                        }`}>
+                          {formData.pricingTier === 'enterprise' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}19,999<span className="text-sm font-normal">/month</span></p>}
+                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">({currency.symbol}17,999/mo)</span></p>}
+                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">({currency.symbol}13,999/mo)</span></p>}
+                      </div>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• Unlimited CRM integrations</li>
+                        <li>• White-label solution</li>
+                        <li>• Custom AI training</li>
+                      </ul>
+                    </button>
+                  </div>
+                </div>
+  
+                {/* Continue Button */}
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={!formData.pricingTier || !formData.billingCycle}
+                >
+                  Continue to Dashboard
+                </Button>
+              </div>
+            )}
 
           {/* Footer */}
           <div className="mt-6 text-center">

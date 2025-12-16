@@ -19,7 +19,7 @@ interface SignupFormData {
   password: string;
   confirmPassword: string;
   agreeToTerms: boolean;
-  pricingTier: 'pro' | 'enterprise';
+  pricingTier: 'free' | 'pro' | 'enterprise';
   billingCycle: 'monthly' | 'quarterly' | 'annual';
 }
 
@@ -249,7 +249,7 @@ const SignupPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     agreeToTerms: false,
-    pricingTier: 'pro',
+    pricingTier: 'free',
     billingCycle: 'monthly'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -573,64 +573,100 @@ const SignupPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-4">
                 Choose Your Plan *
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
+                {/* Free Trial Option */}
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'pro' }))}
-                  className={`p-4 border-2 rounded-lg text-left transition-all ${
-                    formData.pricingTier === 'pro'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-green-300'
+                  onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'free' }))}
+                  className={`p-4 border-2 rounded-lg text-left transition-all relative ${
+                    formData.pricingTier === 'free'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
+                  <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
+                    Most Popular
+                  </div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900">Pro Plan</h4>
+                    <h4 className="font-semibold text-gray-900">15 Days Free Trial</h4>
                     <div className={`w-4 h-4 rounded-full border-2 ${
-                      formData.pricingTier === 'pro' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                      formData.pricingTier === 'free' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
                     }`}>
-                      {formData.pricingTier === 'pro' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                      {formData.pricingTier === 'free' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
                     </div>
                   </div>
                   <div className="mb-2">
-                    {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">₹4,999<span className="text-sm font-normal">/month</span></p>}
-                    {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">₹13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">(₹4,499/mo)</span></p>}
-                    {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">₹42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">(₹3,540/mo)</span></p>}
+                    <p className="text-2xl font-bold text-blue-600">FREE<span className="text-sm font-normal"> for 15 days</span></p>
+                    <p className="text-sm text-gray-600">Then choose your plan</p>
                   </div>
                   <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Full access to all features</li>
                     <li>• 5 CRM integrations</li>
                     <li>• Unlimited leads</li>
-                    <li>• Advanced AI features</li>
+                    <li>• No credit card required</li>
                   </ul>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'enterprise' }))}
-                  className={`p-4 border-2 rounded-lg text-left transition-all ${
-                    formData.pricingTier === 'enterprise'
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900">Enterprise Plan</h4>
-                    <div className={`w-4 h-4 rounded-full border-2 ${
-                      formData.pricingTier === 'enterprise' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
-                    }`}>
-                      {formData.pricingTier === 'enterprise' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                {/* Paid Plans */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'pro' }))}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      formData.pricingTier === 'pro'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-gray-900">Pro Plan</h4>
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        formData.pricingTier === 'pro' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                      }`}>
+                        {formData.pricingTier === 'pro' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="mb-2">
-                    {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">₹19,999<span className="text-sm font-normal">/month</span></p>}
-                    {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">₹53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">(₹17,999/mo)</span></p>}
-                    {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">₹1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">(₹13,999/mo)</span></p>}
-                  </div>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Unlimited CRM integrations</li>
-                    <li>• White-label solution</li>
-                    <li>• Custom AI training</li>
-                  </ul>
-                </button>
+                    <div className="mb-2">
+                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">₹4,999<span className="text-sm font-normal">/month</span></p>}
+                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">₹13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">(₹4,499/mo)</span></p>}
+                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">₹42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">(₹3,540/mo)</span></p>}
+                    </div>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• 5 CRM integrations</li>
+                      <li>• Unlimited leads</li>
+                      <li>• Advanced AI features</li>
+                    </ul>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, pricingTier: 'enterprise' }))}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      formData.pricingTier === 'enterprise'
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-gray-900">Enterprise Plan</h4>
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        formData.pricingTier === 'enterprise' ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
+                      }`}>
+                        {formData.pricingTier === 'enterprise' && <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>}
+                      </div>
+                    </div>
+                    <div className="mb-2">
+                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">₹19,999<span className="text-sm font-normal">/month</span></p>}
+                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">₹53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">(₹17,999/mo)</span></p>}
+                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">₹1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">(₹13,999/mo)</span></p>}
+                    </div>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Unlimited CRM integrations</li>
+                      <li>• White-label solution</li>
+                      <li>• Custom AI training</li>
+                    </ul>
+                  </button>
+                </div>
               </div>
               {errors.pricingTier && <p className="text-red-500 text-sm mt-1">{errors.pricingTier}</p>}
             </div>

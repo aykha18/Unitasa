@@ -23,11 +23,13 @@ const TrialEnhancementSection = lazy(() => import('../components/sections/TrialE
 const FounderStorySection = lazy(() => import('../components/sections/FounderStorySection'));
 const SocialProofSection = lazy(() => import('../components/sections/SocialProofSection'));
 const MetaProofSection = lazy(() => import('../components/sections/MetaProofSection'));
+const EnhancedSocialProof = lazy(() => import('../components/sections/EnhancedSocialProof'));
 const CRMMarketplaceSection = lazy(() => import('../components/sections/CRMMarketplaceSection'));
 const ThoughtLeadershipSection = lazy(() => import('../components/sections/ThoughtLeadershipSection'));
 const AssessmentModal = lazy(() => import('../components/assessment/AssessmentModal'));
 const ChatWidget = lazy(() => import('../components/chat/ChatWidget'));
 const ChatProvider = lazy(() => import('../components/chat/ChatProvider'));
+const AnalyticsTracker = lazy(() => import('../components/analytics/AnalyticsTracker'));
 
 // Chat Widget Container Component
 const ChatWidgetContainer: React.FC = () => {
@@ -234,6 +236,10 @@ const LandingPage: React.FC = () => {
               <MetaProofSection />
             </Suspense>
 
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <EnhancedSocialProof />
+            </Suspense>
+
             {/* <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <FounderStorySection />
             </Suspense> */}
@@ -275,6 +281,11 @@ const LandingPage: React.FC = () => {
             {/* Chat Widget */}
             <Suspense fallback={null}>
               <ChatWidgetContainer />
+            </Suspense>
+
+            {/* Analytics Tracker */}
+            <Suspense fallback={null}>
+              <AnalyticsTracker />
             </Suspense>
           </div>
         </Layout>

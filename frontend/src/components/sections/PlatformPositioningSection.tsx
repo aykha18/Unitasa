@@ -6,7 +6,7 @@ import { useCurrency } from '../../hooks/useCurrency';
 
 const PlatformPositioningSection: React.FC = () => {
   const [showConsultation, setShowConsultation] = useState(false);
-  const currency = useCurrency(497);
+  const currency = useCurrency(362);
 
   // Helper functions for dynamic pricing
   const getConvertedAmount = (usdAmount: number) => {

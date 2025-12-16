@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { Check, X, Crown, Zap, Star, CheckCircle } from 'lucide-react';
+import { Check, X, Crown, Zap, Star, CheckCircle, Calendar } from 'lucide-react';
 import Button from '../ui/Button';
 import RazorpayCheckout from '../payment/RazorpayCheckout';
 import { useCurrency } from '../../hooks/useCurrency';
 
 interface PricingTier {
   name: string;
-  price: string;
-  priceINR?: string;
-  originalPrice?: string;
-  originalPriceINR?: string;
-  period: string;
+  basePriceUSD: number;
   description: string;
   features: string[];
   limitations?: string[];
@@ -19,90 +15,110 @@ interface PricingTier {
   icon?: React.ReactNode;
 }
 
+type BillingCycle = 'monthly' | 'quarterly' | 'annual';
+
 const PricingComparison: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const currency = useCurrency(497);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const currency = useCurrency(49);
 
-  // Helper functions for dynamic pricing
-  const getConvertedAmount = (usdAmount: number) => {
-    const rate = currency.currency === 'INR' ? 83 : currency.currency === 'EUR' ? 0.85 : 1;
-    return Math.round(usdAmount * rate);
+  // Base pricing in USD
+  const BASE_PRICING = {
+    pro: {
+      monthly: 49,
+      quarterly: 132, // 10% discount
+      annual: 499     // 15% discount
+    },
+    enterprise: {
+      monthly: 149,
+      quarterly: 402, // 10% discount
+      annual: 1519    // 15% discount
+    }
   };
 
-  const formatAmount = (amount: number) => {
+  // Currency conversion rates
+  const getConversionRate = (currency: string) => {
+    switch (currency) {
+      case 'INR': return 83;
+      case 'EUR': return 0.85;
+      default: return 1;
+    }
+  };
+
+  // Calculate discounted price based on billing cycle
+  const getDiscountedPrice = (monthlyPrice: number, cycle: BillingCycle) => {
+    const discounts = {
+      monthly: 1,
+      quarterly: 0.9, // 10% off
+      annual: 0.85    // 15% off
+    };
+    return Math.round(monthlyPrice * discounts[cycle]);
+  };
+
+  // Convert USD to current currency
+  const convertPrice = (usdPrice: number) => {
+    const rate = getConversionRate(currency.currency);
+    return Math.round(usdPrice * rate);
+  };
+
+  // Format price with currency symbol
+  const formatPrice = (amount: number) => {
     if (currency.currency === 'INR') {
-      return amount.toLocaleString('en-IN');
+      return `₹${amount.toLocaleString('en-IN')}`;
     } else if (currency.currency === 'EUR') {
-      return amount.toString();
+      return `€${amount}`;
     } else {
-      return amount.toString();
+      return `$${amount}`;
+    }
+  };
+
+  // Get billing cycle label
+  const getBillingLabel = (cycle: BillingCycle) => {
+    switch (cycle) {
+      case 'monthly': return 'Monthly';
+      case 'quarterly': return '3 Months';
+      case 'annual': return 'Annual';
+    }
+  };
+
+  // Get discount percentage for display
+  const getDiscountText = (cycle: BillingCycle) => {
+    switch (cycle) {
+      case 'monthly': return '';
+      case 'quarterly': return 'Save 10%';
+      case 'annual': return 'Save 15%';
     }
   };
 
   const pricingTiers: PricingTier[] = [
     {
-      name: 'Standard Access',
-      price: '$99',
-      period: '/month',
-      description: 'Basic AI marketing automation with standard support',
+      name: 'Pro',
+      basePriceUSD: BASE_PRICING.pro[billingCycle],
+      description: 'Complete AI marketing automation for growing businesses',
       features: [
-        'Basic AI automation',
-        'Standard CRM integrations',
-        'Email support',
-        'Monthly feature updates',
-        'Basic analytics dashboard'
+        'Unlimited AI content generation',
+        'All CRM integrations',
+        'Advanced analytics & reporting',
+        'Priority email support',
+        'API access',
+        'Custom AI training'
       ],
-      limitations: [
-        'Limited AI decisions per hour',
-        'No priority support',
-        'No product influence',
-        'Standard feature rollout'
-      ],
+      highlighted: true,
+      badge: getDiscountText(billingCycle) || 'Most Popular',
       icon: <Zap className="w-6 h-6" />
     },
     {
-      name: 'Founding Co-Creator',
-      price: currency.displayText,
-      priceINR: currency.isIndian ? undefined : '₹41,500',
-      originalPrice: currency.isIndian ? '₹1,67,000+' : '$2,000+',
-      originalPriceINR: currency.isIndian ? undefined : '(~₹1,67,000+)',
-      period: 'one-time',
-      description: 'Lifetime access + direct product influence + priority everything',
-      features: [
-        'Lifetime platform access (all future features)',
-        'Unlimited AI decisions per hour',
-        'Priority CRM integration support',
-        'Direct founder communication channel',
-        'Vote on product roadmap',
-        'Beta access (3-6 months early)',
-        `Personal AI strategy audit (${currency.symbol}${formatAmount(getConvertedAmount(500))} value)`,
-        `Custom AI agent setup (${currency.symbol}${formatAmount(getConvertedAmount(300))} value)`,
-        `6-month priority support (${currency.symbol}${formatAmount(getConvertedAmount(600))} value)`,
-        'Exclusive founder mastermind community',
-        'Co-creator badge and recognition',
-        'Revenue sharing on referrals'
-      ],
-      highlighted: true,
-      badge: '🔥 75% OFF - LIMITED TIME',
-      icon: <Crown className="w-6 h-6 text-yellow-500" />
-    },
-    {
       name: 'Enterprise',
-      price: `${currency.symbol}${formatAmount(getConvertedAmount(500))}+`,
-      period: '/month',
-      description: 'Custom AI solutions for large organizations',
+      basePriceUSD: BASE_PRICING.enterprise[billingCycle],
+      description: 'Advanced AI solutions for large organizations',
       features: [
-        'Custom AI model training',
-        'Dedicated account manager',
+        'Everything in Pro',
         'White-label options',
-        'Advanced security features',
-        'Custom integrations'
-      ],
-      limitations: [
-        'Annual contract required',
-        'Complex setup process',
-        'Higher ongoing costs'
+        'Dedicated account manager',
+        'Custom integrations',
+        'Advanced security',
+        'SLA guarantees'
       ],
       icon: <Star className="w-6 h-6" />
     }
@@ -127,153 +143,167 @@ const PricingComparison: React.FC = () => {
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Founder Pricing vs Standard Access
+            Choose Your Plan
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Join as a founding co-creator and save over <strong>${calculateLifetimeValue().toLocaleString()}</strong> 
-            while getting lifetime access and exclusive benefits.
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+            Powerful AI marketing automation with flexible billing options.
+            All plans include a 14-day free trial.
           </p>
+
+          {/* Billing Cycle Selector */}
+          <div className="flex justify-center mb-8">
+            <div className="bg-white rounded-lg p-1 shadow-sm border">
+              {(['monthly', 'quarterly', 'annual'] as BillingCycle[]).map((cycle) => (
+                <button
+                  key={cycle}
+                  onClick={() => setBillingCycle(cycle)}
+                  className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                    billingCycle === cycle
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {getBillingLabel(cycle)}
+                  {cycle !== 'monthly' && (
+                    <span className="ml-1 text-xs opacity-75">
+                      ({getDiscountText(cycle)})
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 mb-16">
-          {pricingTiers.map((tier, index) => (
-            <div
-              key={index}
-              className={`bg-white rounded-2xl shadow-lg overflow-hidden relative ${
-                tier.highlighted 
-                  ? 'ring-4 ring-blue-500 transform scale-105' 
-                  : 'hover:shadow-xl transition-shadow'
-              }`}
-            >
-              {/* Badge */}
-              {tier.badge && (
-                <div className="absolute top-4 left-4 right-4 z-10">
-                  <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full text-center animate-pulse">
-                    {tier.badge}
-                  </div>
-                </div>
-              )}
+        <div className="grid md:grid-cols-2 gap-8 mb-16 max-w-5xl mx-auto">
+          {pricingTiers.map((tier, index) => {
+            const convertedPrice = convertPrice(tier.basePriceUSD);
+            const discountedPrice = getDiscountedPrice(convertedPrice, billingCycle);
 
-              <div className={`p-8 ${tier.highlighted ? 'bg-gradient-to-br from-blue-50 to-purple-50' : ''}`}>
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <div className="flex items-center justify-center mb-4">
-                    {tier.icon}
-                    <h3 className="text-2xl font-bold text-gray-900 ml-2">{tier.name}</h3>
+            return (
+              <div
+                key={index}
+                className={`bg-white rounded-2xl shadow-lg overflow-hidden relative ${
+                  tier.highlighted
+                    ? 'ring-4 ring-blue-500 transform scale-105'
+                    : 'hover:shadow-xl transition-shadow'
+                }`}
+              >
+                {/* Badge */}
+                {tier.badge && (
+                  <div className="absolute top-4 left-4 right-4 z-10">
+                    <div className={`text-white text-xs font-bold px-3 py-1 rounded-full text-center ${
+                      billingCycle === 'monthly' ? 'bg-blue-600' : 'bg-green-600'
+                    }`}>
+                      {tier.badge}
+                    </div>
                   </div>
-                  
-                  <div className="mb-4">
-                    {tier.originalPrice && (
-                      <div className="text-lg text-gray-500 line-through mb-1">
-                        {tier.originalPrice}
-                      </div>
-                    )}
-                    <div className="flex items-baseline justify-center">
-                      <span className={`text-5xl font-bold ${
-                        tier.highlighted ? 'text-blue-600' : 'text-gray-900'
-                      }`}>
-                        {tier.price}
-                      </span>
-                      <span className="text-xl text-gray-600 ml-1">{tier.period}</span>
+                )}
+
+                <div className={`p-8 ${tier.highlighted ? 'bg-gradient-to-br from-blue-50 to-purple-50' : ''}`}>
+                  {/* Header */}
+                  <div className="text-center mb-8">
+                    <div className="flex items-center justify-center mb-4">
+                      {tier.icon}
+                      <h3 className="text-2xl font-bold text-gray-900 ml-2">{tier.name}</h3>
                     </div>
-                    {tier.highlighted && tier.priceINR && (
-                      <div className="text-sm text-gray-500 mt-1">
-                        {tier.priceINR}
+
+                    <div className="mb-4">
+                      <div className="flex items-baseline justify-center">
+                        <span className={`text-5xl font-bold ${
+                          tier.highlighted ? 'text-blue-600' : 'text-gray-900'
+                        }`}>
+                          {formatPrice(discountedPrice)}
+                        </span>
+                        <span className="text-xl text-gray-600 ml-1">
+                          /{billingCycle === 'monthly' ? 'month' : billingCycle === 'quarterly' ? '3 months' : 'year'}
+                        </span>
                       </div>
-                    )}
-                    {tier.highlighted && !currency.isIndian && (
-                      <div className="text-sm text-gray-500 mt-1">
-                        (~$497 USD)
-                      </div>
-                    )}
+                      {billingCycle !== 'monthly' && (
+                        <div className="text-sm text-green-600 mt-1">
+                          {getDiscountText(billingCycle)}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-gray-600">{tier.description}</p>
                   </div>
-                  
-                  <p className="text-gray-600">{tier.description}</p>
-                </div>
 
-                {/* Features */}
-                <div className="space-y-4 mb-8">
-                  {tier.features.map((feature, featureIndex) => (
-                    <div key={featureIndex} className="flex items-start">
-                      <Check className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
-                    </div>
-                  ))}
-                  
-                  {tier.limitations?.map((limitation, limitIndex) => (
-                    <div key={limitIndex} className="flex items-start opacity-60">
-                      <X className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-                      <span className="text-gray-600">{limitation}</span>
-                    </div>
-                  ))}
-                </div>
+                  {/* Features */}
+                  <div className="space-y-4 mb-8">
+                    {tier.features.map((feature, featureIndex) => (
+                      <div key={featureIndex} className="flex items-start">
+                        <Check className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                        <span className="text-gray-700">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* CTA Button */}
-                <Button
-                  className={`w-full ${
-                    tier.highlighted 
-                      ? 'bg-blue-600 hover:bg-blue-700' 
-                      : 'bg-gray-800 hover:bg-gray-900'
-                  }`}
-                  size="lg"
-                  onClick={() => {
-                    if (tier.highlighted) {
-                      setShowPaymentModal(true);
-                    } else {
-                      console.log(`${tier.name} button clicked`);
-                    }
-                  }}
-                >
-                  {tier.highlighted ? 'Secure Founding Spot' : 
-                   tier.name === 'Standard Access' ? 'Start Free Trial' : 'Contact Sales'}
-                </Button>
+                  {/* CTA Button */}
+                  <Button
+                    className={`w-full ${
+                      tier.highlighted
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-gray-800 hover:bg-gray-900'
+                    }`}
+                    size="lg"
+                    onClick={() => {
+                      if (tier.highlighted) {
+                        setShowPaymentModal(true);
+                      } else {
+                        console.log(`${tier.name} button clicked`);
+                      }
+                    }}
+                  >
+                    {tier.highlighted ? 'Start Free Trial' : 'Contact Sales'}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Value Comparison */}
         <div className="bg-white rounded-2xl p-8 shadow-lg">
           <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-            Founding Co-Creator ROI Analysis
+            Why Choose Unitasa?
           </h3>
-          
+
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <div className="bg-green-50 rounded-lg p-6">
               <div className="text-3xl font-bold text-green-600 mb-2">
-                ${calculateAnnualSavings().toLocaleString()}
+                60-80%
               </div>
-              <div className="text-sm text-gray-600">First Year Savings</div>
-              <div className="text-xs text-gray-500 mt-1">vs Standard Monthly Plan</div>
+              <div className="text-sm text-gray-600">Cost Savings</div>
+              <div className="text-xs text-gray-500 mt-1">vs traditional marketing tools</div>
             </div>
-            
+
             <div className="bg-blue-50 rounded-lg p-6">
               <div className="text-3xl font-bold text-blue-600 mb-2">
-                ${calculateLifetimeValue().toLocaleString()}+
+                24/7
               </div>
-              <div className="text-sm text-gray-600">Lifetime Value</div>
-              <div className="text-xs text-gray-500 mt-1">Conservative 5-year estimate</div>
+              <div className="text-sm text-gray-600">AI Automation</div>
+              <div className="text-xs text-gray-500 mt-1">Never stops working</div>
             </div>
-            
+
             <div className="bg-purple-50 rounded-lg p-6">
               <div className="text-3xl font-bold text-purple-600 mb-2">
-                {currency.symbol}{formatAmount(getConvertedAmount(1397))}+
+                300%
               </div>
-              <div className="text-sm text-gray-600">Bonus Value Included</div>
-              <div className="text-xs text-gray-500 mt-1">Audit + Setup + Support</div>
+              <div className="text-sm text-gray-600">Average ROI</div>
+              <div className="text-xs text-gray-500 mt-1">Based on customer results</div>
             </div>
           </div>
-          
+
           <div className="text-center mt-8">
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 max-w-2xl mx-auto">
               <h4 className="font-bold text-gray-900 mb-2">
-                🚀 Founding Member Exclusive Benefits
+                🚀 Start Your Free Trial Today
               </h4>
               <p className="text-gray-600 text-sm">
-                Beyond the massive cost savings, you get direct influence over product development, 
-                priority support, and lifetime access to all future AI features. This is your chance 
-                to be part of the founding story of autonomous AI marketing.
+                Experience the power of AI-driven marketing automation with our 14-day free trial.
+                No credit card required to get started.
               </p>
             </div>
           </div>

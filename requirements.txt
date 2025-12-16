@@ -32,7 +32,6 @@ requests==2.31.0
 # AI Providers - Cost-optimized agent system
 openai==1.3.0
 groq==0.4.1
-openrouter-py==0.0.5
 
 # Vector Database - For RAG knowledge base
 pinecone-client==2.2.4

@@ -13,6 +13,8 @@ import { LandingPageAPI } from '../services/landingPageApi';
 
 // Lazy load heavy components
 const AICapabilitiesSection = lazy(() => import('../components/sections/AICapabilitiesSection'));
+const AgentWorkflowSection = lazy(() => import('../components/sections/AgentWorkflowSection'));
+const IndustryValuePropsSection = lazy(() => import('../components/sections/IndustryValuePropsSection'));
 const FounderStorySection = lazy(() => import('../components/sections/FounderStorySection'));
 const SocialProofSection = lazy(() => import('../components/sections/SocialProofSection'));
 const MetaProofSection = lazy(() => import('../components/sections/MetaProofSection'));
@@ -133,13 +135,67 @@ const LandingPage: React.FC = () => {
           <div className="bg-white">
             <HeroSection onStartAssessment={openAssessment} />
 
+            {/* Checkpoints Section */}
+            <section className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-12">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                    Your AI Marketing Journey
+                  </h2>
+                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Follow these checkpoints to transform your marketing with AI automation
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">1</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Assess</h3>
+                    <p className="text-gray-600 text-sm">Take our AI readiness assessment to understand your current marketing setup</p>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">2</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect</h3>
+                    <p className="text-gray-600 text-sm">Integrate your CRM and social media accounts with our platform</p>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">3</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Automate</h3>
+                    <p className="text-gray-600 text-sm">Let AI agents handle content creation, lead nurturing, and campaign optimization</p>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">4</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Scale</h3>
+                    <p className="text-gray-600 text-sm">Monitor performance and scale your marketing efforts with data-driven insights</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <BenefitCardsSection />
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <AICapabilitiesSection />
             </Suspense>
 
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <AgentWorkflowSection />
+            </Suspense>
 
+            <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
+              <IndustryValuePropsSection />
+            </Suspense>
 
             <Suspense fallback={<div className="h-96 bg-gray-50 animate-pulse"></div>}>
               <CRMMarketplaceSection />

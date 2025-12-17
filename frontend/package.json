@@ -37,7 +37,12 @@
     "perf:audit": "npm run build && npm run serve & sleep 5 && npm run perf:test && kill %1",
     "perf:mobile": "npm run build && npm run serve & sleep 5 && npm run lighthouse:mobile && kill %1",
     "bundle:analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
-    "validate:task11.2": "npm run build && npm run serve & sleep 5 && node -e \"console.log('Task 11.2 validation complete - check browser console for results')\" && kill %1"
+    "validate:task11.2": "npm run build && npm run serve & sleep 5 && node -e \"console.log('Task 11.2 validation complete - check browser console for results')\" && kill %1",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
   },
   "eslintConfig": {
     "extends": [
@@ -58,7 +63,8 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^24.10.4",
     "autoprefixer": "^10.4.21",
     "lighthouse": "^12.8.2",
     "postcss": "^8.5.6",

@@ -33,8 +33,8 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   
-  // Currency detection
-  const currency = useCurrency(497);
+  // Fixed pricing for co-creator program
+  const coCreatorPrice = '₹29,999';
 
   // Auto-hide success toast after 8 seconds
   useEffect(() => {
@@ -97,7 +97,7 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
       
       // Create secure payment order through backend
       const orderData = await paymentService.createPaymentOrder({
-        amount: 497.0,
+        amount: 361.0,
         customer_email: leadData?.email || 'member@unitasa.in',
         customer_name: leadData?.name || 'Co-Creator Member',
         lead_id: undefined, // You can add lead ID if available
@@ -333,11 +333,11 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
                   </div>
                   <h4 className="text-lg font-bold text-gray-900 mb-2">Join 25 Founding Co-Creators</h4>
                 </div>
-                
+
                 <div className="text-center mb-4">
-                  {/* Primary price based on user location */}
+                  {/* Fixed pricing for co-creator program */}
                   <div className="text-3xl font-bold text-purple-600">
-                    {currency.displayText} {currency.currency}
+                    {coCreatorPrice}
                   </div>
                   <div className="text-sm text-gray-500 line-through mt-2">
                     Regular: ₹1,67,000+

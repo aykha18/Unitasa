@@ -16,9 +16,12 @@ const CoCreatorSignupPage: React.FC = () => {
   };
 
   const handleStartAssessment = () => {
+    console.log('🔍 Co-creator assessment button clicked');
     setIsStartingAssessment(true);
+    console.log('🔍 Dispatching openAssessment event');
     // Trigger the assessment modal directly for co-creator flow
     window.dispatchEvent(new CustomEvent('openAssessment'));
+    console.log('🔍 openAssessment event dispatched');
   };
 
   return (

@@ -9,6 +9,9 @@ import RefundPolicy from './pages/RefundPolicy';
 import Contact from './pages/Contact';
 import PerformanceDashboard from './components/dev/PerformanceDashboard';
 
+// Import assessment modal for global event handling
+import AssessmentModal from './components/assessment/AssessmentModal';
+
 import { initializeSecurity } from './utils/security';
 import './App.css';
 import './styles/ai-animations.css';
@@ -39,6 +42,10 @@ function App() {
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
 
+  // Global modal states for cross-page functionality
+  const [isAssessmentOpen, setIsAssessmentOpen] = useState(false);
+  const [assessmentResult, setAssessmentResult] = useState(null);
+
   useEffect(() => {
     // Handle browser back/forward and programmatic navigation
     const handlePopState = () => {
@@ -51,14 +58,24 @@ function App() {
       setCurrentPath(window.location.pathname);
     };
 
+    // Global event handlers for modals
+    const handleOpenAssessment = () => {
+      console.log('🎯 Global openAssessment event received, opening modal');
+      setIsAssessmentOpen(true);
+    };
+
     window.addEventListener('popstate', handlePopState);
-    
+
     // Listen for custom navigation events
     window.addEventListener('navigate', handleNavigation);
-    
+
+    // Listen for global modal events
+    window.addEventListener('openAssessment', handleOpenAssessment);
+
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('navigate', handleNavigation);
+      window.removeEventListener('openAssessment', handleOpenAssessment);
     };
   }, []);
 
@@ -228,15 +245,39 @@ function App() {
     }
   };
 
+  const handleAssessmentComplete = (result: any) => {
+    setAssessmentResult(result);
+    setIsAssessmentOpen(false);
+    // Could navigate to co-creator payment or next step
+  };
+
+  const closeAssessment = () => {
+    setIsAssessmentOpen(false);
+  };
+
   return (
     <div className="App">
       {getPageComponent()}
-      
+
       {process.env.NODE_ENV === 'development' && (
         <PerformanceDashboard
           isVisible={showPerformanceDashboard}
           onClose={() => setShowPerformanceDashboard(false)}
         />
+      )}
+
+      {/* Global Assessment Modal */}
+      {isAssessmentOpen && (
+        <React.Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>}>
+          <AssessmentModal
+            isOpen={isAssessmentOpen}
+            onClose={closeAssessment}
+            onComplete={handleAssessmentComplete}
+            leadData={null} // No lead data for co-creator flow
+          />
+        </React.Suspense>
       )}
     </div>
   );

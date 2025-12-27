@@ -256,3 +256,4 @@ validate-*.js
 *.1761*.log
 swark-output/
 0.*
+production_deployment_checklist.md

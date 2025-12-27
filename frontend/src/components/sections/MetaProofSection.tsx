@@ -23,6 +23,9 @@ interface AgentStats {
 }
 
 const MetaProofSection: React.FC = () => {
+  // Temporary fix for ReferenceError in cached versions
+  const handleOpenConsultationBooking = () => console.log("Consultation Booking");
+  console.log("MetaProofSection v2 loaded");
   const [agentStats, setAgentStats] = useState<AgentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

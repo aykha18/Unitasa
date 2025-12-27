@@ -23,7 +23,7 @@ class TwitterOAuthService:
     def __init__(self):
         self.client_id = os.getenv("TWITTER_CLIENT_ID", "")
         self.client_secret = os.getenv("TWITTER_CLIENT_SECRET", "")
-        self.redirect_uri = os.getenv("TWITTER_REDIRECT_URI", f"{settings.frontend_url}/api/v1/social/auth/twitter/callback")
+        self.redirect_uri = os.getenv("TWITTER_REDIRECT_URI", "http://localhost:8001/api/v1/social/auth/twitter/callback")
 
         if not self.client_id:
             raise ValueError("TWITTER_CLIENT_ID environment variable is required")

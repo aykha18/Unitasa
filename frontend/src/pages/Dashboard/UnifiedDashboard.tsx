@@ -58,6 +58,18 @@ const UnifiedDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    // Check for OAuth callback parameters FIRST - allow processing even if not authenticated
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+
+    if (code || state || error) {
+      console.log('🔄 OAuth parameters detected in dashboard, switching to social module');
+      setActiveModule('social');
+      return; // Don't redirect to login, allow OAuth processing
+    }
+
     if (!isAuthenticated && !isLoading) {
       navigate('/login');
       return;

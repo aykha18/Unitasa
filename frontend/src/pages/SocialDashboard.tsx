@@ -18,7 +18,8 @@ import {
   Youtube,
   Instagram,
   Send,
-  Globe
+  Globe,
+  LogOut
 } from 'lucide-react';
 
 interface SocialAccount {
@@ -70,10 +71,128 @@ const SocialDashboard: React.FC = () => {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Check if we're returning from OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+
+    // Only handle OAuth callback if we have stored OAuth session data
+    // This prevents handling callbacks that were already processed by the backend
+    const hasStoredSession = sessionStorage.getItem('oauth_code_verifier') &&
+                             sessionStorage.getItem('oauth_state') &&
+                             sessionStorage.getItem('oauth_platform');
+
+    if ((code || state || error) && hasStoredSession) {
+      console.log('Detected OAuth callback parameters in URL:', {
+        has_code: !!code,
+        has_state: !!state,
+        has_error: !!error,
+        full_url: window.location.href
+      });
+
+      // Handle OAuth callback - extract parameters and send to backend
+      if (code && state) {
+        handleOAuthCallback(code, state);
+      } else if (error) {
+        console.error('OAuth error:', error);
+        alert(`OAuth authentication failed: ${error}`);
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } else if (code || state || error) {
+      console.log('Ignoring OAuth parameters - no stored session or already processed');
+      // Clean up URL to prevent confusion
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
+
+  const handleOAuthCallback = async (code: string, state: string) => {
+    try {
+      console.log('🔄 Processing OAuth callback with code and state:', { code: code.substring(0, 10) + '...', state });
+
+      // Get stored OAuth data
+      const storedCodeVerifier = sessionStorage.getItem('oauth_code_verifier');
+      const storedState = sessionStorage.getItem('oauth_state');
+      const platform = sessionStorage.getItem('oauth_platform');
+
+      console.log('📦 Retrieved stored OAuth data:', {
+        has_code_verifier: !!storedCodeVerifier,
+        stored_state: storedState,
+        platform: platform,
+        code_verifier_length: storedCodeVerifier?.length
+      });
+
+      // Verify state matches
+      if (storedState !== state) {
+        console.error('❌ State mismatch:', { stored: storedState, received: state });
+        alert('OAuth state verification failed. Please try again.');
+        return;
+      }
+
+      if (!platform || !storedCodeVerifier) {
+        console.error('❌ Missing OAuth session data');
+        alert('OAuth session data missing. Please try again.');
+        return;
+      }
+
+      // Send to backend to complete connection
+      console.log('🚀 Sending OAuth data to backend for platform:', platform);
+      const requestBody = {
+        platform: platform,
+        authorization_code: code,
+        code_verifier: storedCodeVerifier,
+        redirect_uri: `http://localhost:8001/api/v1/social/auth/${platform}/callback`
+      };
+      console.log('📤 Request body:', { ...requestBody, authorization_code: requestBody.authorization_code.substring(0, 10) + '...' });
+
+      const response = await fetch(`/api/v1/social/accounts/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📡 Backend response status:', response.status);
+      const result = await response.json();
+      console.log('📨 Backend connection result:', result);
+
+      if (result.success) {
+        alert(`✅ Successfully connected your ${platform} account!`);
+        // Reload dashboard to show connected account
+        loadDashboardData();
+      } else {
+        console.error('❌ Connection failed:', result);
+        alert(`❌ Failed to connect ${platform} account: ${result.detail || result.message || 'Unknown error'}`);
+      }
+
+      // Clean up session storage and URL
+      sessionStorage.removeItem('oauth_code_verifier');
+      sessionStorage.removeItem('oauth_state');
+      sessionStorage.removeItem('oauth_platform');
+      sessionStorage.removeItem('oauth_auth_url');
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+    } catch (error) {
+      console.error('💥 OAuth callback handling failed:', error);
+      alert('💥 Failed to complete account connection. Please try again.');
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
+      // Check if we have OAuth parameters - if so, skip loading data for now
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasOAuthParams = urlParams.get('code') || urlParams.get('state') || urlParams.get('error');
+
+      if (hasOAuthParams) {
+        console.log('Skipping dashboard data load due to OAuth parameters');
+        setLoading(false);
+        return;
+      }
+
       // Load accounts, campaigns, and analytics in parallel
       const [accountsRes, campaignsRes, analyticsRes] = await Promise.all([
         fetch('/api/v1/social/accounts'),
@@ -98,33 +217,39 @@ const SocialDashboard: React.FC = () => {
   const handleConnectAccount = async (platform: string) => {
     console.log('Starting OAuth flow for platform:', platform);
 
-    // Check if we already have OAuth data in sessionStorage
-    const existingState = sessionStorage.getItem('oauth_state');
-    const existingPlatform = sessionStorage.getItem('oauth_platform');
-
-    if (existingState && existingPlatform === platform) {
-      console.log('Reusing existing OAuth session');
-      const authUrl = sessionStorage.getItem('oauth_auth_url');
-      if (authUrl) {
-        console.log('Redirecting to existing OAuth URL:', authUrl);
-        window.location.href = authUrl;
-        return;
-      }
-    }
+    // Clear any existing OAuth session data to force fresh generation
+    // This prevents using cached OAuth URLs with wrong redirect URIs
+    console.log('Clearing existing OAuth session data');
+    sessionStorage.removeItem('oauth_code_verifier');
+    sessionStorage.removeItem('oauth_state');
+    sessionStorage.removeItem('oauth_platform');
+    sessionStorage.removeItem('oauth_auth_url');
 
     try {
       // Get OAuth URL
-      console.log('Fetching OAuth URL...');
+      console.log('Fetching OAuth URL from backend...');
       const response = await fetch(`/api/v1/social/auth/${platform}/url?user_id=1`);
-      console.log('Response status:', response.status);
+      console.log('Backend response status:', response.status);
       const data = await response.json();
-      console.log('OAuth data received:', data);
+      console.log('OAuth data received from backend:', {
+        has_auth_url: !!data.auth_url,
+        state: data.state,
+        platform: data.platform,
+        demo_mode: data.demo_mode,
+        auth_url_preview: data.auth_url ? data.auth_url.substring(0, 100) + '...' : null
+      });
 
       // Store OAuth data in sessionStorage
       sessionStorage.setItem('oauth_code_verifier', data.code_verifier);
       sessionStorage.setItem('oauth_state', data.state);
       sessionStorage.setItem('oauth_platform', platform);
       sessionStorage.setItem('oauth_auth_url', data.auth_url);
+
+      console.log('Stored OAuth data in sessionStorage:', {
+        state: data.state,
+        platform: platform,
+        has_code_verifier: !!data.code_verifier
+      });
 
       // Check if this is demo mode
       if (data.demo_mode) {
@@ -133,11 +258,36 @@ const SocialDashboard: React.FC = () => {
       }
 
       // Redirect to OAuth
-      console.log('Redirecting to:', data.auth_url);
+      console.log('Redirecting to OAuth provider:', data.auth_url.substring(0, 100) + '...');
       window.location.href = data.auth_url;
     } catch (error) {
       console.error('Failed to get OAuth URL:', error);
       alert('Failed to connect account. Check console for details.');
+    }
+  };
+
+  const handleDisconnectAccount = async (accountId: number, platform: string) => {
+    if (!window.confirm(`Are you sure you want to disconnect your ${platform} account?`)) {
+      return;
+    }
+
+    try {
+      console.log('Disconnecting account:', accountId, platform);
+      const response = await fetch(`/api/v1/social/accounts/${accountId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert(`Successfully disconnected ${platform} account!`);
+        // Reload dashboard to update the accounts list
+        loadDashboardData();
+      } else {
+        const error = await response.json();
+        alert(`Failed to disconnect account: ${error.detail || error.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to disconnect account:', error);
+      alert('Failed to disconnect account. Check console for details.');
     }
   };
 
@@ -486,6 +636,13 @@ const SocialDashboard: React.FC = () => {
                         <span className={`px-2 py-1 rounded-full text-xs ${account.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                           {account.is_active ? 'Active' : 'Inactive'}
                         </span>
+                        <button
+                          onClick={() => handleDisconnectAccount(account.id, account.platform)}
+                          className="text-red-400 hover:text-red-600"
+                          title={`Disconnect ${account.platform} account`}
+                        >
+                          <LogOut className="w-4 h-4" />
+                        </button>
                         <button className="text-gray-400 hover:text-gray-600">
                           <Settings className="w-4 h-4" />
                         </button>

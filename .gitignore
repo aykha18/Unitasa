@@ -257,3 +257,4 @@ validate-*.js
 swark-output/
 0.*
 production_deployment_checklist.md
+frontend/playwright-report/

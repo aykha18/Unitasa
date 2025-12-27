@@ -1,8 +1,8 @@
-// Service Worker v3 - Fixed POST request caching issue
-const CACHE_NAME = 'auto-mark-landing-v3';
-const STATIC_CACHE = 'auto-mark-static-v3';
-const DYNAMIC_CACHE = 'auto-mark-dynamic-v3';
-const API_CACHE = 'auto-mark-api-v3';
+// Service Worker v4 - Port Change & Protocol Fix
+const CACHE_NAME = 'auto-mark-landing-v4';
+const STATIC_CACHE = 'auto-mark-static-v4';
+const DYNAMIC_CACHE = 'auto-mark-dynamic-v4';
+const API_CACHE = 'auto-mark-api-v4';
 
 // Critical resources to cache immediately
 const urlsToCache = [
@@ -38,7 +38,7 @@ self.addEventListener('install', (event) => {
       console.log('Cache install failed:', error);
     })
   );
-  
+
   // Skip waiting to activate immediately
   self.skipWaiting();
 });
@@ -48,6 +48,11 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Ignore requests that are not http or https (e.g. chrome-extension://)
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
   // Handle API requests with network-first strategy
   if (apiCacheUrls.some(apiUrl => request.url.includes(apiUrl))) {
     event.respondWith(networkFirstStrategy(request, API_CACHE));
@@ -55,10 +60,10 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Handle static assets with cache-first strategy
-  if (request.destination === 'script' || 
-      request.destination === 'style' || 
-      request.destination === 'image' ||
-      dynamicCacheUrls.some(dynamicUrl => request.url.includes(dynamicUrl))) {
+  if (request.destination === 'script' ||
+    request.destination === 'style' ||
+    request.destination === 'image' ||
+    dynamicCacheUrls.some(dynamicUrl => request.url.includes(dynamicUrl))) {
     event.respondWith(cacheFirstStrategy(request, DYNAMIC_CACHE));
     return;
   }
@@ -92,7 +97,7 @@ self.addEventListener('fetch', (event) => {
 // Activate event - clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
   const currentCaches = [STATIC_CACHE, DYNAMIC_CACHE, API_CACHE];
-  
+
   event.waitUntil(
     Promise.all([
       // Clean up old caches
@@ -165,6 +170,11 @@ async function clearStoredAssessmentData() {
 // Caching strategies
 async function cacheFirstStrategy(request, cacheName) {
   try {
+    // Only handle http/https requests
+    if (!request.url.startsWith('http')) {
+      return fetch(request);
+    }
+
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
@@ -184,6 +194,11 @@ async function cacheFirstStrategy(request, cacheName) {
 
 async function networkFirstStrategy(request, cacheName) {
   try {
+    // Only handle http/https requests
+    if (!request.url.startsWith('http')) {
+      return fetch(request);
+    }
+
     const networkResponse = await fetch(request);
     if (networkResponse.ok && request.method === 'GET') {
       const cache = await caches.open(cacheName);
@@ -204,7 +219,7 @@ async function networkFirstStrategy(request, cacheName) {
 async function manageCacheSize(cacheName, maxItems) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
-  
+
   if (keys.length > maxItems) {
     const itemsToDelete = keys.slice(0, keys.length - maxItems);
     await Promise.all(itemsToDelete.map(key => cache.delete(key)));

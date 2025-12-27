@@ -64,6 +64,36 @@ function App() {
       setIsAssessmentOpen(true);
     };
 
+    // Check for OAuth callback parameters on page load
+    const checkOAuthCallback = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      const state = urlParams.get('state');
+      const error = urlParams.get('error');
+
+      if (code || state || error) {
+        console.log('🔄 OAUTH CALLBACK DETECTED GLOBALLY:', {
+          has_code: !!code,
+          has_state: !!state,
+          has_error: !!error,
+          current_path: window.location.pathname,
+          full_url: window.location.href
+        });
+
+        // If we're not already on the dashboard, redirect there with the OAuth params
+        // The dashboard component will handle the OAuth callback
+        if (window.location.pathname !== '/dashboard') {
+          console.log('🔀 Redirecting to dashboard for OAuth processing');
+          window.location.href = `/dashboard${window.location.search}`;
+          return;
+        }
+        // If we're already on dashboard, let the dashboard component handle it
+      }
+    };
+
+    // Check for OAuth callback on initial load
+    checkOAuthCallback();
+
     window.addEventListener('popstate', handlePopState);
 
     // Listen for custom navigation events

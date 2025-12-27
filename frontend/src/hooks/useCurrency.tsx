@@ -37,8 +37,8 @@ export const useCurrency = (baseAmountUSD: number = 497): CurrencyDisplay => {
 
   useEffect(() => {
     const detectCurrency = async () => {
-      // Skip geolocation API call in development to avoid CORS issues
-      if (process.env.NODE_ENV === 'development') {
+      // Skip geolocation API call in development or localhost to avoid CORS issues
+      if (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         // Default to INR for development (common for Indian developers)
         const currency: 'USD' | 'INR' | 'EUR' = 'INR';
         const symbol = '₹';

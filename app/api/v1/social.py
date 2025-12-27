@@ -2,10 +2,12 @@
 Social media management API endpoints for client-facing platform
 """
 
+import os
 import secrets
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -111,17 +113,19 @@ async def get_oauth_url(platform: str, user_id: int = Query(1, description="User
     """Get OAuth authorization URL for a platform"""
     try:
         if platform == "twitter":
+            logger.info(f"Generating Twitter OAuth URL for user_id={user_id}")
             # For development/demo purposes, return a mock OAuth URL if credentials are not configured
             try:
                 oauth_service = TwitterOAuthService()
                 auth_url, code_verifier, state = oauth_service.get_authorization_url()
             except ValueError as e:
+                logger.warning(f"Twitter credentials not configured: {e}")
                 # Twitter credentials not configured - return demo URL
                 code_verifier = secrets.token_urlsafe(32)[:43]
                 state = secrets.token_urlsafe(16)
 
                 # Return a demo URL that shows the OAuth flow would work
-                auth_url = f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=demo&redirect_uri=http://localhost:3000/social/callback&scope=tweet.read%20tweet.write%20users.read%20offline.access&state={state}&code_challenge=demo&code_challenge_method=S256"
+                auth_url = f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=demo&redirect_uri=http://localhost:8001/api/v1/social/auth/twitter/callback&scope=tweet.read%20tweet.write%20users.read%20offline.access&state={state}&code_challenge=demo&code_challenge_method=S256"
 
                 return {
                     "auth_url": auth_url,
@@ -336,24 +340,28 @@ async def oauth_callback(
     user_id: int = Query(1, description="User ID")
 ):
     """Handle OAuth callback from social media platforms and automatically connect account"""
+    logger.info(f"OAuth callback triggered: platform={platform}, has_code={code is not None}, has_state={state is not None}, has_error={error is not None}, user_id={user_id}")
+
     if error:
-        # Redirect back to social dashboard with error
-        return f"""
+        logger.error(f"OAuth callback error: platform={platform}, error={error}")
+        # Redirect back to dashboard with error
+        content = f"""
         <html>
         <head><title>OAuth Error</title></head>
         <body>
         <h1>OAuth Error</h1>
         <p>Error: {error}</p>
         <p>Platform: {platform}</p>
-        <a href="/social">Back to Social Dashboard</a>
+        <a href="{settings.frontend_url}/dashboard">Back to Dashboard</a>
         <script>
         setTimeout(function() {{
-            window.location.href = '/social';
+            window.location.href = '{settings.frontend_url}/dashboard';
         }}, 3000);
         </script>
         </body>
         </html>
         """
+        return HTMLResponse(content=content)
 
     try:
         # Try to get code_verifier from server-side storage first, then from query param
@@ -366,6 +374,20 @@ async def oauth_callback(
         logger.info(f"Code verifier details: stored_length={len(stored_code_verifier) if stored_code_verifier else 0}, query_length={len(code_verifier) if code_verifier else 0}, final_length={len(final_code_verifier) if final_code_verifier else 0}")
         logger.info(f"Available states in storage: {list(getattr(get_oauth_url, 'code_verifiers', {}).keys())}")
 
+        if not final_code_verifier:
+            logger.error(f"No code verifier found for platform={platform}, state={state}")
+            content = f"""
+            <html>
+            <head><title>Code Verifier Missing</title></head>
+            <body>
+            <h1>Authentication Error</h1>
+            <p>Code verifier not found. Please try connecting again.</p>
+            <a href="{settings.frontend_url}/dashboard">Back to Dashboard</a>
+            </body>
+            </html>
+            """
+            return HTMLResponse(content=content)
+
         # Automatically connect the account
         from app.core.database import init_database
         from app.models.user import User
@@ -377,26 +399,31 @@ async def oauth_callback(
             user = user_result.scalar_one_or_none()
 
             if not user:
-                return f"""
+                content = f"""
                 <html>
                 <head><title>OAuth Error</title></head>
                 <body>
                 <h1>User Not Found</h1>
                 <p>User ID {user_id} not found.</p>
-                <a href="/social">Back to Social Dashboard</a>
+                <a href="/dashboard">Back to Dashboard</a>
                 </body>
                 </html>
                 """
+                return HTMLResponse(content=content)
 
             # Connect the account using the same logic as the connect endpoint
             account_info = None
             token_data = None
 
             if platform == "twitter":
+                logger.info(f"Processing Twitter OAuth: code_length={len(code)}, verifier_length={len(final_code_verifier) if final_code_verifier else 0}")
                 oauth_service = TwitterOAuthService()
+                logger.info(f"Twitter OAuth service redirect_uri: {oauth_service.redirect_uri}")
                 token_data = oauth_service.exchange_code_for_tokens(code, final_code_verifier)
+                logger.info(f"Token exchange successful: has_access_token={token_data.get('access_token') is not None}")
                 twitter_service = get_twitter_service(token_data['access_token'])
                 account_info = twitter_service.get_account_info()
+                logger.info(f"Account info retrieved: username={account_info.get('username')}")
 
             elif platform == "facebook":
                 oauth_service = FacebookOAuthService()
@@ -417,28 +444,30 @@ async def oauth_callback(
                 account_info = youtube_service.get_account_info()
 
             else:
-                return f"""
+                content = f"""
                 <html>
                 <head><title>Platform Not Supported</title></head>
                 <body>
                 <h1>Platform Not Supported</h1>
                 <p>Platform '{platform}' is not supported for automatic connection.</p>
-                <a href="/social">Back to Social Dashboard</a>
+                <a href="/dashboard">Back to Dashboard</a>
                 </body>
                 </html>
                 """
+                return HTMLResponse(content=content)
 
             if not account_info or not token_data:
-                return f"""
+                content = f"""
                 <html>
                 <head><title>Connection Failed</title></head>
                 <body>
                 <h1>Connection Failed</h1>
                 <p>Failed to retrieve account information from {platform}.</p>
-                <a href="/social">Back to Social Dashboard</a>
+                <a href="/dashboard">Back to Dashboard</a>
                 </body>
                 </html>
                 """
+                return HTMLResponse(content=content)
 
             # Encrypt tokens
             encrypted_access_token = encrypt_data(token_data['access_token'])
@@ -490,36 +519,38 @@ async def oauth_callback(
             await db.refresh(account)
 
             # Success page with redirect
-            return f"""
+            content = f"""
             <html>
             <head><title>Account Connected</title></head>
             <body>
             <h1>Success!</h1>
             <p>Successfully connected your {platform} account: @{account_info['username']}</p>
-            <p>Redirecting to Social Dashboard...</p>
-            <a href="/social">Go to Social Dashboard</a>
+            <p>Redirecting to Dashboard...</p>
+            <a href="{settings.frontend_url}/dashboard">Go to Dashboard</a>
             <script>
             setTimeout(function() {{
-                window.location.href = '/social';
+                window.location.href = '{settings.frontend_url}/dashboard';
             }}, 2000);
             </script>
             </body>
             </html>
             """
+            return HTMLResponse(content=content)
 
     except Exception as e:
         logger.error(f"OAuth callback error for {platform}: {str(e)}", exc_info=True)
-        return f"""
+        content = f"""
         <html>
         <head><title>Connection Error</title></head>
         <body>
         <h1>Connection Error</h1>
         <p>An error occurred while connecting your {platform} account.</p>
         <p>Error: {str(e)}</p>
-        <a href="/social">Back to Social Dashboard</a>
+        <a href="/dashboard">Back to Dashboard</a>
         </body>
         </html>
         """
+        return HTMLResponse(content=content)
 
 
 @router.post("/accounts/connect")
@@ -529,6 +560,7 @@ async def connect_account(
     db: AsyncSession = Depends(get_db)
 ):
     """Connect a social media account using OAuth code"""
+    logger.info(f"🔗 Connecting account: platform={request.platform}, user_id={user.id}, has_code={bool(request.authorization_code)}, has_verifier={bool(request.code_verifier)}")
     try:
         account_info = None
         token_data = None
@@ -761,17 +793,13 @@ async def disconnect_account(
 ):
     """Disconnect a social account"""
     try:
-        # Check if it's the mock account
-        if account_id == 1 and settings.environment == "development":
-             return {"success": True, "message": "Mock account disconnected"}
-
         account = await db.get(SocialAccount, account_id)
         if not account or account.user_id != user.id:
             raise HTTPException(status_code=404, detail="Account not found")
-            
+
         await db.delete(account)
         await db.commit()
-        
+
         return {"success": True, "message": "Account disconnected"}
     except Exception as e:
         await db.rollback()

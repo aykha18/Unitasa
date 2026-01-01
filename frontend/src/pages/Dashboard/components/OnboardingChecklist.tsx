@@ -54,6 +54,11 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
   const totalSteps = steps.length;
   const progressPercentage = (completedSteps / totalSteps) * 100;
 
+  const navigateTo = (path: string) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new Event('popstate'));
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -80,7 +85,17 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
       {/* Steps */}
       <div className="space-y-4">
         {steps.map((step, index) => (
-          <div key={step.id} className="flex items-start space-x-3">
+          <div 
+            key={step.id} 
+            className={`flex items-start space-x-3 p-2 rounded-lg transition-colors ${
+              step.id === 'profile' ? 'hover:bg-gray-50 cursor-pointer' : ''
+            }`}
+            onClick={() => {
+              if (step.id === 'profile') {
+                navigateTo('/onboarding');
+              }
+            }}
+          >
             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
               step.completed
                 ? 'bg-green-100 text-green-600'
@@ -93,10 +108,21 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className={`text-sm font-medium ${
-                step.completed ? 'text-gray-900' : 'text-gray-600'
-              }`}>
-                {step.title}
+              <div className="flex items-center justify-between">
+                <div className={`text-sm font-medium ${
+                  step.completed ? 'text-gray-900' : 'text-gray-600'
+                }`}>
+                  {step.title}
+                </div>
+                {step.id === 'profile' && (
+                  <span className={`ml-2 text-xs px-3 py-1 rounded-full shadow-sm transition-all duration-200 border ${
+                    step.completed 
+                      ? 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50' 
+                      : 'bg-blue-600 border-transparent text-white hover:bg-blue-700 animate-pulse'
+                  }`}>
+                    {step.completed ? 'Update' : 'Start Now'}
+                  </span>
+                )}
               </div>
               <div className="text-sm text-gray-500 mt-1">
                 {step.description}

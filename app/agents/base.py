@@ -166,3 +166,7 @@ def register_agent(agent_class, name: str, **kwargs):
 def get_agent(name: str):
     """Convenience function to get an agent"""
     return _agent_registry.get_agent(name)
+
+class BaseAgent(CostOptimizedAgent):
+    def __init__(self, name: str, *args, **kwargs):
+        super().__init__(name)

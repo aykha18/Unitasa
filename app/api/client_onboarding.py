@@ -22,8 +22,8 @@ router = APIRouter()
 class CompanyInfo(BaseModel):
     company_name: str = Field(..., description="Legal company name")
     brand_name: Optional[str] = Field(None, description="Brand/marketing name")
-    industry: str = Field(..., description="Primary industry (SaaS, Healthcare, Finance, etc.)")
-    company_size: str = Field(..., description="Employee count range")
+    industry: Optional[str] = Field("General Business", description="Primary industry (SaaS, Healthcare, Finance, etc.)")
+    company_size: Optional[str] = Field("1-10", description="Employee count range")
     founding_year: Optional[int] = Field(None, description="When company was founded")
     headquarters: Optional[str] = Field(None, description="Location for localization")
     website: Optional[str] = Field(None, description="Company website URL")
@@ -32,7 +32,7 @@ class CompanyInfo(BaseModel):
 
 
 class TargetAudience(BaseModel):
-    primary_persona: str = Field(..., description="Main customer type (Founder, CTO, Marketing Manager)")
+    primary_persona: Optional[str] = Field("General Customer", description="Main customer type (Founder, CTO, Marketing Manager)")
     secondary_personas: Optional[List[str]] = Field(default_factory=list, description="Additional customer types")
     pain_points: Optional[List[str]] = Field(default_factory=list, description="Customer problems/challenges")
     goals: Optional[List[str]] = Field(default_factory=list, description="Customer objectives")
@@ -48,7 +48,7 @@ class BrandAssets(BaseModel):
 
 
 class ContentPreferences(BaseModel):
-    key_messages: List[str] = Field(..., description="3-5 core messages to communicate")
+    key_messages: Optional[List[str]] = Field(default_factory=list, description="3-5 core messages to communicate")
     competitors: Optional[List[str]] = Field(default_factory=list, description="Main competitors to differentiate from")
     unique_value_props: Optional[List[str]] = Field(default_factory=list, description="What makes them different")
     content_tone: Optional[str] = Field("professional", description="Professional, conversational, technical")
@@ -57,7 +57,7 @@ class ContentPreferences(BaseModel):
 
 
 class SocialMediaAccounts(BaseModel):
-    platforms: List[str] = Field(..., description="Active platforms (Twitter, LinkedIn, etc.)")
+    platforms: Optional[List[str]] = Field(default_factory=list, description="Active platforms (Twitter, LinkedIn, etc.)")
     existing_handles: Optional[Dict[str, str]] = Field(default_factory=dict, description="Current social media handles")
     posting_frequency: Optional[Dict[str, str]] = Field(default_factory=dict, description="Current posting frequency per platform")
     peak_times: Optional[Dict[str, str]] = Field(default_factory=dict, description="Known engagement times")

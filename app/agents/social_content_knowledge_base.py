@@ -77,6 +77,41 @@ class PlatformOptimization:
     last_updated: str
 
 
+class ClientKnowledgeBase:
+    def __init__(self, client_id: str, brand_profile: Dict[str, Any], templates: List[ContentTemplate], patterns: List[ContentPattern], performance_baseline: Dict[str, Any]):
+        self.client_id = client_id
+        self.brand_profile = brand_profile
+        self.templates = templates
+        self.patterns = patterns
+        self.performance_baseline = performance_baseline
+
+    async def get_brand_profile(self) -> Dict[str, Any]:
+        return self.brand_profile
+
+    async def get_content_suggestions(self, topic: str, platform: str, content_type: Optional[str] = None) -> List[ContentTemplate]:
+        suggestions = [
+            t for t in self.templates
+            if t.platform == platform and (content_type is None or t.content_type == content_type)
+        ]
+        return suggestions[:5]
+
+    async def add_template(self, template_data: Dict[str, Any]) -> str:
+        template_id = f"{template_data['platform']}_{template_data['feature']}_{template_data['content_type']}_{int(datetime.utcnow().timestamp())}"
+        template = ContentTemplate(
+            id=template_id,
+            feature=template_data['feature'],
+            platform=template_data['platform'],
+            content_type=template_data['content_type'],
+            template=template_data['template'],
+            variables=template_data.get('variables', []),
+            hashtags=template_data.get('hashtags', []),
+            call_to_action=template_data.get('call_to_action', ''),
+            character_count=len(template_data['template'])
+        )
+        self.templates.append(template)
+        return template_id
+
+
 class SocialContentKnowledgeBase:
     """
     Intelligent knowledge base for social media content generation.
@@ -89,6 +124,9 @@ class SocialContentKnowledgeBase:
         self.platform_opts: Dict[str, PlatformOptimization] = {}
         self.vector_store = None
         self.ingestion_service = ContentIngestionService()
+        self.client_knowledge_bases: Dict[str, ClientKnowledgeBase] = {}
+        self.global_patterns: Dict[str, Any] = {}
+        self.industry_templates: Dict[str, List[ContentTemplate]] = {}
 
         # Initialize platform optimizations
         self._initialize_platform_optimizations()
@@ -235,6 +273,79 @@ class SocialContentKnowledgeBase:
             self.templates[template.id] = template
 
         logger.info(f"Initialized {len(base_templates)} base content templates")
+
+    async def create_client_kb(self, client_id: str, client_profile: Dict[str, Any]) -> ClientKnowledgeBase:
+        industry = client_profile.get("company_info", {}).get("industry", "general")
+        base_templates = self.industry_templates.get(industry, [])
+        if not base_templates:
+            base_templates = list(self.templates.values())
+        customized_templates = await self._customize_templates_for_client(base_templates, client_profile)
+        client_patterns = await self._generate_client_patterns(client_profile)
+        performance_baseline = await self._establish_performance_baseline(client_profile)
+        client_kb = ClientKnowledgeBase(
+            client_id=client_id,
+            brand_profile=client_profile,
+            templates=customized_templates,
+            patterns=client_patterns,
+            performance_baseline=performance_baseline
+        )
+        self.client_knowledge_bases[client_id] = client_kb
+        return client_kb
+
+    async def get_client_content(self, client_id: str, content_request: Dict[str, Any]) -> List[Dict[str, Any]]:
+        if client_id not in self.client_knowledge_bases:
+            raise ValueError(f"Client {client_id} not found")
+        client_kb = self.client_knowledge_bases[client_id]
+        topic = content_request.get("topic", "")
+        platform = content_request.get("platform", "twitter")
+        content_type = content_request.get("content_type")
+        suggestions = await client_kb.get_content_suggestions(topic, platform, content_type)
+        outputs: List[Dict[str, Any]] = []
+        for t in suggestions:
+            content = await self.generate_content_from_template(t, variables={"time_saved": "15+ hours/week"})
+            optimized = await self.optimize_content_with_kb(content, t.feature, platform)
+            outputs.append({
+                "content": optimized,
+                "platform": t.platform,
+                "content_type": t.content_type,
+                "feature": t.feature,
+                "call_to_action": t.call_to_action,
+                "hashtags": t.hashtags,
+                "character_count": len(optimized)
+            })
+        return outputs
+
+    async def _customize_templates_for_client(self, templates: List[ContentTemplate], client_profile: Dict[str, Any]) -> List[ContentTemplate]:
+        brand_voice = client_profile.get("company_info", {}).get("brand_voice", "professional")
+        customized = []
+        for t in templates:
+            text = t.template
+            if brand_voice and brand_voice.lower() != "professional":
+                text = f"{text}"
+            customized.append(ContentTemplate(
+                id=t.id,
+                feature=t.feature,
+                platform=t.platform,
+                content_type=t.content_type,
+                template=text,
+                variables=t.variables,
+                hashtags=t.hashtags,
+                call_to_action=t.call_to_action,
+                character_count=len(text),
+                performance_score=t.performance_score,
+                usage_count=t.usage_count,
+                created_at=t.created_at,
+                last_used=t.last_used,
+                engagement_rate=t.engagement_rate,
+                conversion_rate=t.conversion_rate
+            ))
+        return customized
+
+    async def _generate_client_patterns(self, client_profile: Dict[str, Any]) -> List[ContentPattern]:
+        return []
+
+    async def _establish_performance_baseline(self, client_profile: Dict[str, Any]) -> Dict[str, Any]:
+        return {"engagement_rate": 0.0, "conversion_rate": 0.0}
 
     async def get_content_suggestions(self, feature: str, platform: str, content_type: str = None,
                                     min_performance: float = 0.0, limit: int = 5) -> List[ContentTemplate]:

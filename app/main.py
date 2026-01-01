@@ -470,6 +470,17 @@ try:
         print(f"Social router traceback: {traceback.format_exc()}")
         raise
 
+    print("Including client onboarding router...")
+    try:
+        from app.api import client_onboarding
+        app.include_router(client_onboarding.router, prefix="/api/v1/clients", tags=["clients"])
+        print("Client onboarding router included successfully")
+    except Exception as e:
+        print(f"ERROR including client onboarding router: {e}")
+        import traceback
+        print(f"Client onboarding router traceback: {traceback.format_exc()}")
+        print("Skipping client onboarding router")
+
     print("Including dashboard router...")
     try:
         from app.api.v1 import dashboard

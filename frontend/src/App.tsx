@@ -246,6 +246,14 @@ function App() {
             <SchedulePostsPage />
           </React.Suspense>
         );
+      case '/onboarding':
+        // Lazy load onboarding page
+        const ClientOnboardingPage = React.lazy(() => import('./pages/ClientOnboardingPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <ClientOnboardingPage />
+          </React.Suspense>
+        );
       case '/smart-hashtags':
         // Lazy load smart hashtags page
         const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
@@ -260,6 +268,13 @@ function App() {
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <ImageSuggestionsPage />
+          </React.Suspense>
+        );
+      case '/generate-content':
+        const GenerateContentPage = React.lazy(() => import('./pages/GenerateContentPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <GenerateContentPage />
           </React.Suspense>
         );
       case '/chat-assistant':

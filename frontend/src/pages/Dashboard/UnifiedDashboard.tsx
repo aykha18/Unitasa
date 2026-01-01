@@ -154,9 +154,13 @@ const UnifiedDashboard: React.FC = () => {
           <WelcomeSection user={user} />
         </div>
 
-        {/* Trial Status */}
+        {/* Onboarding Checklist - Prioritized for visibility */}
         <div>
-          <TrialStatus user={user} />
+          <OnboardingChecklist
+            progress={businessData.onboardingProgress}
+            user={user}
+            onProgressUpdate={loadBusinessData}
+          />
         </div>
       </div>
 
@@ -173,13 +177,9 @@ const UnifiedDashboard: React.FC = () => {
           <AIContentHub user={user} />
         </div>
 
-        {/* Right Column - Onboarding */}
+        {/* Right Column - Trial Status */}
         <div>
-          <OnboardingChecklist
-            progress={businessData.onboardingProgress}
-            user={user}
-            onProgressUpdate={loadBusinessData}
-          />
+          <TrialStatus user={user} />
         </div>
       </div>
     </div>

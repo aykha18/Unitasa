@@ -27,6 +27,7 @@ from app.core.pinterest_service import PinterestOAuthService, get_pinterest_serv
 from app.models.social_account import SocialAccount, SocialPost, Engagement
 from app.models.campaign import Campaign
 from app.models.user import User
+from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
 import logging
 
 settings = get_settings()
@@ -1117,10 +1118,28 @@ async def generate_content(
 ):
     """Generate AI-powered social media content"""
     try:
-        # For now, return mock content to avoid complex dependencies
-        # TODO: Re-enable full AI content generation when dependencies are stable
+        # Try to use Knowledge Base if client_id is available
+        if request.client_id:
+            try:
+                kb = await get_social_content_knowledge_base()
+                # Get client content from KB
+                client_content = await kb.get_client_content(
+                    client_id=request.client_id,
+                    platform=request.platform,
+                    content_type=request.content_type
+                )
+                
+                if client_content:
+                    return {
+                        "success": True,
+                        "content": client_content,
+                        "message": "Content generated using client knowledge base"
+                    }
+            except Exception as kb_error:
+                logger.warning(f"Failed to generate content from KB: {kb_error}")
+                # Fallback to mock content if KB fails
 
-        # Mock content based on feature and platform
+        # Fallback to Mock content based on feature and platform
         mock_templates = {
             "automated_social_posting": {
                 "twitter": "🚀 Transform your marketing with Unitasa's AI agents! Save 15+ hours/week with automated social posting. #MarketingAutomation",

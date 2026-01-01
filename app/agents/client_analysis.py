@@ -4,6 +4,8 @@ Analyzes new clients and builds comprehensive brand profiles for automated conte
 """
 
 import asyncio
+import re
+import httpx
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import structlog
@@ -11,7 +13,11 @@ import structlog
 from app.agents.base import BaseAgent
 from app.agents.state import MarketingAgentState, update_state_timestamp
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
-from app.rag.lcel_chains import get_confidence_rag_chain, query_with_confidence
+try:
+    from app.rag.lcel_chains import get_confidence_rag_chain, query_with_confidence
+except Exception:
+    get_confidence_rag_chain = None
+    query_with_confidence = None
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -78,6 +84,34 @@ class ClientAnalysisAgent(BaseAgent):
         await update_state_timestamp(self.agent_id, "analysis_started")
 
         try:
+            # Step 0: Website Analysis (if provided)
+            # This enriches the client_data before deep analysis
+            company_info = client_data.get("company_info", {})
+            website_url = company_info.get("website") or client_data.get("website")
+            
+            if website_url:
+                logger.info(f"Analyzing website: {website_url}")
+                website_data = await self._analyze_website(website_url)
+                
+                # Merge website findings into company_info if fields are missing
+                if not company_info.get("mission_statement") and website_data.get("mission"):
+                    company_info["mission_statement"] = website_data["mission"]
+                
+                if not company_info.get("industry") and website_data.get("industry"):
+                    company_info["industry"] = website_data["industry"]
+                
+                # Enrich target audience if missing
+                if "target_audience" not in client_data:
+                    client_data["target_audience"] = {}
+                
+                if not client_data["target_audience"].get("primary_persona") and website_data.get("target_audience"):
+                    client_data["target_audience"]["primary_persona"] = website_data["target_audience"]
+                
+                # Ensure updated company info is saved back
+                client_data["company_info"] = company_info
+                
+                logger.info("Enriched client data with website analysis")
+
             # Step 1: Brand Voice Analysis
             brand_profile = await self._analyze_brand_voice(client_data)
             await update_state_timestamp(self.agent_id, "brand_analysis_complete")
@@ -691,14 +725,68 @@ class ClientAnalysisAgent(BaseAgent):
 
     # Tool implementations
     async def _analyze_website(self, url: str) -> Dict[str, Any]:
-        """Analyze company website for brand insights"""
-        # Placeholder for website analysis
-        return {
-            "brand_voice": "professional",
-            "key_themes": ["innovation", "customer_success"],
-            "visual_style": "modern_minimalist",
-            "content_quality": "high"
-        }
+        """Analyze website content to extract brand info"""
+        try:
+            # Basic validation
+            if not url.startswith("http"):
+                url = "https://" + url
+                
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.get(url)
+                html = response.text
+                
+            # Basic extraction (Regex/String parsing since bs4 might not be available)
+            # 1. Title
+            title_match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
+            title = title_match.group(1).strip() if title_match else ""
+            
+            # 2. Meta Description (Mission)
+            meta_desc_match = re.search(r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']', html, re.IGNORECASE)
+            if not meta_desc_match:
+                 meta_desc_match = re.search(r'<meta\s+content=["\'](.*?)["\']\s+name=["\']description["\']', html, re.IGNORECASE)
+            description = meta_desc_match.group(1).strip() if meta_desc_match else ""
+            
+            # 3. Simple Keyword Extraction for Industry
+            industry = "General Business"
+            keywords_map = {
+                "technology": ["software", "saas", "tech", "app", "platform"],
+                "marketing": ["marketing", "seo", "branding", "agency"],
+                "healthcare": ["health", "medical", "wellness", "care"],
+                "finance": ["finance", "money", "invest", "bank"],
+                "ecommerce": ["shop", "store", "buy", "fashion"]
+            }
+            
+            combined_text = (title + " " + description).lower()
+            for ind, keys in keywords_map.items():
+                if any(k in combined_text for k in keys):
+                    industry = ind.capitalize()
+                    break
+            
+            # 4. Social Links
+            social_platforms = ["twitter", "facebook", "linkedin", "instagram", "tiktok"]
+            found_socials = []
+            for platform in social_platforms:
+                if f"{platform}.com" in html.lower():
+                    found_socials.append(platform)
+            
+            logger.info(f"Website analysis result: {title} - {industry}")
+            
+            return {
+                "brand_voice": "professional", # Default
+                "mission": description,
+                "industry": industry,
+                "target_audience": f"Customers looking for {industry} solutions" if industry else "General audience",
+                "social_presence": found_socials,
+                "title": title
+            }
+            
+        except Exception as e:
+            logger.warning(f"Website analysis failed: {e}")
+            return {
+                "brand_voice": "professional",
+                "mission": "",
+                "industry": "Unknown"
+            }
 
     async def _audit_social_media(self, platforms: List[str], handles: Dict[str, str]) -> Dict[str, Any]:
         """Audit social media presence"""

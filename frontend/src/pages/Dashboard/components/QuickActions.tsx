@@ -46,6 +46,17 @@ const QuickActions: React.FC<QuickActionsProps> = ({ user }) => {
 
   const quickActions = [
     {
+      id: 'brand-profile',
+      title: 'Review Brand Profile',
+      description: 'Check and approve what the AI knows about you',
+      icon: Sparkles,
+      color: 'bg-indigo-500 hover:bg-indigo-600',
+      textColor: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      available: true,
+      popular: true,
+    },
+    {
       id: 'generate-content',
       title: 'Generate AI Content',
       description: 'Create engaging social media posts in seconds',

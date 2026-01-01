@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 
 try:
-    from langchain_core import RecursiveCharacterTextSplitter
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
     from langchain_core.documents import Document
     from langchain_community.document_loaders import (
         TextLoader,
@@ -22,7 +22,7 @@ try:
 except ImportError:
     LANGCHAIN_AVAILABLE = False
 
-from .vectorstore import get_vector_store_manager
+from .vectorstore_manager import get_vector_store_manager
 
 logger = logging.getLogger(__name__)
 

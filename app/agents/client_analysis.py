@@ -14,6 +14,10 @@ from app.agents.base import BaseAgent
 from app.agents.state import MarketingAgentState, update_state_timestamp
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
 try:
+    from app.agents.ingestion_agent import ingest_website
+except ImportError:
+    ingest_website = None
+try:
     from app.rag.lcel_chains import get_confidence_rag_chain, query_with_confidence
 except Exception:
     get_confidence_rag_chain = None
@@ -29,10 +33,11 @@ class ClientAnalysisAgent(BaseAgent):
     for automated content generation and social media management.
     """
 
-    def __init__(self, llm, knowledge_base=None):
-        super().__init__("client_analysis", llm, self.get_analysis_tools())
+    def __init__(self, llm=None, knowledge_base=None):
+        super().__init__("client_analysis")
+        self.llm = llm
         self.knowledge_base = knowledge_base
-        self.analysis_tools = self._initialize_analysis_tools()
+        self.analysis_tools = self.get_analysis_tools()
 
         # Initialize RAG chain for brand analysis
         try:
@@ -40,6 +45,22 @@ class ClientAnalysisAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"RAG chain initialization failed: {e}. Using fallback mode.")
             self.brand_analysis_chain = None
+
+    def get_system_prompt(self) -> str:
+        """Get agent-specific system prompt"""
+        return """You are an expert Marketing Onboarding Specialist and Brand Analyst.
+        Your goal is to analyze client information to build comprehensive brand profiles.
+        You specialize in:
+        1. Identifying brand voice and personality
+        2. Creating detailed audience personas
+        3. Analyzing competitive landscape
+        4. Developing content strategies
+        
+        Analyze provided information deeply and infer missing details based on industry standards."""
+
+    async def execute_task(self, task_input: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute agent task with given input"""
+        return await self.analyze_client(task_input)
 
     def get_analysis_tools(self) -> List[Any]:
         """Get tools for client analysis"""
@@ -76,69 +97,102 @@ class ClientAnalysisAgent(BaseAgent):
         Complete client analysis and profile creation.
         This is the main entry point for client onboarding.
         """
+        logger.info(f"Analyzing client with data keys: {list(client_data.keys()) if client_data else 'None'}")
+        
+        if not client_data:
+            raise ValueError("client_data cannot be None or empty")
 
         client_id = self._generate_client_id(client_data)
         logger.info(f"Starting client analysis for {client_id}")
 
         # Update agent state
-        await update_state_timestamp(self.agent_id, "analysis_started")
+        # await update_state_timestamp(self.agent_id, "analysis_started")
 
         try:
             # Step 0: Website Analysis (if provided)
             # This enriches the client_data before deep analysis
             company_info = client_data.get("company_info", {})
+            if not company_info:
+                logger.warning("company_info is missing or empty")
+                
             website_url = company_info.get("website") or client_data.get("website")
             
+            # Ensure website is in company_info regardless of analysis success
+            if website_url and not company_info.get("website"):
+                company_info["website"] = website_url
+                client_data["company_info"] = company_info
+
             if website_url:
                 logger.info(f"Analyzing website: {website_url}")
-                website_data = await self._analyze_website(website_url)
-                
-                # Merge website findings into company_info if fields are missing
-                if not company_info.get("mission_statement") and website_data.get("mission"):
-                    company_info["mission_statement"] = website_data["mission"]
-                
-                if not company_info.get("industry") and website_data.get("industry"):
-                    company_info["industry"] = website_data["industry"]
-                
-                # Enrich target audience if missing
-                if "target_audience" not in client_data:
-                    client_data["target_audience"] = {}
-                
-                if not client_data["target_audience"].get("primary_persona") and website_data.get("target_audience"):
-                    client_data["target_audience"]["primary_persona"] = website_data["target_audience"]
-                
-                # Ensure updated company info is saved back
-                client_data["company_info"] = company_info
-                
-                logger.info("Enriched client data with website analysis")
+                try:
+                    website_data = await self._analyze_website(website_url)
+                    
+                    # Merge website findings into company_info if fields are missing
+                    if not company_info.get("mission_statement") and website_data.get("mission"):
+                        company_info["mission_statement"] = website_data["mission"]
+                    
+                    if not company_info.get("industry") and website_data.get("industry"):
+                        company_info["industry"] = website_data["industry"]
+                    
+                    # NEW: Enrich with key features from website
+                    if "features" not in client_data and website_data.get("key_features"):
+                        # Convert string list to structured format expected by KB
+                        features_list = []
+                        for feature in website_data.get("key_features", []):
+                            if isinstance(feature, str):
+                                features_list.append({"title": feature, "description": ""})
+                            elif isinstance(feature, dict):
+                                features_list.append(feature)
+                        client_data["features"] = features_list
+                        logger.info(f"Extracted {len(features_list)} features from website")
+
+                    # Enrich target audience if missing
+                    if "target_audience" not in client_data:
+                        client_data["target_audience"] = {}
+                    
+                    if not client_data["target_audience"].get("primary_persona") and website_data.get("target_audience"):
+                        client_data["target_audience"]["primary_persona"] = website_data["target_audience"]
+                    
+                    # Ensure updated company info is saved back
+                    client_data["company_info"] = company_info
+                    
+                    logger.info("Enriched client data with website analysis")
+                except Exception as e:
+                    logger.warning(f"Website analysis failed: {e}. Proceeding with provided data.")
 
             # Step 1: Brand Voice Analysis
+            logger.info("Starting brand voice analysis")
             brand_profile = await self._analyze_brand_voice(client_data)
-            await update_state_timestamp(self.agent_id, "brand_analysis_complete")
+            # await update_state_timestamp(self.agent_id, "brand_analysis_complete")
 
             # Step 2: Audience Analysis
+            logger.info("Starting audience analysis")
             audience_profile = await self._analyze_target_audience(client_data)
-            await update_state_timestamp(self.agent_id, "audience_analysis_complete")
+            # await update_state_timestamp(self.agent_id, "audience_analysis_complete")
 
             # Step 3: Competitive Analysis
+            logger.info("Starting competitive analysis")
             competitive_profile = await self._analyze_competition(client_data)
-            await update_state_timestamp(self.agent_id, "competition_analysis_complete")
+            # await update_state_timestamp(self.agent_id, "competition_analysis_complete")
 
             # Step 4: Content Strategy Development
+            logger.info("Starting content strategy development")
             content_strategy = await self._develop_content_strategy(
                 brand_profile, audience_profile, competitive_profile
             )
-            await update_state_timestamp(self.agent_id, "content_strategy_complete")
+            # await update_state_timestamp(self.agent_id, "content_strategy_complete")
 
             # Step 5: Platform Strategy
+            logger.info("Starting platform strategy")
             platform_strategy = await self._create_platform_strategy(client_data)
-            await update_state_timestamp(self.agent_id, "platform_strategy_complete")
+            # await update_state_timestamp(self.agent_id, "platform_strategy_complete")
 
             # Step 6: Knowledge Base Initialization
+            logger.info("Starting knowledge base initialization")
             client_kb = await self._initialize_client_knowledge_base(
                 client_data, brand_profile, content_strategy
             )
-            await update_state_timestamp(self.agent_id, "knowledge_base_initialized")
+            # await update_state_timestamp(self.agent_id, "knowledge_base_initialized")
 
             # Calculate content quality estimate
             quality_score = self._estimate_content_quality(client_data)
@@ -158,21 +212,21 @@ class ClientAnalysisAgent(BaseAgent):
             }
 
             logger.info(f"Client analysis completed for {client_id} with quality score {quality_score}")
-            await update_state_timestamp(self.agent_id, "analysis_completed")
+            # await update_state_timestamp(self.agent_id, "analysis_completed")
 
             return result
 
         except Exception as e:
-            logger.error(f"Client analysis failed for {client_id}: {e}")
-            await update_state_timestamp(self.agent_id, "analysis_failed")
+            logger.error(f"Client analysis failed for {client_id}: {e}", exc_info=True)
+            # await update_state_timestamp(self.agent_id, "analysis_failed")
             raise
 
     async def _analyze_brand_voice(self, client_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze brand voice and personality"""
 
-        company_info = client_data.get("company_info", {})
-        brand_assets = client_data.get("brand_assets", {})
-        content_samples = client_data.get("performance_data", {}).get("successful_content", [])
+        company_info = client_data.get("company_info") or {}
+        brand_assets = client_data.get("brand_assets") or {}
+        content_samples = (client_data.get("performance_data") or {}).get("successful_content", [])
 
         # Use LLM to analyze brand voice
         brand_voice_prompt = f"""
@@ -217,8 +271,8 @@ class ClientAnalysisAgent(BaseAgent):
     async def _analyze_target_audience(self, client_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create detailed audience personas"""
 
-        audience_data = client_data.get("target_audience", {})
-        company_info = client_data.get("company_info", {})
+        audience_data = client_data.get("target_audience") or {}
+        company_info = client_data.get("company_info") or {}
 
         # Extract audience information
         primary_persona = audience_data.get("primary_persona", "Business Professional")
@@ -247,7 +301,7 @@ class ClientAnalysisAgent(BaseAgent):
                 },
                 "behavior": {
                     "content_preference": audience_data.get("content_preference", "educational"),
-                    "social_platforms": client_data.get("social_media_accounts", {}).get("platforms", ["LinkedIn"]),
+                    "social_platforms": (client_data.get("social_media_accounts") or {}).get("platforms", ["LinkedIn"]),
                     "engagement_style": "professional" if company_info.get("industry") in ["B2B", "Enterprise"] else "casual"
                 }
             }
@@ -258,15 +312,15 @@ class ClientAnalysisAgent(BaseAgent):
             "secondary_personas": personas[1:] if len(personas) > 1 else [],
             "audience_size_estimate": self._estimate_audience_size(company_info),
             "content_preferences": self._determine_content_preferences(audience_data),
-            "peak_engagement_times": client_data.get("social_media_accounts", {}).get("peak_times", {}),
+            "peak_engagement_times": (client_data.get("social_media_accounts") or {}).get("peak_times", {}),
             "analysis_confidence": 0.85
         }
 
     async def _analyze_competition(self, client_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze competitors and market positioning"""
 
-        competitors = client_data.get("content_preferences", {}).get("competitors", [])
-        company_info = client_data.get("company_info", {})
+        competitors = (client_data.get("content_preferences") or {}).get("competitors", [])
+        company_info = client_data.get("company_info") or {}
 
         competitive_analysis = []
 
@@ -329,8 +383,8 @@ class ClientAnalysisAgent(BaseAgent):
     async def _create_platform_strategy(self, client_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create platform-specific content and engagement strategy"""
 
-        social_accounts = client_data.get("social_media_accounts", {})
-        platforms = social_accounts.get("platforms", ["LinkedIn"])
+        social_accounts = client_data.get("social_media_accounts") or {}
+        platforms = social_accounts.get("platforms") or ["LinkedIn"]
         existing_handles = social_accounts.get("existing_handles", {})
         current_frequency = social_accounts.get("posting_frequency", {})
 
@@ -376,7 +430,9 @@ class ClientAnalysisAgent(BaseAgent):
                 "brand_profile": brand_profile,
                 "content_strategy": content_strategy,
                 "audience_profile": {},  # Will be filled by audience analysis
-                "platform_strategy": {}  # Will be filled by platform strategy
+                "platform_strategy": {},  # Will be filled by platform strategy
+                "features": client_data.get("features", []),
+                "how_it_works": client_data.get("how_it_works", [])
             })
 
             return {
@@ -393,7 +449,7 @@ class ClientAnalysisAgent(BaseAgent):
 
     def _generate_client_id(self, client_data: Dict[str, Any]) -> str:
         """Generate unique client identifier"""
-        company_name = client_data.get("company_info", {}).get("company_name", "unknown")
+        company_name = (client_data.get("company_info") or {}).get("company_name", "unknown")
         timestamp = int(datetime.utcnow().timestamp())
         return f"client_{company_name.lower().replace(' ', '_')}_{timestamp}"
 
@@ -423,9 +479,9 @@ class ClientAnalysisAgent(BaseAgent):
                 completeness_score += 1
 
         # Brand assets and performance data are bonus points
-        if client_data.get("brand_assets", {}).get("logo_url"):
+        if (client_data.get("brand_assets") or {}).get("logo_url"):
             completeness_score += 0.5
-        if client_data.get("performance_data", {}).get("successful_content"):
+        if (client_data.get("performance_data") or {}).get("successful_content"):
             completeness_score += 0.5
 
         quality_score = min(5.0, (completeness_score / total_fields) * 5.0)
@@ -726,6 +782,32 @@ class ClientAnalysisAgent(BaseAgent):
     # Tool implementations
     async def _analyze_website(self, url: str) -> Dict[str, Any]:
         """Analyze website content to extract brand info"""
+        logger.info(f"Analyzing website: {url}")
+        
+        # Try using IngestionAgent first for deep analysis
+        if ingest_website:
+            try:
+                result = await ingest_website(url)
+                if result.get("success") and result.get("summary"):
+                    summary = result["summary"]
+                    logger.info(f"Website analysis successful via IngestionAgent")
+                    
+                    # Map IngestionAgent output to our format
+                    return {
+                        "brand_voice": summary.get("brand_tone", "professional"),
+                        "mission": summary.get("value_proposition") or summary.get("summary", ""),
+                        "industry": summary.get("industry", "General"),
+                        "target_audience": summary.get("target_audience", "General audience"),
+                        "business_offering": summary.get("business_offering", ""),
+                        "key_features": summary.get("key_features", []),
+                        "how_it_works": [], # IngestionAgent currently doesn't explicitly extract this, could be added later
+                        "title": url,
+                        "social_presence": [], # We could extract this from raw content if needed
+                        "raw_data": summary
+                    }
+            except Exception as e:
+                logger.warning(f"IngestionAgent failed: {e}. Falling back to basic extraction.")
+
         try:
             # Basic validation
             if not url.startswith("http"):
@@ -749,17 +831,19 @@ class ClientAnalysisAgent(BaseAgent):
             # 3. Simple Keyword Extraction for Industry
             industry = "General Business"
             keywords_map = {
-                "technology": ["software", "saas", "tech", "app", "platform"],
-                "marketing": ["marketing", "seo", "branding", "agency"],
-                "healthcare": ["health", "medical", "wellness", "care"],
-                "finance": ["finance", "money", "invest", "bank"],
-                "ecommerce": ["shop", "store", "buy", "fashion"]
+                "blockchain security": ["blockchain", "web3", "crypto", "smart contract", "audit", "defi", "security", "token", "nft", "wallet", "cosmos"],
+                "technology": ["software", "saas", "tech", "app", "platform", "data", "cloud", "ai", "artificial intelligence"],
+                "marketing": ["marketing", "seo", "branding", "agency", "social media", "content"],
+                "healthcare": ["health", "medical", "wellness", "care", "clinic", "doctor"],
+                "finance": ["finance", "money", "invest", "bank", "wealth", "capital", "fund"],
+                "ecommerce": ["shop", "store", "buy", "fashion", "retail", "product"]
             }
             
-            combined_text = (title + " " + description).lower()
+            # Include URL in text analysis as it often contains brand/industry keywords
+            combined_text = (title + " " + description + " " + url).lower()
             for ind, keys in keywords_map.items():
                 if any(k in combined_text for k in keys):
-                    industry = ind.capitalize()
+                    industry = ind.title()
                     break
             
             # 4. Social Links
@@ -769,7 +853,7 @@ class ClientAnalysisAgent(BaseAgent):
                 if f"{platform}.com" in html.lower():
                     found_socials.append(platform)
             
-            logger.info(f"Website analysis result: {title} - {industry}")
+            logger.info(f"Website analysis result (Basic): {title} - {industry}")
             
             return {
                 "brand_voice": "professional", # Default
@@ -777,7 +861,9 @@ class ClientAnalysisAgent(BaseAgent):
                 "industry": industry,
                 "target_audience": f"Customers looking for {industry} solutions" if industry else "General audience",
                 "social_presence": found_socials,
-                "title": title
+                "title": title,
+                "key_features": [],
+                "business_offering": ""
             }
             
         except Exception as e:
@@ -785,7 +871,8 @@ class ClientAnalysisAgent(BaseAgent):
             return {
                 "brand_voice": "professional",
                 "mission": "",
-                "industry": "Unknown"
+                "industry": "Unknown",
+                "key_features": []
             }
 
     async def _audit_social_media(self, platforms: List[str], handles: Dict[str, str]) -> Dict[str, Any]:

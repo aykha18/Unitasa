@@ -297,12 +297,14 @@ class CostOptimizedLLMRouter:
                 **kwargs
             )
         )
-
+        
         return {
             "content": response.choices[0].message.content,
             "tokens_used": response.usage.total_tokens,
             "finish_reason": response.choices[0].finish_reason
         }
+
+
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get usage statistics for all providers"""
@@ -333,3 +335,37 @@ async def generate_with_fallback(prompt: str, task_description: str = "", **kwar
     """Convenience function for generating with automatic fallback"""
     router = get_llm_router()
     return await router.generate(prompt, task_description, **kwargs)
+
+
+def get_optimal_llm(task_description: str = ""):
+    """
+    Get an LLM client configured for the optimal provider based on task.
+    Returns a LangChain-compatible LLM wrapper or similar.
+    For now, returns a simple wrapper that uses the router.
+    """
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.messages import BaseMessage, HumanMessage
+    from langchain_core.outputs import ChatResult, ChatGeneration
+    from typing import List, Optional, Any
+    
+    class RouterLLMWrapper(BaseChatModel):
+        """Wrapper for CostOptimizedLLMRouter to be compatible with LangChain"""
+        
+        def _generate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, run_manager: Any = None, **kwargs) -> ChatResult:
+            # Sync wrapper around async generate
+            raise NotImplementedError("Use ainvoke or agenerate")
+            
+        async def _agenerate(self, messages: List[BaseMessage], stop: Optional[List[str]] = None, run_manager: Any = None, **kwargs) -> ChatResult:
+            prompt = messages[-1].content if messages else ""
+            router = get_llm_router()
+            response = await router.generate(prompt, task_description, **kwargs)
+            
+            return ChatResult(generations=[
+                ChatGeneration(message=HumanMessage(content=response["content"]))
+            ])
+            
+        @property
+        def _llm_type(self) -> str:
+            return "cost_optimized_router"
+            
+    return RouterLLMWrapper()

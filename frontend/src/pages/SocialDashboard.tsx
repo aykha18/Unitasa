@@ -19,7 +19,8 @@ import {
   Instagram,
   Send,
   Globe,
-  LogOut
+  LogOut,
+  Sparkles
 } from 'lucide-react';
 
 interface SocialAccount {

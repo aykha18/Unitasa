@@ -84,6 +84,8 @@ class ContentGenerationRequest(BaseModel):
     platform: str = Field(..., description="Target social media platform")
     content_type: str = Field("educational", description="Type of content (educational, benefit_focused, social_proof)")
     tone: str = Field("professional", description="Content tone")
+    client_id: Optional[str] = Field(None, description="Client ID for knowledge base context")
+    topic: Optional[str] = Field(None, description="Specific topic for content generation")
 
 
 class SchedulePostRequest(BaseModel):
@@ -1006,19 +1008,19 @@ async def create_post(
         # Check if any posts succeeded
         success_count = sum(1 for r in results if r['success'])
         logger.info(f"Post creation summary: success_count={success_count}, total_platforms={len(request.platforms)}")
-        if success_count > 0:
-            return {
-                "success": True,
-                "message": f"Posted to {success_count} of {len(request.platforms)} platforms",
-                "results": results
-            }
-        else:
-            logger.error(f"No posts succeeded: results={results}")
-            raise HTTPException(status_code=500, detail="Failed to post to any platforms")
+        
+        # Always return results, even if all failed
+        # The frontend expects a 200 OK with results array to handle per-item status
+        return {
+            "success": success_count > 0,
+            "message": f"Posted to {success_count} of {len(request.platforms)} platforms",
+            "results": results
+        }
 
     except Exception as e:
         logger.error(f"Failed to create post: error={str(e)}", exc_info=True)
         await db.rollback()
+        # Still return 500 for unexpected system errors
         raise HTTPException(status_code=500, detail=f"Failed to create post: {str(e)}")
 
 
@@ -1118,16 +1120,28 @@ async def generate_content(
 ):
     """Generate AI-powered social media content"""
     try:
+        logger.info(f"Received content generation request. Client ID: {request.client_id}")
+        
         # Try to use Knowledge Base if client_id is available
         if request.client_id:
             try:
                 kb = await get_social_content_knowledge_base()
+                logger.info(f"Knowledge Base instance retrieved. Attempting to get content for {request.client_id}")
+                
                 # Get client content from KB
+                # Pack request parameters into a dictionary as expected by get_client_content
+                content_req = {
+                    "platform": request.platform,
+                    "content_type": request.content_type,
+                    "topic": request.topic
+                }
+                
                 client_content = await kb.get_client_content(
                     client_id=request.client_id,
-                    platform=request.platform,
-                    content_type=request.content_type
+                    content_request=content_req
                 )
+                
+                logger.info(f"Client content generated: {len(client_content) if client_content else 0} items")
                 
                 if client_content:
                     return {
@@ -1136,20 +1150,20 @@ async def generate_content(
                         "message": "Content generated using client knowledge base"
                     }
             except Exception as kb_error:
-                logger.warning(f"Failed to generate content from KB: {kb_error}")
+                logger.warning(f"Failed to generate content from KB: {kb_error}", exc_info=True)
                 # Fallback to mock content if KB fails
 
-        # Fallback to Mock content based on feature and platform
+        # Fallback to Mock content (Generic Business)
         mock_templates = {
             "automated_social_posting": {
-                "twitter": "🚀 Transform your marketing with Unitasa's AI agents! Save 15+ hours/week with automated social posting. #MarketingAutomation",
-                "facebook": "Transform your marketing with Unitasa's AI agents! Save 15+ hours/week with automated social posting across all platforms. Book a free demo today!",
-                "instagram": "🚀 AI agents that run your marketing for you! Save 15+ hours/week with automated posting. #MarketingAutomation #AI #SaaS #Business"
+                "twitter": "🚀 Ready to grow your business? Discover how our solutions can help you save time and boost results. #BusinessGrowth #Efficiency",
+                "facebook": "Take your business to the next level! Our proven strategies help you save time and increase revenue. Learn more today.",
+                "instagram": "🚀 Unlock your business potential! Save time and grow faster with our expert solutions. #Business #Growth #Success"
             },
             "crm_follow_ups": {
-                "twitter": "💡 Never miss a lead again! Unitasa's AI agents send personalized follow-ups based on behavior. #CRM #LeadGeneration",
-                "facebook": "Stop losing leads to competitors! Our AI agents nurture prospects automatically based on their behavior and pipeline stage.",
-                "instagram": "🎯 Smart lead nurturing with AI! Personalized follow-ups based on behavior. #CRM #LeadGeneration #Sales"
+                "twitter": "💡 maximize your opportunities! efficiently manage your leads and close more deals. #Sales #BusinessTips",
+                "facebook": "Stop losing opportunities! Our system helps you nurture prospects effectively and close more sales.",
+                "instagram": "🎯 Smart business growth! Better management means better results. #Business #Sales #Success"
             }
         }
 
@@ -1173,7 +1187,7 @@ async def generate_content(
                     "type": request.content_type,
                     "content": content,
                     "hashtags": hashtags,
-                    "call_to_action": "Book a demo today!" if "demo" in content.lower() else "Learn more!",
+                    "call_to_action": "Learn more!",
                     "character_count": len(content),
                     "generated_at": datetime.utcnow().isoformat(),
                     "source": "mock"
@@ -1186,7 +1200,7 @@ async def generate_content(
 
     except Exception as e:
         logger.error(f"Content generation failed: {str(e)}", exc_info=True)
-        # Return fallback content even on error
+        # Return fallback content even on error (Generic)
         return {
             "success": True,
             "content": [
@@ -1195,9 +1209,9 @@ async def generate_content(
                     "feature": request.feature_key,
                     "platform": request.platform,
                     "type": request.content_type,
-                    "content": f"🚀 Transform your marketing with Unitasa's AI agents! Save time and boost results with our {request.feature_key.replace('_', ' ')} feature. #MarketingAutomation",
-                    "hashtags": ["#MarketingAutomation", "#AI", "#SaaS"],
-                    "call_to_action": "Book a demo today!",
+                    "content": f"🚀 Ready to upgrade your business? Experience the difference with our {request.feature_key.replace('_', ' ')} solutions. #BusinessGrowth",
+                    "hashtags": ["#BusinessGrowth", "#Success"],
+                    "call_to_action": "Get started today!",
                     "character_count": 120,
                     "generated_at": datetime.utcnow().isoformat(),
                     "source": "fallback"

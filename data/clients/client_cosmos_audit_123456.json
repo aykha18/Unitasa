@@ -1,0 +1,75 @@
+{
+  "client_id": "client_cosmos_audit_123456",
+  "company_info": {
+    "company_name": "Cosmos Audit",
+    "industry": "Blockchain Security",
+    "brand_voice": "Technical and Authoritative",
+    "mission_statement": "Securing the decentralized future through rigorous smart contract auditing."
+  },
+  "target_audience": {
+    "primary_persona": "DeFi Protocol Founders",
+    "pain_points": [
+      "Smart contract vulnerabilities",
+      "Loss of user funds",
+      "Reputation damage"
+    ]
+  },
+  "content_strategy": {
+    "themes": [
+      "Security Best Practices",
+      "Audit Case Studies",
+      "DeFi Trends"
+    ],
+    "tone": "Professional, Technical, Trustworthy"
+  },
+  "features": [
+    {
+      "title": "AI-Powered Analysis",
+      "description": "GPT-4 explains your contract logic in plain English, identifying issues that static analyzers miss."
+    },
+    {
+      "title": "Advanced Security Scanning",
+      "description": "Integrates Slither and Mythril to detect reentrancy, overflow, and logic flaws automatically."
+    },
+    {
+      "title": "Regulatory Compliance",
+      "description": "Maps your code to MiCA, SEC, and FATF requirements, flagging violations before they become liabilities."
+    },
+    {
+      "title": "60-Second Results",
+      "description": "Get comprehensive audit reports in seconds, not weeks. Perfect for rapid development cycles."
+    },
+    {
+      "title": "Developer-First",
+      "description": "Simple upload interface, API access for CI/CD integration, and affordable pricing from ₹8,217/month."
+    },
+    {
+      "title": "Multi-Chain Support",
+      "description": "EVM-compatible chains (Ethereum, Polygon, Arbitrum) with Solana and Cosmos coming soon."
+    }
+  ],
+  "how_it_works": [
+    {
+      "step": 1,
+      "title": "Upload Contract",
+      "description": "Paste your Solidity/Vyper code or upload a file. Support for all EVM chains."
+    },
+    {
+      "step": 2,
+      "title": "AI Analysis",
+      "description": "Our system scans for vulnerabilities, explains logic, and checks compliance in 60 seconds."
+    },
+    {
+      "step": 3,
+      "title": "Get Results",
+      "description": "Download detailed PDF report with severity ratings, fix recommendations, and compliance status."
+    }
+  ],
+  "assessments": [
+    {
+       "title": "Smart Contract Audit",
+       "description": "Comprehensive security analysis for your smart contracts."
+    }
+  ],
+  "estimated_content_quality": 0.95
+}

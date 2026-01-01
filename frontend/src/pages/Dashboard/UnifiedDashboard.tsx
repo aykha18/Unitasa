@@ -133,6 +133,28 @@ const UnifiedDashboard: React.FC = () => {
     setActiveModule(module);
   };
 
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'new_campaign':
+        navigate('/campaigns/new');
+        break;
+      case 'connect_crm':
+        navigate('/settings/integrations');
+        break;
+      case 'invite_team':
+        navigate('/settings/team');
+        break;
+      case 'generate_content':
+        navigate('/generate-content');
+        break;
+      case 'brand_profile':
+        navigate('/brand-profile');
+        break;
+      default:
+        console.log('Unknown action:', action);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

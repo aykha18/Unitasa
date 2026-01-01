@@ -222,6 +222,20 @@ function App() {
             <CoCreatorSignupPage />
           </React.Suspense>
         );
+      case '/generate-content':
+        const GenerateContentPage = React.lazy(() => import('./pages/GenerateContentPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <GenerateContentPage />
+          </React.Suspense>
+        );
+      case '/brand-profile':
+        const BrandProfilePage = React.lazy(() => import('./pages/BrandProfilePage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <BrandProfilePage />
+          </React.Suspense>
+        );
       case '/privacy-policy':
         return <PrivacyPolicy />;
       case '/terms-of-service':
@@ -268,13 +282,6 @@ function App() {
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <ImageSuggestionsPage />
-          </React.Suspense>
-        );
-      case '/generate-content':
-        const GenerateContentPage = React.lazy(() => import('./pages/GenerateContentPage'));
-        return (
-          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-            <GenerateContentPage />
           </React.Suspense>
         );
       case '/chat-assistant':

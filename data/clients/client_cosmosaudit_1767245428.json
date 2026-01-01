@@ -1,0 +1,24 @@
+{
+  "company_info": {
+    "company_name": "Cosmosaudit",
+    "brand_name": null,
+    "industry": "General",
+    "company_size": "1-10",
+    "founding_year": null,
+    "headquarters": null,
+    "website": null,
+    "mission_statement": null,
+    "brand_voice": "professional"
+  },
+  "target_audience": {
+    "primary_persona": "General Customer",
+    "secondary_personas": [],
+    "pain_points": [],
+    "goals": [],
+    "demographics": {}
+  },
+  "content_strategy": {
+    "tone": "professional",
+    "themes": []
+  }
+}

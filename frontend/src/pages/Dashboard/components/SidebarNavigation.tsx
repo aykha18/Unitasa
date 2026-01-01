@@ -9,7 +9,8 @@ import {
   MessageSquare,
   Calendar,
   Menu,
-  X
+  X,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarNavigationProps {
@@ -87,6 +88,26 @@ const SidebarNavigation: React.FC<SidebarNavigationProps> = ({
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-8">
+          <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            Configuration
+          </h3>
+          <button
+            onClick={() => {
+              window.history.pushState({}, '', '/brand-profile');
+              window.dispatchEvent(new Event('navigate'));
+              setIsMobileOpen(false);
+            }}
+            className="w-full flex items-center px-3 py-3 rounded-lg text-left text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+          >
+            <Sparkles className="w-5 h-5 mr-3 text-purple-600" />
+            <div>
+              <div className="font-medium text-sm">Brand Profile</div>
+              <div className="text-xs text-gray-500 mt-0.5">Train your AI agent</div>
+            </div>
+          </button>
         </div>
       </nav>
 

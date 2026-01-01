@@ -62,6 +62,9 @@ const ClientOnboardingPage: React.FC = () => {
 
       const response = await apiClient.post('/api/v1/clients/onboard', payload);
       setResult(response.data);
+      if (response.data.client_id) {
+        localStorage.setItem('current_client_id', response.data.client_id);
+      }
       setStep('success');
     } catch (err: any) {
       console.error('Onboarding failed:', err);

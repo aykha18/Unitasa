@@ -25,17 +25,31 @@ const GenerateContentPage: React.FC = () => {
   const [results, setResults] = useState<GeneratedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [posting, setPosting] = useState<{[id: string]: boolean}>({});
-  const [posted, setPosted] = useState<{[id: string]: { success: boolean; url?: string } }>({});
+  const [posted, setPosted] = useState<{[id: string]: { success: boolean; url?: string; note?: string } }>({});
 
   const generateContent = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Get client_id from local storage, handling the case where it might be a JSON string
+      let clientId = localStorage.getItem('current_client_id');
+      
+      // If client_id is stored as a JSON string (e.g. from previous login), clean it
+      if (clientId && (clientId.startsWith('"') || clientId.startsWith('{'))) {
+          try {
+              clientId = JSON.parse(clientId);
+          } catch (e) {
+              // use as is
+          }
+      }
+      
       const res = await apiClient.post('/api/v1/social/content/generate', {
         feature_key: 'automated_social_posting',
         platform,
         content_type: contentType,
-        tone
+        tone,
+        topic,
+        client_id: clientId
       });
       const data = res.data;
       setResults(data?.content || []);
@@ -148,8 +162,8 @@ const GenerateContentPage: React.FC = () => {
                   {item.hashtags?.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center">
                       <Hash className="w-4 h-4 text-gray-500 mr-2" />
-                      {item.hashtags.map((h) => (
-                        <span key={h} className="text-sm text-gray-600 mr-2">{h}</span>
+                      {item.hashtags.map((h, i) => (
+                        <span key={`${h}-${i}`} className="text-sm text-gray-600 mr-2">{h}</span>
                       ))}
                     </div>
                   )}
@@ -180,6 +194,11 @@ const GenerateContentPage: React.FC = () => {
                           Posted successfully {posted[item.id].url ? (
                             <a className="underline ml-1" href={posted[item.id].url} target="_blank" rel="noreferrer">View</a>
                           ) : null}
+                          {posted[item.id].note && (
+                            <div className="text-xs text-amber-600 mt-1 font-medium">
+                              {posted[item.id].note}
+                            </div>
+                          )}
                         </>
                       ) : 'Post failed'}
                     </div>

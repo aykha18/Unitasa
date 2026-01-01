@@ -3,6 +3,7 @@ Client Onboarding API
 Complete client onboarding workflow with analysis and knowledge base creation
 """
 
+import asyncio
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
@@ -11,6 +12,7 @@ from datetime import datetime
 
 from app.agents.client_analysis import ClientAnalysisAgent
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
+from app.llm.router import get_optimal_llm
 from app.core.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -96,6 +98,61 @@ class ClientProfileResponse(BaseModel):
     brand_profile: Dict[str, Any]
     audience_profile: Dict[str, Any]
     content_strategy: Dict[str, Any]
+
+class UpdateClientProfileRequest(BaseModel):
+    company_info: CompanyInfo
+    target_audience: TargetAudience
+    content_preferences: ContentPreferences
+
+@router.get("/profile/{client_id}")
+async def get_client_profile(client_id: str):
+    """Get the current profile for a client (loaded or fallback)"""
+    kb = await get_social_content_knowledge_base()
+    profile = await kb.get_client_profile(client_id)
+    
+    return {
+        "client_id": client_id,
+        "brand_profile": profile.get("company_info", {}),
+        "audience_profile": profile.get("target_audience", {}),
+        "content_strategy": profile.get("content_strategy", {})
+    }
+
+@router.put("/profile/{client_id}")
+async def update_client_profile(client_id: str, request: UpdateClientProfileRequest):
+    """Update a client's profile and regenerate their KB"""
+    try:
+        logger.info(f"Updating profile for client: {client_id}")
+        kb = await get_social_content_knowledge_base()
+        
+        # Merge existing profile with updates
+        current_profile = await kb.get_client_profile(client_id)
+        
+        # Update fields
+        current_profile["company_info"] = request.company_info.dict()
+        current_profile["target_audience"] = request.target_audience.dict()
+        # Merge content strategy preferences
+        if "content_strategy" not in current_profile:
+            current_profile["content_strategy"] = {}
+            
+        current_profile["content_strategy"]["tone"] = request.content_preferences.content_tone
+        current_profile["content_strategy"]["themes"] = request.content_preferences.key_messages
+        
+        updated_profile = await kb.update_client_profile(client_id, current_profile)
+        
+        return {
+            "success": True,
+            "message": "Profile updated and Knowledge Base regenerated",
+            "profile": updated_profile
+        }
+    except Exception as e:
+        logger.error(f"Failed to update client profile: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update client profile: {str(e)}")
+
+@router.post("/analyze")
+async def onboard_client(
+    request: ClientOnboardingRequest, 
+    background_tasks: BackgroundTasks
+):
     platform_strategy: Dict[str, Any]
     onboarding_complete: bool
     estimated_content_quality: float
@@ -121,12 +178,11 @@ async def get_client_analysis_agent():
 
         # Initialize client analysis agent
         try:
-            from app.core.config import get_llm
-            llm = get_llm()
+            llm = get_optimal_llm("Analyze client brand voice and content strategy")
             _client_analysis_agent = ClientAnalysisAgent(llm, _knowledge_base)
         except Exception as e:
             logger.error(f"Client analysis agent initialization failed: {e}")
-            raise HTTPException(status_code=500, detail="Agent initialization failed")
+            raise HTTPException(status_code=500, detail=f"Agent initialization failed: {str(e)}")
 
     return _client_analysis_agent
 
@@ -171,6 +227,26 @@ async def onboard_client(
 
         # Step 3: Create client knowledge base
         knowledge_base_result = await setup_client_knowledge_base(client_profile)
+        
+        # Save client profile to disk for persistence
+        try:
+            import json
+            import os
+            
+            # Create data directory if it doesn't exist
+            data_dir = os.path.join(os.getcwd(), "data", "clients")
+            os.makedirs(data_dir, exist_ok=True)
+            
+            # Save profile
+            file_path = os.path.join(data_dir, f"{client_profile['client_id']}.json")
+            with open(file_path, "w") as f:
+                # Convert datetime objects to strings if needed, though dict() usually handles it
+                # For safety, we can use a custom encoder or just ensure basic types
+                json.dump(client_profile, f, default=str, indent=2)
+                
+            logger.info(f"Persisted client profile to {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to persist client profile: {e}")
 
         # Step 4: Generate initial content samples
         sample_content = await generate_initial_content_samples(
@@ -216,53 +292,6 @@ async def onboard_client(
         raise HTTPException(status_code=500, detail=f"Onboarding failed: {str(e)}")
 
 
-@router.get("/clients/{client_id}/profile", response_model=ClientProfileResponse)
-async def get_client_profile(client_id: str) -> ClientProfileResponse:
-    """Get complete client profile and analysis results"""
-
-    try:
-        # In a real implementation, this would fetch from database
-        # For now, return a mock response structure
-
-        # Check if client exists (mock check)
-        if not client_id.startswith("client_"):
-            raise HTTPException(status_code=404, detail="Client not found")
-
-        # Mock client profile response
-        profile = ClientProfileResponse(
-            client_id=client_id,
-            brand_profile={
-                "brand_voice": "professional",
-                "personality_traits": ["trustworthy", "competent", "reliable"],
-                "communication_style": "professional_formal"
-            },
-            audience_profile={
-                "primary_persona": {
-                    "name": "Marketing Manager",
-                    "demographics": {"age_range": "30-45", "company_size": "Mid-Market"}
-                }
-            },
-            content_strategy={
-                "content_pillars": ["Educational", "Thought Leadership", "Customer Success"],
-                "content_mix": {"educational": 0.4, "promotional": 0.3, "engagement": 0.3}
-            },
-            platform_strategy={
-                "platforms": {
-                    "LinkedIn": {"recommended_frequency": "3-5 posts/week"},
-                    "Twitter": {"recommended_frequency": "5-8 posts/week"}
-                }
-            },
-            onboarding_complete=True,
-            estimated_content_quality=4.2
-        )
-
-        return profile
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get client profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve client profile")
 
 
 @router.get("/clients", response_model=List[Dict[str, Any]])
@@ -304,6 +333,16 @@ async def list_clients(status: Optional[str] = None) -> List[Dict[str, Any]]:
         raise HTTPException(status_code=500, detail="Failed to retrieve clients")
 
 
+def deep_merge(target: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+    """Deep merge updates into target dictionary"""
+    for key, value in updates.items():
+        if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+            deep_merge(target[key], value)
+        else:
+            target[key] = value
+    return target
+
+
 @router.put("/clients/{client_id}/profile")
 async def update_client_profile(client_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
     """Update client profile with new information"""
@@ -313,15 +352,26 @@ async def update_client_profile(client_id: str, updates: Dict[str, Any]) -> Dict
         if not client_id.startswith("client_"):
             raise HTTPException(status_code=404, detail="Client not found")
 
-        # In a real implementation, this would update the database
-        # For now, just acknowledge the update
-
-        logger.info(f"Client profile updated for {client_id}: {updates.keys()}")
+        logger.info(f"Updating profile for client: {client_id}")
+        
+        kb = await get_social_content_knowledge_base()
+        
+        # Get existing profile (or fallback)
+        current_profile = await kb.get_client_profile(client_id)
+        
+        # Deep merge updates
+        updated_profile = deep_merge(current_profile, updates)
+        
+        # Save and regenerate KB
+        final_profile = await kb.update_client_profile(client_id, updated_profile)
+        
+        logger.info(f"Client profile updated and KB regenerated for {client_id}")
 
         return {
             "client_id": client_id,
             "update_status": "successful",
             "updated_fields": list(updates.keys()),
+            "profile": final_profile,
             "timestamp": datetime.utcnow().isoformat()
         }
 
@@ -329,7 +379,7 @@ async def update_client_profile(client_id: str, updates: Dict[str, Any]) -> Dict
         raise
     except Exception as e:
         logger.error(f"Failed to update client profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update client profile")
+        raise HTTPException(status_code=500, detail=f"Failed to update client profile: {str(e)}")
 
 
 @router.delete("/clients/{client_id}")
@@ -372,9 +422,7 @@ async def validate_client_data(client_data: Dict[str, Any]) -> Dict[str, Any]:
     required_fields = [
         "company_info.company_name",
         "company_info.industry",
-        "target_audience.primary_persona",
-        "content_preferences.key_messages",
-        "social_media_accounts.platforms"
+        "target_audience.primary_persona"
     ]
 
     for field_path in required_fields:
@@ -399,10 +447,14 @@ async def validate_client_data(client_data: Dict[str, Any]) -> Dict[str, Any]:
         value = client_data
         try:
             for key in keys:
-                value = value.get(key, {})
+                if not isinstance(value, dict):
+                    value = None
+                    break
+                value = value.get(key)
+            
             if not value or (isinstance(value, (list, dict)) and len(value) == 0):
                 warnings.append(f"Recommended field missing: {field_path}")
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):
             warnings.append(f"Recommended field missing: {field_path}")
 
     # Business logic validations
@@ -411,8 +463,8 @@ async def validate_client_data(client_data: Dict[str, Any]) -> Dict[str, Any]:
         errors.append("Founding year cannot be in the future")
 
     social_platforms = client_data.get("social_media_accounts", {}).get("platforms", [])
-    if len(social_platforms) == 0:
-        errors.append("At least one social media platform must be specified")
+    # if len(social_platforms) == 0:
+    #     errors.append("At least one social media platform must be specified")
 
     return {
         "valid": len(errors) == 0,

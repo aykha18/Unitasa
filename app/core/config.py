@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     wise: WiseSettings = Field(default_factory=WiseSettings)
-    stripe: StripeSettings = Field(default_factory=StripeSettings)
+    # stripe: StripeSettings = Field(default_factory=StripeSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
     chroma: ChromaSettings = Field(default_factory=ChromaSettings)
     embeddings: EmbeddingsSettings = Field(default_factory=EmbeddingsSettings)

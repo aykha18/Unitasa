@@ -11,9 +11,13 @@ RUN npm run build
 # Python backend
 FROM python:3.11-slim
 
+# Install uv for faster package installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV UV_SYSTEM_PYTHON=1
 ENV PORT=3000
 
 # Install system dependencies

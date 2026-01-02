@@ -31,8 +31,7 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-# Force rebuild after removing SQLite fallback
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application code
 COPY app/ ./app/

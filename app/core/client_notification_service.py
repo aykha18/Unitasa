@@ -190,7 +190,7 @@ class ClientNotificationService:
                 </div>
 
                 <div class="content">
-                    <p>Hello {user.name or 'there'},</p>
+                    <p>Hello {user.first_name or 'there'},</p>
 
                     <p>We detected some issues with your connected social media accounts that need your attention:</p>
         """
@@ -243,7 +243,7 @@ class ClientNotificationService:
         text_content = f"""
         Unitasa Account Alert
 
-        Hello {user.name or 'there'},
+        Hello {user.first_name or 'there'},
 
         We detected some issues with your connected social media accounts:
 

@@ -84,7 +84,10 @@ const GenerateContentPage: React.FC = () => {
             <Sparkles className="w-8 h-8 text-purple-600" />
             <h1 className="text-2xl font-bold text-gray-900">AI Content Generator</h1>
           </div>
-          <Button variant="ghost" onClick={() => window.history.pushState({}, '', '/dashboard')}>
+          <Button variant="ghost" onClick={() => {
+            window.history.pushState({}, '', '/dashboard');
+            window.dispatchEvent(new Event('navigate'));
+          }}>
             Back to Dashboard
           </Button>
         </div>

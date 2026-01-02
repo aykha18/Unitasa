@@ -99,74 +99,16 @@ class CostOptimizedAgent(ABC):
             }
         )
 
-    async def health_check(self) -> Dict[str, Any]:
-        """Check agent health and LLM connectivity"""
-        try:
-            # Quick test with minimal prompt
-            test_response = await self.generate_response(
-                "Hello",
-                task_description="health_check"
-            )
+# Alias for backward compatibility
+BaseAgent = CostOptimizedAgent
 
-            return {
-                "agent": self.name,
-                "status": "healthy" if test_response["success"] else "degraded",
-                "llm_available": test_response["success"],
-                "last_check": datetime.utcnow().isoformat()
-            }
-        except Exception as e:
-            return {
-                "agent": self.name,
-                "status": "unhealthy",
-                "error": str(e),
-                "last_check": datetime.utcnow().isoformat()
-            }
+# Agent Registry
+_agent_registry = {}
 
-
-class AgentRegistry:
-    """Registry for managing agent instances"""
-
-    def __init__(self):
-        self._agents = {}
-
-    def register(self, agent_class, name: str, **kwargs):
-        """Register an agent class"""
-        self._agents[name] = agent_class(name, **kwargs)
-
-    def get_agent(self, name: str):
-        """Get registered agent instance"""
-        return self._agents.get(name)
-
-    def list_agents(self) -> list:
-        """List all registered agents"""
-        return list(self._agents.keys())
-
-    async def health_check_all(self) -> Dict[str, Any]:
-        """Check health of all registered agents"""
-        results = {}
-        for name, agent in self._agents.items():
-            results[name] = await agent.health_check()
-        return results
-
-
-# Global agent registry
-_agent_registry = AgentRegistry()
-
-
-def get_agent_registry() -> AgentRegistry:
-    """Get global agent registry"""
+def get_agent_registry():
+    """Get the global agent registry"""
     return _agent_registry
 
-
-def register_agent(agent_class, name: str, **kwargs):
-    """Convenience function to register an agent"""
-    _agent_registry.register(agent_class, name, **kwargs)
-
-
-def get_agent(name: str):
-    """Convenience function to get an agent"""
-    return _agent_registry.get_agent(name)
-
-class BaseAgent(CostOptimizedAgent):
-    def __init__(self, name: str, *args, **kwargs):
-        super().__init__(name)
+def register_agent(name: str, agent_instance: Any):
+    """Register an agent instance"""
+    _agent_registry[name] = agent_instance

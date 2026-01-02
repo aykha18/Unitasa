@@ -5,12 +5,13 @@ Chat API endpoints for conversational AI agent system
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from fastapi import APIRouter, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Depends, Request, WebSocket, WebSocketDisconnect, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db, get_sync_db
 from app.core.chat_service import ChatService
+from app.core.jwt_handler import JWTHandler
 from app.models.chat_session import ChatSession, ChatMessage
 from app.models.lead import Lead
 
@@ -615,10 +616,26 @@ async def get_lead_chat_history(
 
 # WebSocket endpoint for real-time chat
 @router.websocket("/sessions/{session_id}/ws")
-async def websocket_chat_endpoint(websocket: WebSocket, session_id: str, db: Session = Depends(get_db)):
+async def websocket_chat_endpoint(
+    websocket: WebSocket, 
+    session_id: str, 
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
     """
     WebSocket endpoint for real-time chat communication
     """
+    # Authenticate user if token provided
+    user_id = None
+    if token:
+        try:
+            payload = JWTHandler.verify_token(token)
+            user_id = payload.get("sub")
+        except Exception as e:
+            # Invalid token - close connection with policy violation
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
     await manager.connect(websocket, session_id)
     chat_service = ChatService(db)
     
@@ -631,6 +648,15 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str, db: Ses
                 "message": "Chat session not found"
             })
             await websocket.close()
+            return
+            
+        # If authenticated, verify user has access to this session
+        if user_id and session.user_id and str(session.user_id) != str(user_id):
+            await websocket.send_json({
+                "type": "error",
+                "message": "Unauthorized access to this session"
+            })
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         
         # Send connection confirmation

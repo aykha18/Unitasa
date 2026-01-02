@@ -100,6 +100,17 @@ class VectorStoreManager:
             print(f"❌ Similarity search with scores failed: {e}")
             return []
 
+
+# Singleton instance
+_vector_store_manager_instance = None
+
+def get_vector_store_manager() -> VectorStoreManager:
+    """Get singleton instance of VectorStoreManager"""
+    global _vector_store_manager_instance
+    if _vector_store_manager_instance is None:
+        _vector_store_manager_instance = VectorStoreManager()
+    return _vector_store_manager_instance
+
     async def delete_documents(self, ids: List[str]):
         """Delete documents by IDs"""
         if not self.vectorstore:

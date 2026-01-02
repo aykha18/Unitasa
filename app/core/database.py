@@ -96,6 +96,19 @@ async def get_db():
             await session.close()
 
 
+@asynccontextmanager
+async def get_db_session():
+    """Context manager for database session (for non-FastAPI usage)"""
+    # Initialize database if not already done
+    engine, AsyncSessionLocal = init_database()
+    
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
 async def init_db():
     """Initialize database tables"""
     # Initialize database if not already done

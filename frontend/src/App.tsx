@@ -229,6 +229,15 @@ function App() {
             <GenerateContentPage />
           </React.Suspense>
         );
+      case '/settings':
+      case '/settings/integrations':
+      case '/settings/team':
+        const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+        return (
+          <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <SettingsPage />
+          </React.Suspense>
+        );
       case '/brand-profile':
         const BrandProfilePage = React.lazy(() => import('./pages/BrandProfilePage'));
         return (

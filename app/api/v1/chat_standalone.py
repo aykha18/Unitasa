@@ -5,8 +5,10 @@ Standalone Chat API endpoints without database dependencies
 import uuid
 from typing import Dict, Any, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect, Query, status
 from pydantic import BaseModel
+
+from app.core.jwt_handler import JWTHandler
 
 
 async def generate_contextual_response(user_content: str) -> str:
@@ -460,10 +462,23 @@ async def send_chat_message_fallback(
 
 
 @router.websocket("/ws/{session_id}")
-async def websocket_chat_endpoint(websocket: WebSocket, session_id: str):
+async def websocket_chat_endpoint(
+    websocket: WebSocket, 
+    session_id: str,
+    token: Optional[str] = Query(None)
+):
     """
     Basic WebSocket endpoint for chat (standalone version)
     """
+    # Authenticate user if token provided
+    if token:
+        try:
+            JWTHandler.verify_token(token)
+        except Exception:
+            # Invalid token - close connection with policy violation
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
     await websocket.accept()
     
     try:

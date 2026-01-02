@@ -271,7 +271,6 @@ async def lifespan(app: FastAPI):
         try:
             # Suppress asyncpg warnings during shutdown
             import warnings
-            import asyncio
             
             # Filter out asyncpg connection termination warnings
             warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*was never awaited.*")

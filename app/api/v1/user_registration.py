@@ -133,14 +133,17 @@ async def register_user(
         print(f"[REGISTRATION] User created successfully with ID: {new_user.id}")
 
         # Send welcome email
-        print(f"[REGISTRATION] Skipping welcome email sending for debugging")
-        # email_service = EmailService()
-        # email_sent, email_message = email_service.send_welcome_email(new_user)
-
-        # if not email_sent:
-        #     print(f"[REGISTRATION] Failed to send welcome email: {email_message}")
-        # else:
-        #     print(f"[REGISTRATION] Welcome email sent successfully to {new_user.email}")
+        print(f"[REGISTRATION] Attempting to send welcome email to {new_user.email}")
+        try:
+            email_service = EmailService()
+            email_sent, email_message = email_service.send_welcome_email(new_user)
+            
+            if not email_sent:
+                print(f"[REGISTRATION] Failed to send welcome email: {email_message}")
+            else:
+                print(f"[REGISTRATION] Welcome email sent successfully to {new_user.email}")
+        except Exception as e:
+             print(f"[REGISTRATION] Error sending welcome email (non-blocking): {e}")
 
         print(f"[REGISTRATION] Registration completed successfully for {new_user.email}")
         return UserRegistrationResponse(

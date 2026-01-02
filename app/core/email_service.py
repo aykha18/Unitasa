@@ -61,10 +61,16 @@ class EmailService:
             msg.attach(html_part)
             
             # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
+            try:
+                with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                    server.starttls()
+                    server.login(self.smtp_username, self.smtp_password)
+                    server.send_message(msg)
+            except OSError as e:
+                 print(f"[EMAIL_SERVICE] Network error sending email: {e}")
+                 if "Network is unreachable" in str(e) or "[Errno 101]" in str(e):
+                     return False, f"Network unreachable. Please check server connectivity and firewall settings for port {self.smtp_port}."
+                 raise e
             
             return True, "Email sent successfully"
             

@@ -69,10 +69,10 @@ class EmailSettings(BaseSettings):
     from_name: str = "Unitasa"
 
 
-class StripeSettings(BaseSettings):
-    """Stripe payment configuration"""
-    api_key: str = Field(default_factory=lambda: os.getenv("STRIPE_API_KEY", ""))
-    webhook_secret: str = Field(default_factory=lambda: os.getenv("STRIPE_WEBHOOK_SECRET", ""))
+# class StripeSettings(BaseSettings):
+#     """Stripe payment configuration"""
+#     api_key: str = Field(default_factory=lambda: os.getenv("STRIPE_API_KEY", ""))
+#     webhook_secret: str = Field(default_factory=lambda: os.getenv("STRIPE_WEBHOOK_SECRET", ""))
 
 
 class RedisSettings(BaseSettings):

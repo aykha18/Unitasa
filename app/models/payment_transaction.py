@@ -18,9 +18,9 @@ class PaymentTransaction(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     
     # Stripe fields
-    stripe_payment_intent_id = Column(String(255), index=True)
-    stripe_charge_id = Column(String(255), index=True)
-    stripe_customer_id = Column(String(255), index=True)
+    # stripe_payment_intent_id = Column(String(255), index=True)
+    # stripe_charge_id = Column(String(255), index=True)
+    # stripe_customer_id = Column(String(255), index=True)
     
     # Razorpay fields
     razorpay_order_id = Column(String(255), index=True)

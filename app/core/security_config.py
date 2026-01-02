@@ -96,8 +96,8 @@ class SecurityConfig:
         if self.csp_frame_src is None:
             self.csp_frame_src = [
                 "'self'",
-                "https://js.stripe.com",
-                "https://hooks.stripe.com"
+                # "https://js.stripe.com",
+                # "https://hooks.stripe.com"
             ]
     
     def get_csp_header(self, nonce: str = None) -> str:

@@ -54,7 +54,8 @@ async def detailed_status(db: AsyncSession = Depends(get_db)):
         "features": {
             "ai_capabilities": True,
             "assessment_flow": True,
-            "payment_processing": bool(settings.stripe.secret_key),
+            # "payment_processing": bool(settings.stripe.secret_key),
+            "payment_processing": False, # Stripe disabled
             "email_service": bool(settings.email.sendgrid_api_key),
             "chat_widget": True
         },

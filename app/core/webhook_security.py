@@ -8,7 +8,7 @@ import hashlib
 import time
 import logging
 from typing import Dict, Any, Optional, Tuple
-import stripe
+# import stripe
 from fastapi import Request, HTTPException
 
 from app.core.config import get_settings
@@ -26,44 +26,44 @@ class WebhookSecurityManager:
     def __init__(self):
         self.fraud_detector = FraudDetectionService()
         self.webhook_secrets = {
-            "stripe": settings.stripe.webhook_secret,
+            # "stripe": settings.stripe.webhook_secret,
             # Add other webhook secrets as needed
         }
     
-    async def validate_stripe_webhook(
-        self,
-        request: Request,
-        payload: str,
-        signature: str
-    ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
-        """
-        Validate Stripe webhook with comprehensive security checks
-        """
-        try:
-            # Verify webhook signature
-            event = stripe.Webhook.construct_event(
-                payload,
-                signature,
-                self.webhook_secrets["stripe"]
-            )
-            
-            # Additional security validations
-            security_result = await self._perform_webhook_security_checks(
-                request, event, "stripe"
-            )
-            
-            if not security_result["is_secure"]:
-                logger.warning(f"Webhook security check failed: {security_result['reason']}")
-                return False, None, security_result["reason"]
-            
-            return True, event, None
-            
-        except stripe.error.SignatureVerificationError as e:
-            logger.warning(f"Invalid Stripe webhook signature: {e}")
-            return False, None, "Invalid webhook signature"
-        except Exception as e:
-            logger.error(f"Webhook validation error: {e}")
-            return False, None, "Webhook validation failed"
+    # async def validate_stripe_webhook(
+    #     self,
+    #     request: Request,
+    #     payload: str,
+    #     signature: str
+    # ) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
+    #     """
+    #     Validate Stripe webhook with comprehensive security checks
+    #     """
+    #     try:
+    #         # Verify webhook signature
+    #         event = stripe.Webhook.construct_event(
+    #             payload,
+    #             signature,
+    #             self.webhook_secrets["stripe"]
+    #         )
+    #         
+    #         # Additional security validations
+    #         security_result = await self._perform_webhook_security_checks(
+    #             request, event, "stripe"
+    #         )
+    #         
+    #         if not security_result["is_secure"]:
+    #             logger.warning(f"Webhook security check failed: {security_result['reason']}")
+    #             return False, None, security_result["reason"]
+    #         
+    #         return True, event, None
+    #         
+    #     except stripe.error.SignatureVerificationError as e:
+    #         logger.warning(f"Invalid Stripe webhook signature: {e}")
+    #         return False, None, "Invalid webhook signature"
+    #     except Exception as e:
+    #         logger.error(f"Webhook validation error: {e}")
+    #         return False, None, "Webhook validation failed"
     
     async def _perform_webhook_security_checks(
         self,

@@ -69,6 +69,29 @@ class EmailSettings(BaseSettings):
     from_name: str = "Unitasa"
 
 
+class StripeSettings(BaseSettings):
+    """Stripe payment configuration"""
+    api_key: str = Field(default_factory=lambda: os.getenv("STRIPE_API_KEY", ""))
+    webhook_secret: str = Field(default_factory=lambda: os.getenv("STRIPE_WEBHOOK_SECRET", ""))
+
+
+class RedisSettings(BaseSettings):
+    """Redis configuration"""
+    url: str = Field(default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379"))
+
+
+class ChromaSettings(BaseSettings):
+    """ChromaDB configuration"""
+    collection_name: str = "marketing_knowledge"
+    persist_directory: str = "./chroma_db"
+
+
+class EmbeddingsSettings(BaseSettings):
+    """Embeddings configuration"""
+    model: str = "text-embedding-3-large"
+    openai_api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
+
+
 class Settings(BaseSettings):
     """Main application settings"""
     app_name: str = "Unitasa"

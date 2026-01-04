@@ -95,27 +95,56 @@ class ClientOnboardingResponse(BaseModel):
 
 class ClientProfileResponse(BaseModel):
     client_id: str
-    brand_profile: Dict[str, Any]
+    company_info: Dict[str, Any]
+    brand_profile: Optional[Dict[str, Any]] = None
     audience_profile: Dict[str, Any]
     content_strategy: Dict[str, Any]
+    features: Optional[List[Any]] = None
+    how_it_works: Optional[List[Any]] = None
+    assessments: Optional[List[Any]] = None
 
 class UpdateClientProfileRequest(BaseModel):
     company_info: CompanyInfo
     target_audience: TargetAudience
     content_preferences: ContentPreferences
+    features: Optional[List[Any]] = None
+    how_it_works: Optional[List[Any]] = None
+    assessments: Optional[List[Any]] = None
 
-@router.get("/profile/{client_id}")
-async def get_client_profile(client_id: str):
-    """Get the current profile for a client (loaded or fallback)"""
-    kb = await get_social_content_knowledge_base()
-    profile = await kb.get_client_profile(client_id)
+@router.get("/profile/{client_id}/knowledge")
+async def get_client_knowledge_base(client_id: str):
+    """Get knowledge base documents for a client"""
+    from app.rag.vectorstore_manager import get_vector_store_manager
     
-    return {
-        "client_id": client_id,
-        "brand_profile": profile.get("company_info", {}),
-        "audience_profile": profile.get("target_audience", {}),
-        "content_strategy": profile.get("content_strategy", {})
-    }
+    try:
+        manager = await get_vector_store_manager()
+        documents = await manager.get_client_documents(client_id)
+        
+        # Simplify for frontend
+        return {
+            "client_id": client_id,
+            "document_count": len(documents),
+            "documents": [
+                {
+                    "id": doc["id"],
+                    "title": doc["metadata"].get("title", "Untitled"),
+                    "source": doc["metadata"].get("source", "unknown"),
+                    "category": doc["metadata"].get("category", "General"),
+                    "platform": doc["metadata"].get("platform", "General"),
+                    "content_preview": doc["content"][:200] + "..." if len(doc["content"]) > 200 else doc["content"],
+                    "added_at": doc["metadata"].get("added_at")
+                }
+                for doc in documents
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to get knowledge base: {e}")
+        return {
+            "client_id": client_id,
+            "document_count": 0,
+            "documents": [],
+            "error": str(e)
+        }
 
 @router.put("/profile/{client_id}")
 async def update_client_profile(client_id: str, request: UpdateClientProfileRequest):
@@ -137,6 +166,13 @@ async def update_client_profile(client_id: str, request: UpdateClientProfileRequ
         current_profile["content_strategy"]["tone"] = request.content_preferences.content_tone
         current_profile["content_strategy"]["themes"] = request.content_preferences.key_messages
         
+        if request.features is not None:
+            current_profile["features"] = request.features
+        if request.how_it_works is not None:
+            current_profile["how_it_works"] = request.how_it_works
+        if request.assessments is not None:
+            current_profile["assessments"] = request.assessments
+            
         updated_profile = await kb.update_client_profile(client_id, current_profile)
         
         return {
@@ -294,6 +330,113 @@ async def onboard_client(
 
 
 
+@router.get("/profile/{client_id}", response_model=ClientProfileResponse)
+async def get_client_profile(client_id: str):
+    """Get client profile"""
+    try:
+        kb = await get_social_content_knowledge_base()
+        profile = await kb.get_client_profile(client_id)
+        
+        # Ensure company_info exists and populate from brand_profile if needed
+        if not isinstance(profile.get("company_info"), dict) or len(profile.get("company_info") or {}) == 0:
+            bp = profile.get("brand_profile", {})
+            if isinstance(bp, dict) and len(bp) > 0:
+                ci = {}
+                for key in [
+                    "company_name",
+                    "brand_name",
+                    "industry",
+                    "company_size",
+                    "founding_year",
+                    "headquarters",
+                    "website",
+                    "mission_statement",
+                    "brand_voice",
+                ]:
+                    val = bp.get(key)
+                    if val is not None:
+                        ci[key] = val
+                profile["company_info"] = ci
+            else:
+                profile["company_info"] = {}
+
+        # Normalize content strategy themes for frontend
+        if isinstance(profile.get("content_strategy"), dict):
+            cs = profile["content_strategy"]
+            if "themes" not in cs and "content_themes" in cs:
+                cs["themes"] = cs.get("content_themes") or []
+            profile["content_strategy"] = cs
+        
+        # Map audience pain_points for frontend if nested under primary_persona.psychographics
+        if isinstance(profile.get("audience_profile"), dict):
+            ap = profile["audience_profile"]
+            if "pain_points" not in ap:
+                pp = (
+                    (ap.get("primary_persona") or {})
+                    .get("psychographics", {})
+                    .get("pain_points")
+                )
+                if isinstance(pp, list):
+                    ap["pain_points"] = pp
+            profile["audience_profile"] = ap
+
+        # Normalize how_it_works for frontend (expects objects with title/description)
+        if "how_it_works" in profile and isinstance(profile["how_it_works"], list):
+            normalized_steps = []
+            for i, item in enumerate(profile["how_it_works"]):
+                if isinstance(item, str):
+                    normalized_steps.append({
+                        "step": i + 1,
+                        "title": item,
+                        "description": ""
+                    })
+                elif isinstance(item, dict):
+                    # Ensure step number exists
+                    if "step" not in item:
+                        item["step"] = i + 1
+                    normalized_steps.append(item)
+            profile["how_it_works"] = normalized_steps
+
+        # Normalize features for frontend
+        if "features" in profile and isinstance(profile["features"], list):
+            normalized_features = []
+            for item in profile["features"]:
+                if isinstance(item, str):
+                    normalized_features.append({
+                        "title": item,
+                        "description": ""
+                    })
+                elif isinstance(item, dict):
+                    normalized_features.append(item)
+            profile["features"] = normalized_features
+
+        # If essential sections are missing, try loading full profile from disk
+        try:
+            needs_enrichment = (
+                not profile.get("features") and
+                not profile.get("how_it_works") and
+                not profile.get("audience_profile")
+            )
+            if needs_enrichment:
+                import os, json
+                data_dir = os.path.join(os.getcwd(), "data", "clients")
+                file_path = os.path.join(data_dir, f"{client_id}.json")
+                if os.path.exists(file_path):
+                    with open(file_path, "r") as f:
+                        disk_profile = json.load(f)
+                    # Merge disk profile into current profile
+                    for key in ["company_info", "brand_profile", "audience_profile", "content_strategy", "features", "how_it_works", "assessments"]:
+                        if disk_profile.get(key) and not profile.get(key):
+                            profile[key] = disk_profile[key]
+        except Exception:
+            pass
+
+        return profile
+    except Exception as e:
+        logger.error(f"Failed to get client profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/clients", response_model=List[Dict[str, Any]])
 async def list_clients(status: Optional[str] = None) -> List[Dict[str, Any]]:
     """List all clients with optional status filter"""
@@ -333,53 +476,6 @@ async def list_clients(status: Optional[str] = None) -> List[Dict[str, Any]]:
         raise HTTPException(status_code=500, detail="Failed to retrieve clients")
 
 
-def deep_merge(target: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Deep merge updates into target dictionary"""
-    for key, value in updates.items():
-        if key in target and isinstance(target[key], dict) and isinstance(value, dict):
-            deep_merge(target[key], value)
-        else:
-            target[key] = value
-    return target
-
-
-@router.put("/clients/{client_id}/profile")
-async def update_client_profile(client_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Update client profile with new information"""
-
-    try:
-        # Validate client exists
-        if not client_id.startswith("client_"):
-            raise HTTPException(status_code=404, detail="Client not found")
-
-        logger.info(f"Updating profile for client: {client_id}")
-        
-        kb = await get_social_content_knowledge_base()
-        
-        # Get existing profile (or fallback)
-        current_profile = await kb.get_client_profile(client_id)
-        
-        # Deep merge updates
-        updated_profile = deep_merge(current_profile, updates)
-        
-        # Save and regenerate KB
-        final_profile = await kb.update_client_profile(client_id, updated_profile)
-        
-        logger.info(f"Client profile updated and KB regenerated for {client_id}")
-
-        return {
-            "client_id": client_id,
-            "update_status": "successful",
-            "updated_fields": list(updates.keys()),
-            "profile": final_profile,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to update client profile: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to update client profile: {str(e)}")
 
 
 @router.delete("/clients/{client_id}")
@@ -566,24 +662,74 @@ async def setup_client_knowledge_base(client_profile: Dict[str, Any]) -> Dict[st
 
 
 async def generate_initial_content_samples(client_id: str, client_profile: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Generate initial content samples for client review"""
+    """Generate initial content samples for client review using the Knowledge Base"""
 
     try:
-        # This would use the ClientAdaptiveContentGenerator
-        # For now, return mock samples
+        # Log profile data for debugging
+        features = client_profile.get("features", [])
+        how_it_works = client_profile.get("how_it_works", [])
+        logger.info(f"Generating samples for {client_id}. Features: {len(features)}, Steps: {len(how_it_works)}")
+        if not features:
+            logger.warning(f"Client profile {client_id} has no features!")
+        
+        # Use the SocialContentKnowledgeBase to generate real, customized samples
+        kb = await get_social_content_knowledge_base()
+        
+        # CRITICAL: Initialize the KB with the current profile data immediately
+        # This ensures the KB has the features/steps in memory even if not yet saved to disk
+        await kb.create_client_kb(client_id, client_profile)
+        
+        real_samples = []
+        
+        # 1. LinkedIn Educational Post
+        try:
+            linkedin_content = await kb.get_client_content(client_id, {
+                "platform": "linkedin",
+                "content_type": "educational",
+                "topic": "industry trends"
+            })
+            if linkedin_content:
+                real_samples.extend(linkedin_content[:1])
+            else:
+                logger.warning(f"No LinkedIn content generated for {client_id}")
+        except Exception as e:
+            logger.warning(f"Failed to generate LinkedIn sample: {e}")
+
+        # 2. Twitter Engagement Post
+        try:
+            twitter_content = await kb.get_client_content(client_id, {
+                "platform": "twitter",
+                "content_type": "engagement",
+                "topic": "community question"
+            })
+            if twitter_content:
+                real_samples.extend(twitter_content[:1])
+            else:
+                logger.warning(f"No Twitter content generated for {client_id}")
+        except Exception as e:
+            logger.warning(f"Failed to generate Twitter sample: {e}")
+
+        if real_samples:
+            return real_samples
+
+        # Fallback to mock samples if generation fails or returns nothing
+        logger.warning("Falling back to mock samples due to generation failure or empty result")
+        
+        company_name = client_profile.get("company_info", {}).get("company_name", "Our Company")
+        industry = client_profile.get("company_info", {}).get("industry", "industry")
 
         samples = [
             {
                 "platform": "LinkedIn",
                 "content_type": "educational",
-                "content": f"🚀 How {client_profile['company_info']['company_name']} is transforming the {client_profile['company_info']['industry']} landscape...",
+                "content": f"🚀 How {company_name} is transforming the {industry} landscape...",
                 "hashtags": ["#Business", "#Innovation", "#Leadership"],
                 "character_count": 245
             },
             {
                 "platform": "Twitter",
                 "content_type": "engagement",
-                "content": f"What's your biggest challenge in {client_profile['company_info']['industry']}? We're here to help! #Business #Growth",
+                "content": f"What's your biggest challenge in {industry}? We're here to help! #Business #Growth",
                 "hashtags": ["#Business", "#Growth"],
                 "character_count": 128
             }

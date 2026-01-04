@@ -58,6 +58,18 @@ Provide concise, factual summaries that capture the essence of the business."""
                 "error": f"Unsupported ingestion type: {task_type}"
             }
 
+    async def _fetch_with_jina(self, url: str) -> Optional[str]:
+        """Fetch website content using Jina Reader (for SPAs)"""
+        try:
+            jina_url = f"https://r.jina.ai/{url}"
+            response = await self.client.get(jina_url)
+            if response.status_code == 200:
+                return response.text
+            return None
+        except Exception as e:
+            logger.warning(f"Jina Reader fetch failed: {e}")
+            return None
+
     async def _ingest_website(self, task_input: Dict[str, Any]) -> Dict[str, Any]:
         """
         Ingest and analyze website content
@@ -74,6 +86,27 @@ Provide concise, factual summaries that capture the essence of the business."""
 
             # Extract and clean content
             content = self._extract_content(crawl_result["html"])
+            
+            # Check if content is insufficient (SPA shell)
+            is_spa_shell = False
+            if content:
+                lower_content = content.lower()
+                # Heuristic for SPA shells or empty pages
+                if len(content) < 1000 or "enable javascript" in lower_content or "you need to enable javascript" in lower_content:
+                    is_spa_shell = True
+            
+            if not content or is_spa_shell:
+                headless_content = await self._render_with_headless(url)
+                if headless_content:
+                    content = self._extract_content(headless_content) or headless_content
+            
+            if not content or (is_spa_shell and len(content) < 1000):
+                logger.info(f"Content seems to be SPA shell or sparse, trying Jina Reader for {url}")
+                jina_content = await self._fetch_with_jina(url)
+                if jina_content:
+                    content = jina_content
+                    logger.info("Successfully retrieved content via Jina Reader")
+
             if not content:
                 return {"success": False, "error": "No content extracted from website"}
 
@@ -103,14 +136,28 @@ Provide concise, factual summaries that capture the essence of the business."""
             if not parsed.scheme or not parsed.netloc:
                 return {"success": False, "error": "Invalid URL format"}
 
-            # Make request
             response = await self.client.get(url)
             response.raise_for_status()
+            base_html = response.text
+
+            extra_paths = ["/about", "/pricing", "/product", "/services", "/features", "/solutions"]
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            extra_htmls: List[str] = []
+            for path in extra_paths:
+                extra_url = base + path
+                try:
+                    r = await self.client.get(extra_url)
+                    if r.status_code == 200 and len(r.text) > 2000:
+                        extra_htmls.append(r.text)
+                except Exception:
+                    pass
+
+            combined_html = base_html + ("\n".join(extra_htmls) if extra_htmls else "")
 
             return {
                 "success": True,
                 "url": url,
-                "html": response.text,
+                "html": combined_html,
                 "status_code": response.status_code,
                 "content_type": response.headers.get("content-type", "")
             }
@@ -124,13 +171,42 @@ Provide concise, factual summaries that capture the essence of the business."""
 
     def _extract_content(self, html: str) -> Optional[str]:
         """
-        Extract clean text content from HTML
+        Extract clean text content from HTML, including meta tags and JSON-LD
         """
         try:
             soup = BeautifulSoup(html, 'html.parser')
+            
+            extracted_parts = []
 
-            # Remove script and style elements
-            for element in soup(["script", "style", "nav", "footer", "header"]):
+            # 1. Extract Meta Tags (critical for SPAs)
+            meta_desc = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
+            if meta_desc and meta_desc.get('content'):
+                extracted_parts.append(f"META DESCRIPTION: {meta_desc['content']}")
+                
+            title = soup.title.string if soup.title else ""
+            if title:
+                extracted_parts.append(f"PAGE TITLE: {title}")
+
+            # 2. Extract JSON-LD and other Data Scripts
+            json_ld = soup.find_all('script', type='application/ld+json')
+            for script in json_ld:
+                if script.string:
+                    extracted_parts.append(f"STRUCTURED DATA: {script.string}")
+            
+            # Extract Next.js or other hydration data
+            next_data = soup.find('script', id='__NEXT_DATA__')
+            if next_data and next_data.string:
+                extracted_parts.append(f"APP DATA: {next_data.string[:5000]}") # Truncate to avoid massive payloads
+
+            # 3. Extract Main Content
+            # Remove script and style elements (but keep JSON-LD which we already handled)
+            for element in soup(["style", "nav", "footer", "header"]):
+                element.decompose()
+            
+            # Don't decompose script tags yet as they might contain config data, 
+            # but for text extraction we usually skip them. 
+            # We already extracted LD-JSON.
+            for element in soup("script"):
                 element.decompose()
 
             # Extract text from main content areas
@@ -139,30 +215,64 @@ Provide concise, factual summaries that capture the essence of the business."""
                 '.main-content', '.post-content', '.entry-content'
             ]
 
-            content = None
+            body_content = None
             for selector in content_selectors:
                 element = soup.select_one(selector)
                 if element:
-                    content = element.get_text(separator=' ', strip=True)
+                    body_content = element.get_text(separator=' ', strip=True)
                     break
 
             # Fallback to body text
-            if not content:
+            if not body_content:
                 body = soup.find('body')
                 if body:
-                    content = body.get_text(separator=' ', strip=True)
+                    body_content = body.get_text(separator=' ', strip=True)
+            
+            if body_content:
+                extracted_parts.append(f"BODY CONTENT: {body_content}")
+
+            # Combine all parts
+            full_content = "\n\n".join(extracted_parts)
 
             # Clean up whitespace
-            if content:
-                content = ' '.join(content.split())
+            if full_content:
+                full_content = ' '.join(full_content.split())
                 # Limit content length
-                if len(content) > 50000:
-                    content = content[:50000] + "..."
+                if len(full_content) > 50000:
+                    full_content = full_content[:50000] + "..."
 
-            return content
+            return full_content
 
         except Exception as e:
             logger.error(f"Content extraction failed: {e}")
+            return None
+
+    async def _render_with_headless(self, url: str) -> Optional[str]:
+        try:
+            try:
+                from playwright.async_api import async_playwright
+                async with async_playwright() as p:
+                    browser = await p.chromium.launch(headless=True)
+                    context = await browser.new_context()
+                    page = await context.new_page()
+                    await page.goto(url, wait_until="networkidle")
+                    content = await page.content()
+                    await context.close()
+                    await browser.close()
+                    return content
+            except Exception:
+                try:
+                    import pyppeteer
+                    from pyppeteer import launch
+                    browser = await launch(headless=True, args=["--no-sandbox"])
+                    page = await browser.newPage()
+                    await page.goto(url, {"waitUntil": "networkidle2"})
+                    content = await page.content()
+                    await browser.close()
+                    return content
+                except Exception:
+                    return None
+        except Exception:
             return None
 
     async def _summarize_content(self, content: str, url: str) -> Dict[str, Any]:
@@ -183,6 +293,7 @@ Please provide a structured analysis in JSON format:
     "industry": "industry/sector",
     "brand_tone": "communication style",
     "key_features": ["feature1", "feature2"],
+    "how_it_works": ["step 1", "step 2", "step 3"],
     "summary": "2-3 sentence overview"
 }}
 """

@@ -36,9 +36,19 @@ interface Assessment {
   description: string;
 }
 
+interface KnowledgeDocument {
+  id: string;
+  title: string;
+  category: string;
+  source: string;
+  content_preview: string;
+  added_at: string;
+}
+
 interface BrandProfile {
   client_id: string;
-  brand_profile: CompanyInfo;
+  company_info: CompanyInfo;
+  brand_profile: any;
   audience_profile: TargetAudience;
   content_strategy: ContentStrategy;
   features?: Feature[];
@@ -50,6 +60,7 @@ const BrandProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<BrandProfile | null>(null);
+  const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeDocument[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -62,6 +73,25 @@ const BrandProfilePage: React.FC = () => {
   const [features, setFeatures] = useState<Feature[]>([]);
   const [howItWorks, setHowItWorks] = useState<Step[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  
+  // State for expanded documents
+  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
+
+  const toggleDocExpansion = (id: string) => {
+    const newExpanded = new Set(expandedDocs);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedDocs(newExpanded);
+  };
+
+  // Custom navigation function
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new Event('navigate'));
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -72,6 +102,16 @@ const BrandProfilePage: React.FC = () => {
     setError(null);
     // Fetch profile
     try {
+      // Allow client_id via query param for direct navigation/testing
+      const params = new URLSearchParams(window.location.search);
+      const queryClientId = params.get('client_id');
+      if (queryClientId) {
+        try {
+          localStorage.setItem('current_client_id', queryClientId);
+        } catch (e) {
+          console.warn('Failed to persist client_id to localStorage', e);
+        }
+      }
       let clientId = localStorage.getItem('current_client_id');
       if (clientId && (clientId.startsWith('"') || clientId.startsWith('{'))) {
         try { clientId = JSON.parse(clientId); } catch (e) {}
@@ -88,14 +128,24 @@ const BrandProfilePage: React.FC = () => {
       setProfile(data);
       
       // Initialize form
-      setCompanyName(data.brand_profile.company_name || '');
-      setIndustry(data.brand_profile.industry || 'General');
-      setBrandVoice(data.brand_profile.brand_voice || 'Professional');
-      setPainPoints((data.audience_profile.pain_points || []).join(', '));
-      setThemes((data.content_strategy.themes || []).join(', '));
+      setCompanyName(data.company_info?.company_name || '');
+      setIndustry(data.company_info?.industry || 'General');
+      setBrandVoice(data.company_info?.brand_voice || 'Professional');
+      setPainPoints((data.audience_profile?.pain_points || []).join(', '));
+      setThemes((data.content_strategy?.themes || []).join(', '));
       setFeatures(data.features || []);
       setHowItWorks(data.how_it_works || []);
       setAssessments(data.assessments || []);
+      
+      // Fetch knowledge base
+      try {
+        const kbRes = await apiClient.get(`/api/v1/clients/profile/${clientId}/knowledge`);
+        if (kbRes.data && kbRes.data.documents) {
+          setKnowledgeDocuments(kbRes.data.documents);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch knowledge base", e);
+      }
       
     } catch (e) {
       setError("Failed to load profile.");
@@ -114,7 +164,7 @@ const BrandProfilePage: React.FC = () => {
     try {
       const updatedProfile = {
         company_info: {
-          ...profile.brand_profile,
+          ...profile.company_info,
           company_name: companyName,
           industry: industry,
           brand_voice: brandVoice
@@ -159,8 +209,9 @@ const BrandProfilePage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-              <ArrowLeft className="w-5 h-5" />
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="w-5 h-5 mr-2" />
+              Back to Dashboard
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Brand Knowledge Base</h1>
@@ -411,6 +462,56 @@ const BrandProfilePage: React.FC = () => {
                 </div>
               ))}
               {assessments.length === 0 && <p className="text-gray-500 italic text-center py-4">No assessments added yet.</p>}
+            </div>
+          </Card>
+
+          {/* Knowledge Base / RAG Analysis */}
+          <Card className="p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <List className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Knowledge Base Analysis</h2>
+                <p className="text-sm text-gray-500">The AI uses these documents to understand your business.</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              {knowledgeDocuments.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {knowledgeDocuments.map((doc, index) => (
+                    <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-900">{doc.title}</h3>
+                        <span className="text-xs px-2 py-1 bg-gray-200 rounded-full text-gray-700">{doc.category}</span>
+                      </div>
+                      <div className="relative">
+                        <p className={`text-sm text-gray-600 mb-2 whitespace-pre-wrap ${expandedDocs.has(doc.id) ? '' : 'line-clamp-3'}`}>
+                          {doc.content_preview}
+                        </p>
+                        {doc.content_preview.length > 150 && (
+                          <button 
+                            onClick={() => toggleDocExpansion(doc.id)}
+                            className="text-xs text-purple-600 font-medium hover:text-purple-800 focus:outline-none mb-2"
+                          >
+                            {expandedDocs.has(doc.id) ? 'Show Less' : 'Show More'}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-gray-500 border-t pt-2 mt-2">
+                        <span>Source: {doc.source}</span>
+                        {doc.added_at && <span>Added: {new Date(doc.added_at).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <p>No knowledge base documents found.</p>
+                  <p className="text-xs mt-1">The AI is relying solely on the profile settings above.</p>
+                </div>
+              )}
             </div>
           </Card>
         </div>

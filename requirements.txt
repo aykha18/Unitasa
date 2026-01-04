@@ -64,3 +64,4 @@ tiktoken==0.5.2
 beautifulsoup4==4.12.2
 sentence-transformers==2.2.2
 structlog==23.2.0
+playwright==1.45.0

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Card, Input } from '../components/ui';
 import apiClient from '../services/api';
 import { Globe, Building2, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
@@ -21,6 +21,40 @@ const ClientOnboardingPage: React.FC = () => {
 
   const [result, setResult] = useState<OnboardingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadExistingData = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const queryClientId = params.get('client_id');
+        if (queryClientId) {
+          localStorage.setItem('current_client_id', queryClientId);
+        }
+        let savedClientId = localStorage.getItem('current_client_id');
+        if (savedClientId && (savedClientId.startsWith('"') || savedClientId.startsWith('{'))) {
+          try { savedClientId = JSON.parse(savedClientId); } catch (e) {}
+        }
+        if (savedClientId) {
+          const clientId = savedClientId.replace(/^"|"$/g, '');
+          const response = await apiClient.get(`/api/v1/clients/profile/${clientId}`);
+          const data = response.data || {};
+          const ci = data.company_info || {};
+          const bp = data.brand_profile || {};
+          setFormData(prev => ({
+            ...prev,
+            website: ci.website || bp.website || '',
+            companyName: ci.company_name || bp.company_name || '',
+            industry: ci.industry || bp.industry || ''
+          }));
+        }
+      } catch (err) {
+        // Silent fail if no profile found
+        console.log('No existing profile loaded');
+      }
+    };
+    
+    loadExistingData();
+  }, []);
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);

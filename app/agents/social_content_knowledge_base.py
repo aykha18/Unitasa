@@ -25,7 +25,11 @@ try:
     VECTOR_STORE_AVAILABLE = True
 except ImportError:
     VECTOR_STORE_AVAILABLE = False
-    get_vector_store_manager = None
+    
+    # Define no-op mocks if imports fail
+    async def get_vector_store_manager():
+        return None
+        
     ContentIngestionService = None
 
 logger = structlog.get_logger(__name__)
@@ -297,6 +301,84 @@ class SocialContentKnowledgeBase:
 
         logger.info(f"Initialized {len(base_templates)} base content templates")
 
+    async def get_client_knowledge_base(self, client_id: str) -> Optional[ClientKnowledgeBase]:
+        """Get knowledge base for a specific client"""
+        # Try to load from memory first
+        if client_id in self.client_knowledge_bases:
+            return self.client_knowledge_bases[client_id]
+        
+        # Try to load from disk if not in memory
+        await self._load_client_knowledge_base_from_disk(client_id)
+        
+        return self.client_knowledge_bases.get(client_id)
+
+    async def _load_client_knowledge_base_from_disk(self, client_id: str):
+        """Load client KB from disk"""
+        try:
+            # Simple normalization
+            clean_id = client_id.replace("client_", "")
+            
+            file_path = f"data/clients/client_{clean_id}.json"
+            if not os.path.exists(file_path):
+                # Try alternative format
+                file_path = f"data/clients/{client_id}.json"
+                if not os.path.exists(file_path):
+                     logger.warning(f"Client KB file not found for {client_id}")
+                     return
+
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+            
+            # Reconstruct objects
+            templates = []
+            if "generated_templates" in data:
+                 template_list = data["generated_templates"]
+                 for t in template_list:
+                    if isinstance(t, dict):
+                         # Convert dict to ContentTemplate
+                         templates.append(ContentTemplate(
+                             id=t.get("id", f"tpl_{int(datetime.utcnow().timestamp())}"),
+                             feature=t.get("feature", "general"),
+                             platform=t.get("platform", "unknown"),
+                             content_type=t.get("content_type", "general"),
+                             template=t.get("template", "") or t.get("content", ""),
+                             variables=t.get("variables", []),
+                             hashtags=t.get("hashtags", []),
+                             call_to_action=t.get("call_to_action", ""),
+                             character_count=len(t.get("template", "") or t.get("content", "")),
+                             performance_score=t.get("performance_score", 0.0)
+                         ))
+            elif "templates" in data:
+                template_list = data["templates"]
+                for t in template_list:
+                    if isinstance(t, dict):
+                         templates.append(ContentTemplate(
+                             id=t.get("id", ""),
+                             feature=t.get("feature", "general"),
+                             platform=t.get("platform", "unknown"),
+                             content_type=t.get("content_type", "general"),
+                             template=t.get("template", "") or t.get("content", ""),
+                             variables=t.get("variables", []),
+                             hashtags=t.get("hashtags", []),
+                             call_to_action=t.get("call_to_action", ""),
+                             character_count=len(t.get("template", "") or t.get("content", "")),
+                             performance_score=t.get("performance_score", 0.0)
+                         ))
+            
+            kb = ClientKnowledgeBase(
+                client_id=client_id,
+                brand_profile=data,
+                templates=templates,
+                patterns=[], 
+                performance_baseline=data.get("performance_baseline", {})
+            )
+            
+            self.client_knowledge_bases[client_id] = kb
+            logger.info(f"Loaded KB for client {client_id}")
+            
+        except Exception as e:
+            logger.error(f"Error loading client KB for {client_id}: {e}")
+
     def _get_generic_templates(self) -> List[ContentTemplate]:
         """Return generic templates that can be customized for any industry"""
         return [
@@ -306,8 +388,8 @@ class SocialContentKnowledgeBase:
                 feature="core_service",
                 platform="twitter",
                 content_type="educational",
-                template="🚀 Ready to transform your {industry}? {company_name} helps you {value_proposition}. Don't settle for less! #{industry_hashtag} #Growth",
-                variables=["industry", "company_name", "value_proposition", "industry_hashtag"],
+                template="🚀 Ready to transform your {industry}? {company_name} helps you {value_proposition}. Key feature: {key_feature}. Don't settle for less! #{industry_hashtag} #Growth",
+                variables=["industry", "company_name", "value_proposition", "key_feature", "industry_hashtag"],
                 hashtags=[],
                 call_to_action="Learn more",
                 character_count=100
@@ -317,8 +399,8 @@ class SocialContentKnowledgeBase:
                 feature="benefit_focused",
                 platform="twitter",
                 content_type="benefit_focused",
-                template="💡 Did you know? {pain_point} can cost you time and money. {company_name} provides the solution you need. #{industry_hashtag} #Tips",
-                variables=["pain_point", "company_name", "industry", "industry_hashtag"],
+                template="💡 Did you know? {pain_point} can cost you time and money. {company_name} provides the solution you need. Start with {how_it_works_step}. #{industry_hashtag} #Tips",
+                variables=["pain_point", "company_name", "how_it_works_step", "industry_hashtag"],
                 hashtags=[],
                 call_to_action="Get started",
                 character_count=120
@@ -329,8 +411,8 @@ class SocialContentKnowledgeBase:
                 feature="story_driven",
                 platform="facebook",
                 content_type="story_driven",
-                template="Every business faces challenges. For {industry} leaders, it's often {pain_point}. At {company_name}, we're on a mission to change that. Our {mission_statement} approach ensures you get results. Join hundreds of satisfied clients today.",
-                variables=["industry", "pain_point", "company_name", "mission_statement"],
+                template="Every business faces challenges. For {industry} leaders, it's often {pain_point}. At {company_name}, we're on a mission to change that. Our {mission_statement} approach ensures you get results. Explore our key feature: {key_feature}. Join hundreds of satisfied clients today.",
+                variables=["industry", "pain_point", "company_name", "mission_statement", "key_feature"],
                 hashtags=[],
                 call_to_action="Book consultation",
                 character_count=200
@@ -341,11 +423,35 @@ class SocialContentKnowledgeBase:
                 feature="visual_focused",
                 platform="instagram",
                 content_type="visual_focused",
-                template="✨ Elevate your {industry} game! 🚀\n\n{company_name} brings you top-tier solutions for {pain_point}.\n\n✅ {value_proposition}\n✅ Trusted by experts\n\nLink in bio to learn more! 👇\n\n#{industry_hashtag} #{company_hashtag} #Success",
-                variables=["industry", "company_name", "pain_point", "value_proposition", "industry_hashtag", "company_hashtag"],
+                template="✨ Elevate your {industry} game! 🚀\n\n{company_name} brings you top-tier solutions for {pain_point}.\n\n✅ {value_proposition}\n✅ {key_feature}\n✅ Trusted by experts\n\nLink in bio to learn more! 👇\n\n#{industry_hashtag} #{company_hashtag} #Success",
+                variables=["industry", "company_name", "pain_point", "value_proposition", "key_feature", "industry_hashtag", "company_hashtag"],
                 hashtags=[],
                 call_to_action="Link in bio",
                 character_count=150
+            ),
+            # LinkedIn Generic
+            ContentTemplate(
+                id="linkedin_generic_educational",
+                feature="thought_leadership",
+                platform="linkedin",
+                content_type="educational",
+                template="In the rapidly evolving world of {industry}, staying ahead is crucial. 📉\n\nAt {company_name}, we've observed that {pain_point} is a major barrier to growth.\n\nThat's why we developed a unique approach focused on:\n🔹 {value_proposition}\n🔹 {key_feature}\n\nHere is how it works: {how_it_works_step}.\n\nDon't let {pain_point} hold you back. Let's discuss how we can drive results for your business. 👇\n\n#{industry_hashtag} #Leadership #Innovation #{company_hashtag}",
+                variables=["industry", "company_name", "pain_point", "value_proposition", "key_feature", "how_it_works_step", "industry_hashtag", "company_hashtag"],
+                hashtags=["#Leadership", "#Innovation"],
+                call_to_action="Contact us",
+                character_count=300
+            ),
+            # Twitter Engagement
+            ContentTemplate(
+                id="twitter_generic_engagement",
+                feature="community_building",
+                platform="twitter",
+                content_type="engagement",
+                template="What's the biggest challenge you face in {industry} today? 🤔\n\nA) {pain_point}\nB) Time management\nC) Scaling\n\nReply below! 👇 We're solving these with {key_feature}. #{industry_hashtag} #Poll",
+                variables=["industry", "pain_point", "key_feature", "industry_hashtag"],
+                hashtags=["#Poll"],
+                call_to_action="Reply",
+                character_count=140
             )
         ]
 
@@ -418,6 +524,21 @@ class SocialContentKnowledgeBase:
             try:
                 with open(file_path, "r") as f:
                     profile = json.load(f)
+                
+                # Ensure essential fields exist
+                if "features" not in profile:
+                    profile["features"] = []
+                if "how_it_works" not in profile:
+                    profile["how_it_works"] = []
+                if "company_info" not in profile:
+                    profile["company_info"] = {}
+                if "brand_profile" not in profile:
+                    profile["brand_profile"] = {}
+                if "audience_profile" not in profile:
+                    profile["audience_profile"] = {}
+                if "content_strategy" not in profile:
+                    profile["content_strategy"] = {}
+
                 await self.create_client_kb(client_id, profile)
                 return profile
             except Exception:
@@ -435,7 +556,12 @@ class SocialContentKnowledgeBase:
                  "company_name": company_name,
                  "industry": "General",
                  "brand_voice": "professional"
-             }
+             },
+             "brand_profile": {},
+             "audience_profile": {},
+             "content_strategy": {},
+             "features": [],
+             "how_it_works": []
         }
         await self.create_client_kb(client_id, fallback_profile)
         return fallback_profile
@@ -570,7 +696,7 @@ class SocialContentKnowledgeBase:
             content_request = kwargs
             
         topic = content_request.get("topic", "")
-        platform = content_request.get("platform", "twitter")
+        platform = content_request.get("platform", "twitter").lower()
         content_type = content_request.get("content_type")
         
         suggestions = await client_kb.get_content_suggestions(topic, platform, content_type)
@@ -587,6 +713,27 @@ class SocialContentKnowledgeBase:
         company_name = company_info.get("company_name") or "Our Company"
         industry = company_info.get("industry") or "Business"
         
+        # Format features and how-it-works for variable substitution
+        features = profile.get("features", [])
+        features_text = "our innovative features"
+        if features:
+            # Take the first feature's title/description or a summary
+            if isinstance(features[0], dict):
+                f = features[0]
+                features_text = f"{f.get('title', '')} ({f.get('description', '')})"
+            elif isinstance(features[0], str):
+                features_text = features[0]
+                
+        how_it_works = profile.get("how_it_works", [])
+        how_it_works_text = "our simple process"
+        if how_it_works:
+            # Summarize first step or overall process
+            if isinstance(how_it_works[0], str):
+                how_it_works_text = how_it_works[0]
+            elif isinstance(how_it_works[0], dict):
+                s = how_it_works[0]
+                how_it_works_text = f"{s.get('title', '')}"
+
         dynamic_variables = {
             "company_name": company_name,
             "industry": industry,
@@ -596,7 +743,9 @@ class SocialContentKnowledgeBase:
             "time_saved": "valuable time", # Generic fallback
             "platforms": "all your channels",
             "industry_hashtag": industry.replace(" ", "") if industry else "Business",
-            "company_hashtag": company_name.replace(" ", "") if company_name else "Company"
+            "company_hashtag": company_name.replace(" ", "") if company_name else "Company",
+            "key_feature": features_text,
+            "how_it_works_step": how_it_works_text
         }
         
         outputs: List[Dict[str, Any]] = []
@@ -638,7 +787,11 @@ class SocialContentKnowledgeBase:
                 
                 how_it_works_text = ""
                 if how_it_works:
-                    how_it_works_text = "How It Works:\n" + "\n".join([f"{s.get('step', '')}. {s.get('title', '')}: {s.get('description', '')}" for s in how_it_works])
+                    # Handle both list of strings and list of dicts
+                    if isinstance(how_it_works[0], str):
+                        how_it_works_text = "How It Works:\n" + "\n".join([f"{i+1}. {s}" for i, s in enumerate(how_it_works)])
+                    else:
+                        how_it_works_text = "How It Works:\n" + "\n".join([f"{s.get('step', '')}. {s.get('title', '')}: {s.get('description', '')}" for s in how_it_works])
 
                 # Batch rewrite for efficiency
                 # In production, we might do this one by one or in smaller batches
@@ -1044,7 +1197,67 @@ class SocialContentKnowledgeBase:
 
         return optimized
 
-    def get_platform_optimization(self, platform: str) -> Optional[PlatformOptimization]:
+    async def generate_client_rag_content(self, client_id: str, topic: str, platform: str) -> str:
+        """
+        Generate content using RAG (Retrieval Augmented Generation) from the vector store.
+        """
+        if not self.vector_store:
+            logger.warning("Vector store not available for RAG generation")
+            return "Error: Vector store not available."
+
+        # 1. Retrieve context
+        # We search for the topic AND the client's brand name to ensure relevance
+        client_profile = await self.get_client_profile(client_id)
+        brand_name = client_profile.get("company_info", {}).get("company_name", "")
+        
+        search_query = f"{brand_name} {topic}"
+        logger.info(f"RAG Search Query: {search_query}")
+        
+        try:
+            results = await self.vector_store.similarity_search(search_query, k=3)
+        except Exception as e:
+            logger.error(f"Vector store search failed: {e}")
+            return f"Error retrieving context: {e}"
+        
+        context = "\n\n".join([doc.page_content for doc in results])
+        
+        if not context:
+            logger.info(f"No context found for query: {search_query}")
+            return f"No relevant context found for {topic}."
+
+        logger.info(f"Retrieved {len(results)} documents for context")
+
+        # 2. Generate content using LLM
+        if LLM_AVAILABLE:
+            try:
+                llm = get_optimal_llm("content_generation")
+                
+                platform_rules = await self.get_platform_optimization(platform)
+                max_len = platform_rules.max_length if platform_rules else 280
+                
+                prompt = f"""
+                Generate a {platform} post for {brand_name} about {topic}.
+                
+                Context information:
+                {context}
+                
+                Requirements:
+                - Platform: {platform}
+                - Max length: {max_len} characters
+                - Tone: {client_profile.get("company_info", {}).get("brand_voice", "Professional")}
+                - Use relevant emojis and hashtags.
+                - Base the content strictly on the provided context.
+                """
+                
+                response = await llm.ainvoke(prompt)
+                return response.content.strip()
+            except Exception as e:
+                logger.error(f"RAG generation failed: {e}")
+                return f"Error generating content: {e}\n\nRetrieved Context:\n{context}"
+        else:
+            return "LLM not available for generation."
+
+    async def get_platform_optimization(self, platform: str) -> Optional[PlatformOptimization]:
         """Get platform-specific optimization data"""
         return self.platform_opts.get(platform)
 

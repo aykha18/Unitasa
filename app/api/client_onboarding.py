@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 import structlog
 from datetime import datetime
 
-from app.agents.client_analysis import ClientAnalysisAgent
+# from app.agents.client_analysis import ClientAnalysisAgent # Moved to function scope
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
 from app.llm.router import get_optimal_llm
 from app.core.config import settings
@@ -146,6 +146,32 @@ async def get_client_knowledge_base(client_id: str):
             "error": str(e)
         }
 
+@router.get("/profile/{client_id}", response_model=ClientProfileResponse)
+async def get_client_profile(client_id: str):
+    """Get a client's profile"""
+    try:
+        kb = await get_social_content_knowledge_base()
+        profile = await kb.get_client_profile(client_id)
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail="Client profile not found")
+            
+        return {
+            "client_id": client_id,
+            "company_info": profile.get("company_info", {}),
+            "brand_profile": profile.get("brand_profile", {}),
+            "audience_profile": profile.get("target_audience", {}),
+            "content_strategy": profile.get("content_strategy", {}),
+            "features": profile.get("features", []),
+            "how_it_works": profile.get("how_it_works", []),
+            "assessments": profile.get("assessments", [])
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get client profile: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get client profile: {str(e)}")
+
 @router.put("/profile/{client_id}")
 async def update_client_profile(client_id: str, request: UpdateClientProfileRequest):
     """Update a client's profile and regenerate their KB"""
@@ -201,6 +227,7 @@ _knowledge_base = None
 
 async def get_client_analysis_agent():
     """Get or create client analysis agent instance"""
+    from app.agents.client_analysis import ClientAnalysisAgent
     global _client_analysis_agent
     if _client_analysis_agent is None:
         # Initialize knowledge base

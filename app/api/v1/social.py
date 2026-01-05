@@ -55,6 +55,11 @@ class ConnectAccountRequest(BaseModel):
     redirect_uri: Optional[str] = Field(None, description="OAuth redirect URI")
 
 
+class AccountSettings(BaseModel):
+    approval_required: Optional[bool] = Field(None, description="Whether posts require approval before publishing")
+
+
+
 class CreateCampaignRequest(BaseModel):
     name: str = Field(..., description="Campaign name")
     description: Optional[str] = Field(None, description="Campaign description")
@@ -740,7 +745,8 @@ async def get_connected_accounts(
                         "avatar_url": acc.avatar_url,
                         "follower_count": acc.follower_count,
                         "is_active": acc.is_active,
-                        "last_synced_at": acc.last_synced_at.isoformat() if acc.last_synced_at else None
+                        "last_synced_at": acc.last_synced_at.isoformat() if acc.last_synced_at else None,
+                        "settings": acc.platform_settings or {}
                     }
                     for acc in accounts
                 ]
@@ -807,6 +813,43 @@ async def disconnect_account(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to disconnect account: {str(e)}")
+
+
+@router.patch("/accounts/{account_id}/settings")
+async def update_account_settings(
+    account_id: int,
+    settings_update: AccountSettings,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update social account settings"""
+    logger.info(f"Updating settings for account {account_id}")
+    try:
+        account = await db.get(SocialAccount, account_id)
+        if not account or account.user_id != user.id:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        # Initialize platform_settings if None
+        if account.platform_settings is None:
+            account.platform_settings = {}
+        
+        # Create a mutable copy of the dictionary
+        current_settings = dict(account.platform_settings)
+        
+        if settings_update.approval_required is not None:
+            current_settings['approval_required'] = settings_update.approval_required
+            
+        account.platform_settings = current_settings
+        
+        await db.commit()
+        await db.refresh(account)
+        
+        return {"success": True, "settings": account.platform_settings}
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
 
 
 @router.post("/campaigns")
@@ -1252,6 +1295,11 @@ async def schedule_post(
             if not account:
                 continue  # Skip platforms where user doesn't have an account
 
+            # Check if approval is required
+            settings = account.platform_settings or {}
+            requires_approval = settings.get("approval_required", False)
+            initial_status = "draft" if requires_approval else "scheduled"
+
             # Create scheduled post
             scheduled_post = SocialPost(
                 user_id=user.id,
@@ -1259,20 +1307,24 @@ async def schedule_post(
                 campaign_id=request.campaign_id,
                 platform=platform,
                 content=request.content,
-                status="scheduled",
+                status=initial_status,
                 scheduled_at=request.scheduled_at,
                 generated_by_ai=False
             )
 
             db.add(scheduled_post)
+            await db.flush()
             scheduled_posts.append({
                 "id": scheduled_post.id,
                 "platform": platform,
                 "scheduled_at": request.scheduled_at.isoformat(),
-                "status": "scheduled"
+                "status": initial_status
             })
 
         await db.commit()
+
+        if not scheduled_posts:
+            raise HTTPException(status_code=400, detail="No posts were scheduled. Please ensure you have connected accounts for the selected platforms.")
 
         return {
             "success": True,
@@ -1321,6 +1373,109 @@ async def get_scheduled_posts(
     except Exception as e:
         logger.error(f"Failed to fetch scheduled posts: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch scheduled posts: {str(e)}")
+
+
+@router.get("/scheduled/drafts")
+async def get_draft_posts(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all draft posts (awaiting approval) for the user"""
+    try:
+        from app.models.social_account import SocialPost
+
+        result = await db.execute(
+            select(SocialPost).where(
+                SocialPost.user_id == user.id,
+                SocialPost.status == "draft"
+            ).order_by(SocialPost.scheduled_at)
+        )
+        posts = result.scalars().all()
+
+        return {
+            "draft_posts": [
+                {
+                    "id": post.id,
+                    "platform": post.platform,
+                    "content": post.content,
+                    "scheduled_at": post.scheduled_at.isoformat(),
+                    "campaign_id": post.campaign_id,
+                    "created_at": post.created_at.isoformat(),
+                    "status": post.status
+                }
+                for post in posts
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch draft posts: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch draft posts: {str(e)}")
+
+
+@router.post("/scheduled/{post_id}/approve")
+async def approve_scheduled_post(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a draft post"""
+    try:
+        from app.models.social_account import SocialPost
+        
+        result = await db.execute(
+            select(SocialPost).where(
+                SocialPost.id == post_id,
+                SocialPost.user_id == user.id
+            )
+        )
+        post = result.scalar_one_or_none()
+        
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+            
+        post.status = "scheduled"
+        await db.commit()
+        
+        return {"success": True, "message": "Post approved successfully"}
+        
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to approve post: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to approve post: {str(e)}")
+
+
+@router.delete("/scheduled/{post_id}")
+async def delete_scheduled_post(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a scheduled post"""
+    try:
+        from app.models.social_account import SocialPost
+        
+        result = await db.execute(
+            select(SocialPost).where(
+                SocialPost.id == post_id,
+                SocialPost.user_id == user.id
+            )
+        )
+        post = result.scalar_one_or_none()
+        
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+            
+        await db.delete(post)
+        await db.commit()
+        
+        return {"success": True, "message": "Post deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete post: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete post: {str(e)}")
 
 
 # AI Content Hub API Endpoints
@@ -1527,3 +1682,24 @@ async def chat_assistant(request: ChatAssistantRequest):
     except Exception as e:
         logger.error(f"Chat assistant failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chat assistant failed: {str(e)}")
+
+
+@router.get("/performance")
+async def get_performance_metrics(
+    period: str = Query("30d", description="Time period for metrics"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get performance metrics for social accounts"""
+    # Stub implementation to fix 404 error
+    # In a real implementation, this would aggregate stats from SocialAccount and SocialPost tables
+    return {
+        "overview": {
+            "total_followers": 0,
+            "total_engagement": 0,
+            "total_posts": 0,
+            "engagement_rate": 0
+        },
+        "platforms": [],
+        "recent_posts": []
+    }

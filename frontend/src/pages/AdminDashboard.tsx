@@ -47,7 +47,7 @@ interface User {
   is_co_creator: boolean;
 }
 
-const AdminDashboard: React.FC = () => {
+const AdminDashboardContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'users'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
@@ -521,6 +521,14 @@ const StatCard: React.FC<StatCardProps> = ({ icon, title, value, bgColor }) => {
       </div>
       
     </div>
+  );
+};
+
+const AdminDashboard: React.FC = () => {
+  return (
+    <ToastProvider>
+      <AdminDashboardContent />
+    </ToastProvider>
   );
 };
 

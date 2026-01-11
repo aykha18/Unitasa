@@ -16,7 +16,7 @@ from app.models.lead import Lead
 from app.models.campaign import Campaign
 from app.core.metrics import measure_api_request
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(tags=["analytics"])
 
 
 @router.get("/landing-page-metrics")

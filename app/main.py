@@ -460,7 +460,7 @@ try:
     if 'analytics' in globals():
         print("Including analytics router...")
         try:
-            app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
+            app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
             print("Analytics router included successfully")
         except Exception as e:
             print(f"ERROR including analytics router: {e}")
@@ -566,7 +566,7 @@ try:
 
     print("Including admin router...")
     try:
-        app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+        app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
         print("Admin router included successfully")
     except Exception as e:
         print(f"ERROR including admin router: {e}")

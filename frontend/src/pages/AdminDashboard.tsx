@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Users, DollarSign, Calendar, TrendingUp, Mail, Phone, CheckCircle, Clock } from 'lucide-react';
+import { Users, DollarSign, Calendar, TrendingUp, Mail, Phone, CheckCircle, Clock, Settings, User as UserIcon, Edit, Save, X } from 'lucide-react';
 import PaymentTest from '../components/test/PaymentTest';
+import config from '../config/environment';
+import { useToast } from '../hooks/useToast';
+import Modal from '../components/ui/Modal';
 
 interface DashboardStats {
   totalLeads: number;
@@ -25,7 +28,27 @@ interface Lead {
   created_at: string;
 }
 
+interface PricingPlan {
+  id: number;
+  name: string;
+  display_name: string;
+  price_usd: number;
+  price_inr: number;
+  features: string[];
+  description: string;
+  is_active: boolean;
+}
+
+interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  subscription_tier: string;
+  is_co_creator: boolean;
+}
+
 const AdminDashboard: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'users'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     assessmentsCompleted: 0,
@@ -37,9 +60,16 @@ const AdminDashboard: React.FC = () => {
   });
   
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [pendingUpgrade, setPendingUpgrade] = useState<{userId: number, planName: string} | null>(null);
+
+  const { showSuccess, showError } = useToast();
 
   // Simple password protection (in production, use proper auth)
   const handleLogin = (e: React.FormEvent) => {
@@ -49,71 +79,108 @@ const AdminDashboard: React.FC = () => {
       setIsAuthenticated(true);
       fetchDashboardData();
     } else {
-      alert('Incorrect password');
+      showError('Incorrect password');
     }
   };
+
+  const apiUrl = config.apiBaseUrl;
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Use the same API URL logic as the rest of the app
-      const getApiUrl = () => {
-        // In production (not localhost), always use relative URLs
-        if (window.location.hostname !== 'localhost' && 
-            window.location.hostname !== '127.0.0.1') {
-          console.log('Production detected, using relative URLs');
-          return ''; // Relative URLs will use the same domain
-        }
-        
-        // If REACT_APP_API_URL is set and it's not the placeholder, use it
-        if (process.env.REACT_APP_API_URL && 
-            !process.env.REACT_APP_API_URL.includes('your-backend-service.railway.app') &&
-            !process.env.REACT_APP_API_URL.includes('railway.app')) {
-          console.log('Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-          return process.env.REACT_APP_API_URL;
-        }
-        
-        // Development default
-        console.log('Using localhost default');
-        return 'http://localhost:8000';
-      };
-      
-      const apiUrl = getApiUrl();
-      console.log('Admin Dashboard API URL:', apiUrl);
-      console.log('Current hostname:', window.location.hostname);
-      
       // Fetch stats
       const statsResponse = await fetch(`${apiUrl}/api/v1/admin/stats`, {
-        headers: {
-          'Authorization': `Bearer ${password}`, // Simple auth
-        },
+        headers: { 'Authorization': `Bearer ${password}` },
       });
-      
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData);
-      } else {
-        console.error('Stats fetch failed:', statsResponse.status, statsResponse.statusText);
-      }
+      if (statsResponse.ok) setStats(await statsResponse.json());
 
       // Fetch leads
       const leadsResponse = await fetch(`${apiUrl}/api/v1/admin/leads`, {
-        headers: {
-          'Authorization': `Bearer ${password}`,
-        },
+        headers: { 'Authorization': `Bearer ${password}` },
       });
-      
-      if (leadsResponse.ok) {
-        const leadsData = await leadsResponse.json();
-        setLeads(leadsData.leads || []);
-      } else {
-        console.error('Leads fetch failed:', leadsResponse.status, leadsResponse.statusText);
-      }
+      if (leadsResponse.ok) setLeads((await leadsResponse.json()).leads || []);
+
+      // Fetch plans
+      const plansResponse = await fetch(`${apiUrl}/api/v1/admin/plans`, {
+        headers: { 'Authorization': `Bearer ${password}` },
+      });
+      if (plansResponse.ok) setPlans(await plansResponse.json());
+
+      // Fetch users
+      const usersResponse = await fetch(`${apiUrl}/api/v1/admin/users`, {
+        headers: { 'Authorization': `Bearer ${password}` },
+      });
+      if (usersResponse.ok) setUsers(await usersResponse.json());
+
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdatePlan = async (plan: PricingPlan) => {
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/admin/plans/${plan.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${password}`,
+        },
+        body: JSON.stringify({
+          price_usd: plan.price_usd,
+          price_inr: plan.price_inr,
+          display_name: plan.display_name,
+          description: plan.description,
+        }),
+      });
+
+      if (response.ok) {
+        setPlans(plans.map(p => p.id === plan.id ? plan : p));
+        setEditingPlan(null);
+        showSuccess('Plan updated successfully');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        showError('Failed to update plan', errorData.detail || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      showError('Error updating plan', 'Network or server error');
+    }
+  };
+
+  const handleUpgradeUser = (userId: number, planName: string) => {
+    setPendingUpgrade({ userId, planName });
+    setUpgradeModalOpen(true);
+  };
+
+  const confirmUpgrade = async () => {
+    if (!pendingUpgrade) return;
+    
+    const { userId, planName } = pendingUpgrade;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/v1/admin/users/${userId}/upgrade?plan_name=${planName}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${password}`,
+        },
+      });
+
+      if (response.ok) {
+        setUsers(users.map(u => u.id === userId ? { ...u, subscription_tier: planName, is_co_creator: planName === 'co_creator' } : u));
+        showSuccess('User plan upgraded successfully');
+        setUpgradeModalOpen(false);
+        setPendingUpgrade(null);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Upgrade failed:', response.status, errorData);
+        showError('Failed to upgrade user', errorData.detail || `Status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error upgrading user:', error);
+      showError('Error upgrading user', 'Network or server error');
     }
   };
 
@@ -124,9 +191,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
           <form onSubmit={handleLogin}>
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Password
-              </label>
+              <label className="block text-gray-700 text-sm font-bold mb-2">Password</label>
               <input
                 type="password"
                 value={password}
@@ -135,10 +200,7 @@ const AdminDashboard: React.FC = () => {
                 placeholder="Enter admin password"
               />
             </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
+            <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
               Login
             </button>
           </form>
@@ -150,205 +212,290 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Monitor your leads and conversions</p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={<Users className="w-8 h-8 text-blue-600" />}
-            title="Total Leads"
-            value={stats.totalLeads}
-            bgColor="bg-blue-50"
-          />
-          <StatCard
-            icon={<CheckCircle className="w-8 h-8 text-green-600" />}
-            title="Assessments"
-            value={stats.assessmentsCompleted}
-            bgColor="bg-green-50"
-          />
-          <StatCard
-            icon={<Calendar className="w-8 h-8 text-purple-600" />}
-            title="Consultations"
-            value={stats.consultationsBooked}
-            bgColor="bg-purple-50"
-          />
-          <StatCard
-            icon={<DollarSign className="w-8 h-8 text-yellow-600" />}
-            title="Payments"
-            value={stats.paymentsCompleted}
-            bgColor="bg-yellow-50"
-          />
-        </div>
-
-        {/* Revenue & Conversion */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Revenue (USD)</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  ${stats.totalRevenueUSD.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-              </div>
-              <TrendingUp className="w-12 h-12 text-green-600" />
-            </div>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-600 mt-2">Manage your platform</p>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Revenue (INR)</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  ₹{stats.totalRevenueINR.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-              </div>
-              <TrendingUp className="w-12 h-12 text-green-600" />
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">Conversion Rate</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  {stats.conversionRate.toFixed(1)}%
-                </p>
-              </div>
-              <TrendingUp className="w-12 h-12 text-blue-600" />
-            </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-lg ${activeTab === 'overview' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('plans')}
+              className={`px-4 py-2 rounded-lg ${activeTab === 'plans' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              Plan Manager
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-4 py-2 rounded-lg ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              User Management
+            </button>
           </div>
         </div>
 
-        {/* Leads Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Recent Leads</h2>
-          </div>
-          
-          {loading ? (
-            <div className="p-8 text-center">
-              <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
-              <p className="text-gray-600">Loading leads...</p>
-            </div>
-          ) : leads.length === 0 ? (
-            <div className="p-8 text-center">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-gray-600">No leads yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Lead Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      CRM
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Score
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {leads.map((lead) => (
-                    <tr key={lead.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+        {loading ? (
+           <div className="p-8 text-center">
+             <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
+             <p className="text-gray-600">Loading data...</p>
+           </div>
+        ) : (
+          <>
+            {activeTab === 'overview' && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  <StatCard icon={<Users className="w-8 h-8 text-blue-600" />} title="Total Leads" value={stats.totalLeads} bgColor="bg-blue-50" />
+                  <StatCard icon={<CheckCircle className="w-8 h-8 text-green-600" />} title="Assessments" value={stats.assessmentsCompleted} bgColor="bg-green-50" />
+                  <StatCard icon={<Calendar className="w-8 h-8 text-purple-600" />} title="Consultations" value={stats.consultationsBooked} bgColor="bg-purple-50" />
+                  <StatCard icon={<DollarSign className="w-8 h-8 text-yellow-600" />} title="Payments" value={stats.paymentsCompleted} bgColor="bg-yellow-50" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                   <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-600 text-sm">Revenue (USD)</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">${stats.totalRevenueUSD.toLocaleString()}</p>
+                      </div>
+                      <TrendingUp className="w-12 h-12 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-600 text-sm">Revenue (INR)</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">₹{stats.totalRevenueINR.toLocaleString()}</p>
+                      </div>
+                      <TrendingUp className="w-12 h-12 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-600 text-sm">Conversion Rate</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{stats.conversionRate.toFixed(1)}%</p>
+                      </div>
+                      <TrendingUp className="w-12 h-12 text-blue-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-900">Recent Leads</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Info</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CRM</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {leads.map((lead) => (
+                          <tr key={lead.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{lead.name}</div>
+                                <div className="text-sm text-gray-500">{lead.email}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.crm_system || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.assessment_score}%</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                               <span className={`px-2 py-1 text-xs font-medium rounded ${lead.payment_completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                                 {lead.payment_completed ? 'Paid' : 'New'}
+                               </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(lead.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div className="mt-8">
+                  <PaymentTest />
+                </div>
+              </>
+            )}
+
+            {activeTab === 'plans' && (
+              <div className="grid grid-cols-1 gap-6">
+                {plans.map((plan) => (
+                  <div key={plan.id} className="bg-white rounded-lg shadow p-6">
+                    {editingPlan?.id === plan.id ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                             <input 
+                               type="text" 
+                               value={editingPlan.display_name} 
+                               onChange={e => setEditingPlan({...editingPlan, display_name: e.target.value})}
+                               className="mt-1 w-full border rounded px-3 py-2"
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700">Description</label>
+                             <input 
+                               type="text" 
+                               value={editingPlan.description} 
+                               onChange={e => setEditingPlan({...editingPlan, description: e.target.value})}
+                               className="mt-1 w-full border rounded px-3 py-2"
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700">Price (USD)</label>
+                             <input 
+                               type="number" 
+                               value={editingPlan.price_usd} 
+                               onChange={e => setEditingPlan({...editingPlan, price_usd: parseFloat(e.target.value)})}
+                               className="mt-1 w-full border rounded px-3 py-2"
+                             />
+                           </div>
+                           <div>
+                             <label className="block text-sm font-medium text-gray-700">Price (INR)</label>
+                             <input 
+                               type="number" 
+                               value={editingPlan.price_inr} 
+                               onChange={e => setEditingPlan({...editingPlan, price_inr: parseFloat(e.target.value)})}
+                               className="mt-1 w-full border rounded px-3 py-2"
+                             />
+                           </div>
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => setEditingPlan(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                          <button onClick={() => handleUpdatePlan(editingPlan)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between items-start">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{lead.name}</div>
-                          <div className="text-sm text-gray-500 flex items-center gap-2">
-                            <Mail className="w-3 h-3" />
-                            {lead.email}
+                          <div className="flex items-center gap-2">
+                             <h3 className="text-xl font-bold text-gray-900">{plan.display_name}</h3>
+                             <span className="text-sm text-gray-500">({plan.name})</span>
+                             {plan.is_active ? <span className="text-green-600 text-xs bg-green-100 px-2 py-1 rounded">Active</span> : <span className="text-red-600 text-xs bg-red-100 px-2 py-1 rounded">Inactive</span>}
                           </div>
-                          {lead.phone && (
-                            <div className="text-sm text-gray-500 flex items-center gap-2">
-                              <Phone className="w-3 h-3" />
-                              {lead.phone}
-                            </div>
-                          )}
-                          {lead.company && (
-                            <div className="text-sm text-gray-500">{lead.company}</div>
-                          )}
+                          <p className="text-gray-600 mt-1">{plan.description}</p>
+                          <div className="flex gap-4 mt-2">
+                            <span className="font-semibold text-green-700">₹{plan.price_inr.toLocaleString()}</span>
+                            <span className="font-semibold text-blue-700">${plan.price_usd.toLocaleString()}</span>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                          {lead.crm_system || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {lead.assessment_score ? (
-                          <span className={`px-2 py-1 text-xs font-medium rounded ${
-                            lead.assessment_score >= 70 ? 'bg-green-100 text-green-800' :
-                            lead.assessment_score >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {lead.assessment_score}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-1">
-                          {lead.payment_completed && (
-                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                              💰 Paid
-                            </span>
-                          )}
-                          {lead.consultation_booked && (
-                            <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
-                              📅 Consultation
-                            </span>
-                          )}
-                          {!lead.consultation_booked && !lead.payment_completed && (
-                            <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                              🔔 New Lead
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(lead.created_at).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <button onClick={() => setEditingPlan(plan)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
+                          <Edit className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'users' && (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                 <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Plan</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {users.map((user) => (
+                          <tr key={user.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                               <span className={`px-2 py-1 text-xs font-medium rounded ${user.subscription_tier === 'co_creator' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                                 {user.subscription_tier || 'free'}
+                               </span>
+                               {user.is_co_creator && <span className="ml-2 text-xs text-purple-600">✨ Co-Creator</span>}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                               <select 
+                                 className="text-sm border rounded px-2 py-1 mr-2"
+                                 value=""
+                                 onChange={(e) => {
+                                   if (e.target.value) handleUpgradeUser(user.id, e.target.value);
+                                 }}
+                               >
+                                 <option value="">Change Plan...</option>
+                                 {plans.map(p => (
+                                   <option key={p.id} value={p.name}>{p.display_name}</option>
+                                 ))}
+                               </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <Modal
+        isOpen={upgradeModalOpen}
+        onClose={() => {
+          setUpgradeModalOpen(false);
+          setPendingUpgrade(null);
+        }}
+        title="Confirm Plan Upgrade"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setUpgradeModalOpen(false);
+                setPendingUpgrade(null);
+              }}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmUpgrade}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Confirm Upgrade
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to upgrade this user?
+          </p>
+          {pendingUpgrade && (
+            <div className="bg-blue-50 p-4 rounded-md">
+              <p className="text-sm text-blue-800">
+                <span className="font-semibold">Target Plan:</span> {plans.find(p => p.name === pendingUpgrade.planName)?.display_name || pendingUpgrade.planName}
+              </p>
             </div>
           )}
+          <p className="text-sm text-gray-500">
+            This action will immediately update the user's subscription tier and access rights.
+          </p>
         </div>
-
-        {/* Payment Testing Section */}
-        <div className="mt-8">
-          <PaymentTest />
-        </div>
-
-        {/* Refresh Button */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={fetchDashboardData}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Refresh Data
-          </button>
-        </div>
-      </div>
+      </Modal>
     </div>
   );
 };
@@ -372,6 +519,7 @@ const StatCard: React.FC<StatCardProps> = ({ icon, title, value, bgColor }) => {
           {icon}
         </div>
       </div>
+      
     </div>
   );
 };

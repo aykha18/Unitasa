@@ -42,3 +42,6 @@ api_router.include_router(analytics_router, prefix="/analytics", tags=["analytic
 
 # Include dashboard router
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
+
+# Include admin router
+api_router.include_router(admin_router, prefix="/admin", tags=["admin"])

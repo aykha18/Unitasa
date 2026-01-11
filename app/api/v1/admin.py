@@ -14,7 +14,7 @@ from app.models.user import User
 from pydantic import BaseModel
 from typing import List, Optional
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 class PlanUpdateRequest(BaseModel):
     price_usd: Optional[float] = None

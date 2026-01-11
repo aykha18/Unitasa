@@ -8,16 +8,44 @@ import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from app.agents.base import BaseAgent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+
+from app.agents.base_agent import BaseAgent
+from app.agents.state import MarketingAgentState
 from app.mcp.crm_client import CRMIntegrationMixin
 
 
 class CRMAgent(BaseAgent, CRMIntegrationMixin):
     """Agent with CRM integration capabilities"""
 
-    def __init__(self, agent_id: str, name: str):
-        super().__init__(agent_id, name)
+    def __init__(self, llm: ChatOpenAI):
+        # Initialize CRM mixin
         self.crm_organization_id = 8  # Default organization
+        
+        # Initialize BaseAgent
+        # We don't have specific tools defined here yet, but we can add them if needed
+        # For now, we'll pass an empty list or the CRM tools if we can wrap them
+        super().__init__("crm_agent", llm, [])
+
+    def get_system_prompt(self) -> ChatPromptTemplate:
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are a CRM Specialist Agent.
+Your role is to analyze leads, identify opportunities, and manage CRM data.
+You have access to CRM tools to fetch and update information.
+"""),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
+
+    def build_input(self, state: MarketingAgentState) -> Dict[str, Any]:
+        return {
+            "input": "Analyze CRM data"
+        }
+
+    def update_state(self, state: MarketingAgentState, result: Dict[str, Any]) -> MarketingAgentState:
+        # Simple update for now
+        return state
 
     async def analyze_lead_opportunities(self) -> Dict[str, Any]:
         """Analyze current leads and identify opportunities"""

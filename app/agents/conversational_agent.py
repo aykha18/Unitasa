@@ -8,12 +8,12 @@ import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
 
-from app.agents.base import BaseAgent
+from app.agents.base_agent import BaseAgent
 from app.agents.state import MarketingAgentState, update_state_timestamp
 from app.llm.router import get_optimal_llm
 from app.rag.lcel_chains import get_confidence_rag_chain
@@ -23,7 +23,7 @@ from app.core.crm_knowledge_base import get_crm_knowledge_base, query_crm_knowle
 
 
 class ConversationalAgent(BaseAgent):
-    """Conversational AI agent for landing page chat support"""
+    """Agent for handling general conversation and routing"""
 
     def __init__(self, llm=None):
         # Get optimal LLM for conversational tasks
@@ -60,54 +60,22 @@ class ConversationalAgent(BaseAgent):
         """Get conversational agent system prompt"""
         return ChatPromptTemplate.from_messages([
             ("system", """You are a helpful AI assistant for Unitasa, a Unified Marketing Intelligence Platform that replaces fragmented marketing tools with one complete solution. Your role is to:
+1. Answer general questions about Unitasa's capabilities
+2. Guide users to specific features (Analysis, Ad Management, Lead Gen)
+3. Collect initial requirements for other agents
+4. Maintain a helpful and professional tone
 
-1. **Help visitors understand Unitasa's capabilities**:
-   - Unified Marketing Intelligence Platform that replaces fragmented tools
-   - NeuraCRM as built-in default option
-   - Seamless connectivity to major CRMs (Pipedrive, Zoho, HubSpot, Monday, Salesforce)
-   - 2-click integration setup with OAuth2/API key support
-
-2. **Guide users through the AI Business Readiness Assessment**:
-   - Explain the 10-question assessment process
-   - Help identify current CRM system and capabilities
-   - Clarify integration complexity and automation opportunities
-   - Encourage completion for personalized recommendations
-
-3. **Qualify leads for the Co-Creator Program**:
-   - Identify warm/hot leads (41-100% readiness score)
-   - Present $497 Founding Co-Creator Program benefits (25 seats only)
-   - Emphasize lifetime access, integration support, and product influence
-   - Create urgency around limited seat availability
-
-4. **Provide CRM integration guidance**:
-   - Answer questions about specific CRM integrations
-   - Explain setup complexity and time requirements
-   - Discuss automation opportunities and ROI potential
-   - Share integration best practices and security considerations
-
-5. **Maintain conversational flow**:
-   - Be friendly, helpful, and knowledgeable
-   - Ask clarifying questions to better understand needs
-   - Provide specific, actionable information
-   - Guide toward assessment completion or program enrollment
-
-**Key Information**:
-- Unitasa positions as Unified Marketing Intelligence Platform (one platform replaces all)
-- NeuraCRM is the built-in default with advanced AI capabilities
-- Integration Marketplace supports major CRMs with 2-click setup
-- Founding Co-Creator Program: $497 (75% off $2,000+), 25 seats, lifetime unified platform access, priority support
-- Assessment identifies marketing unity readiness and provides personalized recommendations
-
-**Conversation Style**:
-- Professional but approachable
-- Focus on business value and automation benefits
-- Use specific examples and concrete benefits
-- Always guide toward next steps (assessment, demo, or program enrollment)
+Unitasa Capabilities:
+- Brand Analysis: Website auditing, brand voice detection, competitor analysis
+- Ad Management: Multi-channel campaign creation and optimization
+- Lead Generation: B2B lead discovery and qualification
+- Content Strategy: AI-driven content planning and generation
 
 Current conversation context: {context}
 User's detected intent: {intent}
 CRM interest level: {crm_interest}"""),
             ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
 
     def create_agent(self):

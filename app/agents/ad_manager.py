@@ -7,11 +7,11 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 import structlog
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 
-from app.agents.base import BaseAgent
+from app.agents.base_agent import BaseAgent
 from app.agents.state import MarketingAgentState, update_state_timestamp
 from app.core.circuit_breaker import call_with_circuit_breaker
 
@@ -60,8 +60,8 @@ class AdManagerAgent(BaseAgent):
         ]
 
     def get_system_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_template("""
-        You are an expert multi-channel advertising specialist. Your role is to:
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are an expert multi-channel advertising specialist. Your role is to:
         1. Create and manage ad campaigns across multiple platforms
         2. Optimize campaign performance and budget allocation
         3. Generate compelling ad copy and creatives
@@ -74,7 +74,10 @@ class AdManagerAgent(BaseAgent):
 
         Use the available tools to create, optimize, and manage ad campaigns.
         Focus on ROI, conversion rates, and cost-effective acquisition.
-        """)
+        """),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
 
     def build_input(self, state: MarketingAgentState) -> Dict[str, Any]:
         """Build input data from shared state"""

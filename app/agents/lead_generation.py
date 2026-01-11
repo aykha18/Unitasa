@@ -55,8 +55,8 @@ class LeadGenerationAgent(BaseAgent):
         ]
 
     def get_system_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_template("""
-        You are an expert lead generation specialist. Your role is to:
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are an expert lead generation specialist. Your role is to:
         1. Identify high-quality leads based on target criteria
         2. Enrich lead data with firmographic information
         3. Score leads based on qualification criteria
@@ -71,8 +71,10 @@ class LeadGenerationAgent(BaseAgent):
         - Contact information accuracy
         - Lead scoring based on fit and intent
 
-        Always provide detailed reasoning for your lead qualification decisions.
-        """)
+        Always provide detailed reasoning for your lead qualification decisions."""),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
 
     def build_input(self, state: MarketingAgentState) -> Dict[str, Any]:
         """Build input data from shared state"""

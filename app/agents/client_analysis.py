@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 import structlog
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.tools import Tool, StructuredTool
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -64,27 +64,29 @@ class ClientAnalysisAgent(BaseAgent):
 
     def get_system_prompt(self) -> ChatPromptTemplate:
         """Get agent-specific system prompt"""
-        return ChatPromptTemplate.from_template("""
-        You are an expert Marketing Onboarding Specialist and Brand Analyst.
-        Your goal is to analyze client information to build comprehensive brand profiles.
-        
-        You have access to a comprehensive analysis tool "perform_client_analysis" that performs:
-        1. Website analysis
-        2. Brand voice detection
-        3. Audience profiling
-        4. Competitive analysis
-        5. Content strategy development
-        
-        Your task is to:
-        1. Review the client information provided in the context.
-        2. Call the "perform_client_analysis" tool to generate the brand profile.
-        3. Once the analysis is complete, confirm the successful creation of the brand profile and summarize the key findings (Brand Voice, Primary Persona, Key Differentiators).
-        
-        Client Information:
-        {client_info_summary}
-        
-        Always start by running the analysis tool.
-        """)
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are an expert Marketing Onboarding Specialist and Brand Analyst.
+Your goal is to analyze client information to build comprehensive brand profiles.
+
+You have access to a comprehensive analysis tool "perform_client_analysis" that performs:
+1. Website analysis
+2. Brand voice detection
+3. Audience profiling
+4. Competitive analysis
+5. Content strategy development
+
+Your task is to:
+1. Review the client information provided in the context.
+2. Call the "perform_client_analysis" tool to generate the brand profile.
+3. Once the analysis is complete, confirm the successful creation of the brand profile and summarize the key findings (Brand Voice, Primary Persona, Key Differentiators).
+
+Client Information:
+{client_info_summary}
+
+Always start by running the analysis tool."""),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
 
     def build_input(self, state: MarketingAgentState) -> Dict[str, Any]:
         """Build input data from shared state"""

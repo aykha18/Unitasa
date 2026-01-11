@@ -52,8 +52,8 @@ class ContentCreatorAgent(BaseAgent):
         ]
 
     def get_system_prompt(self) -> ChatPromptTemplate:
-        return ChatPromptTemplate.from_template("""
-        You are an expert marketing content creator. Your role is to:
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are an expert marketing content creator. Your role is to:
         1. Generate high-quality, engaging marketing content
         2. Use the knowledge base to ensure accuracy and relevance
         3. Optimize content for target audience and platform
@@ -64,8 +64,10 @@ class ContentCreatorAgent(BaseAgent):
         Brand Guidelines: {brand_guidelines}
 
         Use the available tools to research, create, and optimize content.
-        Always ensure content is valuable, engaging, and conversion-focused.
-        """)
+        Always ensure content is valuable, engaging, and conversion-focused."""),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ])
 
     def build_input(self, state: MarketingAgentState) -> Dict[str, Any]:
         """Build input data from shared state"""

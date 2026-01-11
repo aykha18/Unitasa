@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Calendar, Clock, User, Mail, Phone, MessageCircle, X, CheckCircle } from 'lucide-react';
 import Button from '../ui/Button';
 import { consultationService } from '../../services/consultationService';

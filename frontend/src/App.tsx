@@ -12,6 +12,8 @@ import PerformanceDashboard from './components/dev/PerformanceDashboard';
 // Import assessment modal for global event handling
 import AssessmentModal from './components/assessment/AssessmentModal';
 
+import { Toaster } from 'react-hot-toast';
+
 import { initializeSecurity } from './utils/security';
 import './App.css';
 import './styles/ai-animations.css';
@@ -51,8 +53,6 @@ const ClientOnboardingPage = React.lazy(() => import('./pages/ClientOnboardingPa
 const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
 const ImageSuggestionsPage = React.lazy(() => import('./pages/ImageSuggestionsPage'));
 const ChatAssistantPage = React.lazy(() => import('./pages/ChatAssistantPage'));
-
-import { Toaster } from 'react-hot-toast';
 
 function App() {
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);

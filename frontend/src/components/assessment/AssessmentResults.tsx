@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { CRMAssessmentResult, CRMIntegration } from '../../types';
 import ScoreVisualization from './ScoreVisualization';
 import RecommendationsList from './RecommendationsList';

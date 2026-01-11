@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'react-hot-toast';
 import { CRMAssessmentResult, CRMIntegration } from '../../types';
 import { ExternalLink, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../ui/Button';

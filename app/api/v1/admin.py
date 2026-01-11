@@ -9,8 +9,43 @@ from app.core.database import get_db
 from app.models.lead import Lead
 from app.models.assessment import Assessment
 from app.models.payment_transaction import PaymentTransaction
+from app.models.pricing_plan import PricingPlan
+from app.models.user import User
+from pydantic import BaseModel
+from typing import List, Optional
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+class PlanUpdateRequest(BaseModel):
+    price_usd: Optional[float] = None
+    price_inr: Optional[float] = None
+    display_name: Optional[str] = None
+    description: Optional[str] = None
+    features: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
+class PricingPlanResponse(BaseModel):
+    id: int
+    name: str
+    display_name: str
+    price_usd: float
+    price_inr: float
+    features: Optional[List[str]] = None
+    description: Optional[str] = None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str] = None
+    subscription_tier: Optional[str] = None
+    is_co_creator: Optional[bool] = None
+    
+    class Config:
+        from_attributes = True
 
 # Simple password-based auth (in production, use proper JWT auth)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "unitasa2025")  # Change this to a secure password in production
@@ -261,3 +296,72 @@ async def get_lead_details(
             "created_at": payment.created_at.isoformat() if payment and payment.created_at else None
         } if payment else None
     }
+
+@router.get("/plans", response_model=List[PricingPlanResponse])
+async def get_plans(
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Get all pricing plans"""
+    result = await db.execute(select(PricingPlan).order_by(PricingPlan.id))
+    plans = result.scalars().all()
+    return plans
+
+@router.put("/plans/{plan_id}", response_model=PricingPlanResponse)
+async def update_plan(
+    plan_id: int,
+    plan_update: PlanUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Update a pricing plan"""
+    result = await db.execute(select(PricingPlan).where(PricingPlan.id == plan_id))
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    
+    update_data = plan_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(plan, key, value)
+    
+    await db.commit()
+    await db.refresh(plan)
+    return plan
+
+@router.get("/users", response_model=List[UserResponse])
+async def get_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Get all users"""
+    result = await db.execute(select(User).offset(skip).limit(limit))
+    users = result.scalars().all()
+    return users
+
+@router.post("/users/{user_id}/upgrade")
+async def upgrade_user_plan(
+    user_id: int,
+    plan_name: str,
+    db: AsyncSession = Depends(get_db),
+    _: bool = Depends(verify_admin)
+):
+    """Upgrade user's plan"""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.subscription_tier = plan_name
+    if plan_name == 'co_creator':
+        user.is_co_creator = True
+    else:
+        user.is_co_creator = False
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    return {"message": "User plan updated successfully"}

@@ -5,11 +5,10 @@ Base SQLAlchemy model with common functionality
 from datetime import datetime
 from typing import Any, Dict
 
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, DateTime
+from app.core.database import Base
 
-# Create the base class for all models
-Base = declarative_base()
+# Removed declarative_base() call as we use the one from app.core.database
 
 
 class TimestampMixin:

@@ -5,8 +5,12 @@ Handles both development and production environments
 
 import os
 from typing import Optional
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class DatabaseSettings(BaseSettings):

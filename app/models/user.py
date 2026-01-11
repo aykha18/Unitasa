@@ -106,6 +106,7 @@ class User(Base, TimestampMixin):
     def activate_co_creator_status(self, seat_number: int, benefits: str = None):
         """Activate co-creator status for user"""
         self.is_co_creator = True
+        self.subscription_tier = "co_creator"
         self.co_creator_joined_at = datetime.utcnow()
         self.lifetime_access = True
         self.co_creator_seat_number = seat_number

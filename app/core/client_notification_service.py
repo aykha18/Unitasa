@@ -148,12 +148,16 @@ class ClientNotificationService:
         subject, html_content, text_content = self._prepare_notification_content(user, notifications)
 
         # Send email notification
-        await self.email_service.send_email(
+        success, message = self.email_service.send_email(
             to_email=user.email,
             subject=subject,
             html_content=html_content,
             text_content=text_content
         )
+        
+        if not success:
+            logger.error(f"Failed to send email to {user.email}: {message}")
+            raise Exception(f"Email delivery failed: {message}")
 
         # Could also send in-app notifications, SMS, etc.
 

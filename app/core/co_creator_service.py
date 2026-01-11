@@ -28,7 +28,7 @@ class CoCreatorProgramService:
             program = CoCreatorProgram(
                 program_name="Unitasa Founding Co-Creator Program",
                 total_seats=25,
-                program_price=497.0,
+                program_price=1.05, # UPDATED FOR TESTING: 1.05 USD (approx 87 INR)
                 currency="USD",
                 benefits=[
                     "Lifetime AI platform access (Value: $500+/month)",

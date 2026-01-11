@@ -817,7 +817,7 @@ class SocialContentKnowledgeBase:
                 1. Keep the same format and intent (educational, promotional, etc.)
                 2. Replace generic marketing terms with specific details from the Features and How It Works sections above.
                 3. High Priority: Use the "How It Works" steps and "Key Features" to make the content concrete and accurate.
-                4. Maintain the same length constraints roughly
+                4. CRITICAL: Strictly adhere to character limits. Twitter/X posts MUST be under 260 characters to allow for links/hashtags.
                 5. If appropriate for the content type (promotional), include the website link {website} naturally (e.g., "Visit {website}" or just the link).
                 6. Return ONLY a JSON list of rewritten strings
                 """
@@ -1163,9 +1163,18 @@ class SocialContentKnowledgeBase:
         """
         Optimize content using knowledge base patterns.
         Applies successful patterns to improve content performance.
+        Ensures content stays within platform character limits.
         """
 
         optimized = base_content
+        
+        # Get platform limits
+        max_length = 280 # Default to Twitter length
+        if platform in self.platform_opts:
+            max_length = self.platform_opts[platform].max_length
+            
+        # Reserve space for URL if it's likely to be added later or is critical
+        # (Though usually URL is already in base_content)
 
         # Apply successful hooks if content doesn't have one
         if not any(base_content.startswith(emoji) for emoji in ['🚀', '⏰', '💡', '🎯', '📊', '⚡']):
@@ -1180,7 +1189,10 @@ class SocialContentKnowledgeBase:
                 # Use highest performing hook
                 best_hook = max(hook_patterns, key=lambda x: x.performance_score)
                 hook_prefix = best_hook.pattern.split("...")[0]
-                optimized = f"{hook_prefix} {optimized}"
+                
+                # Check length before adding
+                if len(f"{hook_prefix} {optimized}") <= max_length:
+                    optimized = f"{hook_prefix} {optimized}"
 
         # Apply successful hashtag patterns
         hashtag_patterns = [
@@ -1193,7 +1205,28 @@ class SocialContentKnowledgeBase:
         if hashtag_patterns and len([tag for tag in optimized.split() if tag.startswith('#')]) < 2:
             best_hashtags = max(hashtag_patterns, key=lambda x: x.performance_score)
             if best_hashtags.pattern not in optimized:
-                optimized += f" {best_hashtags.pattern}"
+                # Check length before adding
+                if len(f"{optimized} {best_hashtags.pattern}") <= max_length:
+                    optimized += f" {best_hashtags.pattern}"
+                    
+        # Final length check and safe truncation if needed
+        if len(optimized) > max_length:
+            logger.warning(f"Content exceeds {platform} limit ({len(optimized)} > {max_length}). Truncating.")
+            # Try to keep URL if present at the end
+            url_match = re.search(r'https?://\S+', optimized)
+            url = url_match.group(0) if url_match else ""
+            
+            if url:
+                # Truncate text before URL to fit
+                available_space = max_length - len(url) - 4 # space + ellipsis
+                if available_space > 10:
+                    # Remove URL from text first to avoid double counting or splitting it
+                    text_without_url = optimized.replace(url, "").strip()
+                    truncated_text = text_without_url[:available_space] + "..."
+                    optimized = f"{truncated_text} {url}"
+            else:
+                # Simple truncation
+                optimized = optimized[:max_length-3] + "..."
 
         return optimized
 

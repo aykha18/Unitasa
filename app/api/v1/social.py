@@ -1398,10 +1398,9 @@ async def get_draft_posts(
                     "id": post.id,
                     "platform": post.platform,
                     "content": post.content,
-                    "scheduled_at": post.scheduled_at.isoformat(),
+                    "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
                     "campaign_id": post.campaign_id,
-                    "created_at": post.created_at.isoformat(),
-                    "status": post.status
+                    "created_at": post.created_at.isoformat()
                 }
                 for post in posts
             ]
@@ -1410,6 +1409,61 @@ async def get_draft_posts(
     except Exception as e:
         logger.error(f"Failed to fetch draft posts: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch draft posts: {str(e)}")
+
+
+@router.get("/history")
+async def get_post_history(
+    status: Optional[str] = None,
+    limit: int = 5,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get history of posted and failed posts"""
+    try:
+        from app.models.social_account import SocialPost
+        from sqlalchemy import or_
+
+        query = select(SocialPost).where(SocialPost.user_id == user.id)
+        if status in ("posted", "failed"):
+            query = query.where(SocialPost.status == status)
+        else:
+            query = query.where(
+                or_(
+                    SocialPost.status == "posted",
+                    SocialPost.status == "failed"
+                )
+            )
+
+        result = await db.execute(
+            query.order_by(SocialPost.scheduled_at.desc())
+                 .offset(offset)
+                 .limit(limit)
+        )
+        posts = result.scalars().all()
+
+        return {
+            "history_posts": [
+                {
+                    "id": post.id,
+                    "platform": post.platform,
+                    "content": post.content,
+                    "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
+                    "posted_at": post.posted_at.isoformat() if post.posted_at else None,
+                    "failed_at": post.failed_at.isoformat() if post.failed_at else None,
+                    "status": post.status,
+                    "failure_reason": post.failure_reason,
+                    "post_url": post.post_url,
+                    "campaign_id": post.campaign_id,
+                    "created_at": post.created_at.isoformat()
+                }
+                for post in posts
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to fetch post history: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch post history: {str(e)}")
 
 
 @router.post("/scheduled/{post_id}/approve")

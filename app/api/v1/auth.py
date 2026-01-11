@@ -440,8 +440,8 @@ async def change_password(
             )
 
         # Update password
-        from app.core.jwt_handler import get_password_hash
-        user.hashed_password = get_password_hash(request.new_password)
+        from app.core.jwt_handler import hash_password
+        user.hashed_password = hash_password(request.new_password)
 
         # Commit changes
         await db.commit()

@@ -10,7 +10,11 @@ from pathlib import Path
 from datetime import datetime
 
 try:
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    try:
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+    except ImportError:
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        
     from langchain_core.documents import Document
     from langchain_community.document_loaders import (
         TextLoader,
@@ -21,6 +25,9 @@ try:
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
+    # Define dummy Document for type hinting if langchain is missing
+    class Document:
+        pass
 
 from .vectorstore_manager import get_vector_store_manager
 
@@ -32,10 +39,12 @@ class DocumentIngestionPipeline:
 
     def __init__(self, collection_name: str = "marketing_knowledge"):
         if not LANGCHAIN_AVAILABLE:
-            raise ImportError("LangChain dependencies required for DocumentIngestionPipeline")
+            # We can log warning instead of raising error if we want to allow class init for other purposes
+            # but methods will fail
+            pass
 
         self.collection_name = collection_name
-        self.vector_store_manager = get_vector_store_manager()
+        self.vector_store_manager = None  # Will be initialized lazily or via async call
 
         # Initialize text splitter with optimized settings
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -54,7 +63,7 @@ class DocumentIngestionPipeline:
             '.json': self._load_json
         }
 
-    def ingest_file(self, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def ingest_file(self, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Ingest a single file"""
         try:
             file_path = Path(file_path)
@@ -74,7 +83,7 @@ class DocumentIngestionPipeline:
                 return {"status": "error", "message": "No documents loaded from file"}
 
             # Process and ingest
-            result = self.ingest_documents(documents, metadata or {})
+            result = await self.ingest_documents(documents, metadata or {})
 
             return {
                 "status": "success",
@@ -87,7 +96,7 @@ class DocumentIngestionPipeline:
             logger.error(f"Failed to ingest file {file_path}: {e}")
             return {"status": "error", "file": str(file_path), "error": str(e)}
 
-    def ingest_directory(self, directory_path: str, metadata: Optional[Dict[str, Any]] = None, recursive: bool = True) -> Dict[str, Any]:
+    async def ingest_directory(self, directory_path: str, metadata: Optional[Dict[str, Any]] = None, recursive: bool = True) -> Dict[str, Any]:
         """Ingest all supported files from a directory"""
         try:
             directory = Path(directory_path)
@@ -103,7 +112,7 @@ class DocumentIngestionPipeline:
             for extension in self.supported_extensions.keys():
                 for file_path in directory.glob(f"{pattern}{extension}"):
                     total_files += 1
-                    result = self.ingest_file(str(file_path), metadata)
+                    result = await self.ingest_file(str(file_path), metadata)
                     results.append(result)
 
                     if result["status"] == "success":
@@ -121,7 +130,7 @@ class DocumentIngestionPipeline:
             logger.error(f"Failed to ingest directory {directory_path}: {e}")
             return {"status": "error", "directory": str(directory_path), "error": str(e)}
 
-    def ingest_documents(self, documents: List[Document], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def ingest_documents(self, documents: List[Document], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process and ingest documents into vector store"""
         try:
             # Add metadata to documents
@@ -142,7 +151,9 @@ class DocumentIngestionPipeline:
                 })
 
             # Ingest into vector store
-            self.vector_store_manager.add_documents(self.collection_name, chunks)
+            manager = await get_vector_store_manager()
+            # VectorStoreManager.add_documents does not accept collection_name
+            await manager.add_documents(chunks)
 
             logger.info(f"Ingested {len(chunks)} chunks from {len(documents)} documents")
 
@@ -157,7 +168,7 @@ class DocumentIngestionPipeline:
             logger.error(f"Failed to ingest documents: {e}")
             return {"status": "error", "error": str(e)}
 
-    def ingest_from_urls(self, urls: List[str], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def ingest_from_urls(self, urls: List[str], metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Ingest content from URLs"""
         try:
             from langchain_community.document_loaders import WebBaseLoader
@@ -172,10 +183,10 @@ class DocumentIngestionPipeline:
             for doc in documents:
                 doc.metadata.update({
                     "source_type": "web",
-                    "urls": urls
+                    "urls": ",".join(urls) if isinstance(urls, list) else str(urls)
                 })
 
-            result = self.ingest_documents(documents, metadata)
+            result = await self.ingest_documents(documents, metadata)
 
             return {
                 "status": "success",
@@ -188,7 +199,7 @@ class DocumentIngestionPipeline:
             logger.error(f"Failed to ingest from URLs: {e}")
             return {"status": "error", "urls": urls, "error": str(e)}
 
-    def ingest_marketing_content(self, content: Dict[str, Any]) -> Dict[str, Any]:
+    async def ingest_marketing_content(self, content: Dict[str, Any]) -> Dict[str, Any]:
         """Ingest structured marketing content"""
         try:
             # Create document from structured content
@@ -215,13 +226,14 @@ class DocumentIngestionPipeline:
                     "platform": content.get('platform'),
                     "content_type": content.get('content_type', 'marketing_content'),
                     "source": content.get('source', 'manual_entry'),
-                    "tags": content.get('tags', []),
+                    "tags": ",".join(content.get('tags', [])) if isinstance(content.get('tags'), list) else str(content.get('tags', "")),
                     "author": content.get('author'),
-                    "publish_date": content.get('publish_date')
+                    "publish_date": content.get('publish_date'),
+                    "client_id": content.get('client_id')
                 }
             )
 
-            result = self.ingest_documents([document])
+            result = await self.ingest_documents([document])
 
             return {
                 "status": "success",

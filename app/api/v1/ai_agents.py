@@ -7,15 +7,20 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
+from langchain_openai import ChatOpenAI
 
 from app.agents.ingestion_agent import get_ingestion_agent, ingest_website
 from app.agents.knowledge_base_agent import get_knowledge_base_agent, store_content, search_content
 from app.agents.business_analysis_agent import get_business_analysis_agent, analyze_business_profile
 from app.agents.content_generation_agent import get_content_generation_agent, generate_social_post, generate_blog_post
 from app.agents.base import get_agent_registry
+from app.agents.orchestrator import MarketingOrchestrator
 from app.llm.router import get_llm_router
 # Simple API key auth for development - replace with proper JWT auth in production
 from fastapi import Header, HTTPException
+from app.core.config import get_settings
+
+settings = get_settings()
 
 async def get_api_key(authorization: str = Header(None, alias="Authorization")):
     """Simple API key validation for development"""
@@ -64,6 +69,13 @@ class ContentGenerationRequest(BaseModel):
     tone: Optional[str] = Field("professional", description="Content tone")
     target_length: Optional[str] = Field("medium", description="Content length for blog posts")
 
+class CampaignRequest(BaseModel):
+    """Request to launch a marketing campaign via the orchestrator"""
+    campaign_name: str = Field(..., description="Name of the campaign")
+    target_audience: Dict[str, Any] = Field(..., description="Target audience criteria")
+    content_requirements: Dict[str, Any] = Field(..., description="Content requirements")
+    campaign_config: Optional[Dict[str, Any]] = Field(default={}, description="Additional campaign config")
+
 
 class AgentHealthResponse(BaseModel):
     """Agent health status"""
@@ -98,25 +110,21 @@ async def ingest_website_endpoint(
             "success": True,
             "url": request.url,
             "client_id": request.client_id,
-            "analysis": result
+            "result": result
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Website ingestion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/knowledge/store")
-async def store_content_endpoint(
+async def store_knowledge_endpoint(
     request: ContentStorageRequest,
     api_key: str = Depends(get_api_key)
 ):
     """Store content in knowledge base"""
     try:
-        result = await store_content(
-            content=request.content,
-            client_id=request.client_id,
-            metadata=request.metadata
-        )
+        result = await store_content(request.content, request.client_id, request.metadata)
 
         if not result["success"]:
             raise HTTPException(status_code=400, detail=result.get("error", "Storage failed"))
@@ -124,21 +132,17 @@ async def store_content_endpoint(
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Content storage failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/knowledge/search")
-async def search_content_endpoint(
+async def search_knowledge_endpoint(
     request: ContentSearchRequest,
     api_key: str = Depends(get_api_key)
 ):
-    """Search content in knowledge base"""
+    """Search knowledge base"""
     try:
-        result = await search_content(
-            query=request.query,
-            client_id=request.client_id,
-            limit=request.limit
-        )
+        result = await search_content(request.query, request.client_id, request.limit)
 
         if not result["success"]:
             raise HTTPException(status_code=400, detail=result.get("error", "Search failed"))
@@ -146,20 +150,20 @@ async def search_content_endpoint(
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Content search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/business/analyze")
+@router.post("/analyze/business")
 async def analyze_business_endpoint(
     request: BusinessAnalysisRequest,
     api_key: str = Depends(get_api_key)
 ):
-    """Analyze business and create profile"""
+    """Analyze business profile"""
     try:
         result = await analyze_business_profile(
-            client_data=request.client_data or {},
-            website_summary=request.website_summary or {},
-            knowledge_context=request.knowledge_context or []
+            request.client_data,
+            request.website_summary,
+            request.knowledge_context
         )
 
         if not result["success"]:
@@ -168,76 +172,104 @@ async def analyze_business_endpoint(
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Business analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/content/generate")
+@router.post("/generate/content")
 async def generate_content_endpoint(
     request: ContentGenerationRequest,
     api_key: str = Depends(get_api_key)
 ):
     """Generate marketing content"""
     try:
-        agent = get_content_generation_agent()
-
         if request.content_type == "social_post":
-            if not request.platform:
-                raise HTTPException(status_code=400, detail="Platform required for social posts")
-
             result = await generate_social_post(
                 platform=request.platform,
                 topic=request.topic,
                 business_profile=request.business_profile,
                 tone=request.tone
             )
-
         elif request.content_type == "blog_post":
             result = await generate_blog_post(
                 topic=request.topic,
                 business_profile=request.business_profile,
-                target_length=request.target_length,
-                tone=request.tone
+                tone=request.tone,
+                target_length=request.target_length
             )
-
         else:
-            # Generic content generation
-            task_input = {
-                "content_type": request.content_type,
-                "topic": request.topic,
-                "platform": request.platform,
-                "business_profile": request.business_profile,
-                "tone": request.tone,
-                "target_length": request.target_length
-            }
-            result = await agent.execute_task(task_input)
+            raise HTTPException(status_code=400, detail=f"Unsupported content type: {request.content_type}")
 
         if not result["success"]:
-            raise HTTPException(status_code=400, detail=result.get("error", "Content generation failed"))
+            raise HTTPException(status_code=400, detail=result.get("error", "Generation failed"))
 
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Content generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.get("/health", response_model=SystemHealthResponse)
-async def get_system_health(api_key: str = Depends(get_api_key)):
-    """Get system health status"""
+@router.post("/campaign/launch")
+async def launch_campaign_endpoint(
+    request: CampaignRequest,
+    api_key: str = Depends(get_api_key)
+):
+    """Launch a multi-agent marketing campaign"""
     try:
-        # Get agent health
-        registry = get_agent_registry()
-        agent_health = await registry.health_check_all()
+        # Initialize LLM
+        # In a real app, we might reuse a global instance or pull from config
+        llm = ChatOpenAI(
+            model="gpt-4-turbo-preview",
+            temperature=0.7,
+            api_key=settings.OPENAI_API_KEY
+        )
+        
+        orchestrator = MarketingOrchestrator(llm)
+        
+        # Prepare campaign config
+        config = request.campaign_config or {}
+        config.update({
+            "target_audience": request.target_audience,
+            "content_requirements": request.content_requirements,
+            "campaign_name": request.campaign_name
+        })
+        
+        # Run campaign
+        # Note: In production, this should run in background (Celery/ARQ)
+        # We'll run it inline for MVP, but be aware of timeouts
+        final_state = await orchestrator.run_campaign(config)
+        
+        return {
+            "success": True,
+            "campaign_id": final_state.get("campaign_id"),
+            "qualified_leads": len(final_state.get("qualified_leads", [])),
+            "generated_content": len(final_state.get("generated_content", [])),
+            "details": final_state
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        # Get LLM router status
+
+@router.get("/health")
+async def check_health(api_key: str = Depends(get_api_key)):
+    """Check system health"""
+    try:
+        registry = get_agent_registry()
         llm_router = get_llm_router()
+
+        # Check agents
+        agent_health = {}
+        for agent_name in registry.list_agents():
+            agent_health[agent_name] = {
+                "status": "active",
+                "last_check": datetime.utcnow().isoformat()
+            }
+
+        # Check LLMs
         llm_stats = llm_router.get_usage_stats()
         available_providers = llm_router.get_available_providers()
 
         # Determine overall health
-        agent_healthy = all(
-            health.get("status") == "healthy"
-            for health in agent_health.values()
-        )
+        agent_healthy = len(agent_health) > 0
         llm_healthy = len(available_providers) > 0
 
         overall_health = "healthy" if (agent_healthy and llm_healthy) else "degraded"

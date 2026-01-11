@@ -88,12 +88,36 @@ class PaymentSupportService:
             </html>
             """
             
-            result = await self.email_service.send_email(
+            result = self.email_service.send_email(
                 to_email=customer_email,
                 subject=subject,
                 html_content=html_content,
-                from_email=self.from_email
+                text_content=None
             )
+            
+            # Unpack tuple if needed, but the original code assigns it to result which is returned.
+            # However, the original code returns a dict structure later.
+            # Let's check line 98: return { "success": True, ... }
+            # Wait, result variable is overwritten or unused?
+            # Original code:
+            # result = await self.email_service.send_email(...)
+            # return { "success": True, ... }
+            # The result variable is not used in the return statement shown in the tool output.
+            # But line 98 starts `return {`.
+            # So I should just call it.
+            
+            success, message = self.email_service.send_email(
+                to_email=customer_email,
+                subject=subject,
+                html_content=html_content,
+                text_content=None
+            )
+            
+            if not success:
+                 return {
+                     "success": False,
+                     "message": f"Payment processed but email failed: {message}"
+                 }
             
             return {
                 "success": True,

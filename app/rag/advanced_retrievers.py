@@ -10,7 +10,7 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.vectorstores import VectorStore
 
-from app.rag.vectorstore_manager import get_vector_store
+from app.rag.vectorstore_manager import get_vector_store, get_vector_store_sync
 from app.rag.reranker import get_reranker, CrossEncoderReranker
 from app.core.config import get_settings
 
@@ -169,28 +169,33 @@ class ReRankingRetriever(BaseRetriever):
     Stage 1: Retrieve more candidates using fast bi-encoder (recall-focused)
     Stage 2: Rerank with cross-encoder for precision
     """
+    vectorstore: VectorStore
+    reranker: Any = None
+    initial_k: int = 20
+    final_k: int = 5
+
+    class Config:
+        arbitrary_types_allowed = True
     
     def __init__(
         self, 
         vectorstore: VectorStore, 
         reranker: Optional[CrossEncoderReranker] = None,
         initial_k: int = 20,
-        final_k: int = 5
+        final_k: int = 5,
+        **kwargs
     ):
         """
         Initialize reranking retriever
-        
-        Args:
-            vectorstore: Vector store for initial retrieval
-            reranker: Cross-encoder reranker (will create if None)
-            initial_k: Number of candidates to retrieve initially
-            final_k: Number of documents to return after reranking
         """
-        super().__init__()
-        self.vectorstore = vectorstore
-        self.reranker = reranker or get_reranker()
-        self.initial_k = initial_k
-        self.final_k = final_k
+        # Initialize Pydantic model with fields
+        super().__init__(
+            vectorstore=vectorstore,
+            reranker=reranker or get_reranker(),
+            initial_k=initial_k,
+            final_k=final_k,
+            **kwargs
+        )
     
     def _get_relevant_documents(
         self, query: str, *, run_manager: CallbackManagerForRetrieverRun
@@ -231,19 +236,30 @@ class HybridReRankingRetriever(BaseRetriever):
     Combines ensemble retrieval (semantic + BM25) with reranking
     Best of all worlds: keyword matching + semantic search + precision reranking
     """
+    vectorstore: VectorStore
+    reranker: Any = None
+    bm25_retriever: Any = None
+    initial_k: int = 20
+    final_k: int = 5
+
+    class Config:
+        arbitrary_types_allowed = True
     
     def __init__(
         self,
         vectorstore: VectorStore,
         reranker: Optional[CrossEncoderReranker] = None,
         initial_k: int = 20,
-        final_k: int = 5
+        final_k: int = 5,
+        **kwargs
     ):
-        super().__init__()
-        self.vectorstore = vectorstore
-        self.reranker = reranker or get_reranker()
-        self.initial_k = initial_k
-        self.final_k = final_k
+        super().__init__(
+            vectorstore=vectorstore,
+            reranker=reranker or get_reranker(),
+            initial_k=initial_k,
+            final_k=final_k,
+            **kwargs
+        )
         self.bm25_retriever = None
     
     def add_documents(self, documents: List[Document]):
@@ -305,7 +321,7 @@ def get_multi_query_retriever() -> MultiQueryRetriever:
     """Get multi-query retriever instance"""
     global _multi_query_retriever
     if _multi_query_retriever is None:
-        vectorstore = get_vector_store()
+        vectorstore = get_vector_store_sync()
         _multi_query_retriever = MultiQueryRetriever(vectorstore)
     return _multi_query_retriever
 
@@ -314,7 +330,7 @@ def get_ensemble_retriever() -> EnsembleRetriever:
     """Get ensemble retriever instance"""
     global _ensemble_retriever
     if _ensemble_retriever is None:
-        vectorstore = get_vector_store()
+        vectorstore = get_vector_store_sync()
         _ensemble_retriever = EnsembleRetriever(vectorstore)
     return _ensemble_retriever
 
@@ -323,7 +339,7 @@ def get_contextual_compression_retriever() -> ContextualCompressionRetriever:
     """Get contextual compression retriever instance"""
     global _contextual_retriever
     if _contextual_retriever is None:
-        vectorstore = get_vector_store()
+        vectorstore = get_vector_store_sync()
         _contextual_retriever = ContextualCompressionRetriever(vectorstore)
     return _contextual_retriever
 
@@ -335,7 +351,7 @@ def get_reranking_retriever(
     """Get reranking retriever instance"""
     global _reranking_retriever
     if _reranking_retriever is None:
-        vectorstore = get_vector_store()
+        vectorstore = get_vector_store_sync()
         _reranking_retriever = ReRankingRetriever(
             vectorstore=vectorstore,
             initial_k=initial_k,
@@ -351,7 +367,7 @@ def get_hybrid_reranking_retriever(
     """Get hybrid reranking retriever instance"""
     global _hybrid_reranking_retriever
     if _hybrid_reranking_retriever is None:
-        vectorstore = get_vector_store()
+        vectorstore = get_vector_store_sync()
         _hybrid_reranking_retriever = HybridReRankingRetriever(
             vectorstore=vectorstore,
             initial_k=initial_k,

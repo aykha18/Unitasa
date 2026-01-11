@@ -3,6 +3,7 @@ Vector Store Manager for ChromaDB Integration
 """
 
 import asyncio
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -26,14 +27,39 @@ class VectorStoreManager:
 
     def _get_embedding_function(self) -> Embeddings:
         """Get the embedding function"""
-        return OpenAIEmbeddings(
-            model=settings.embeddings.model,
-            openai_api_key=settings.embeddings.openai_api_key
-        )
+        if settings.embeddings.openai_api_key:
+            return OpenAIEmbeddings(
+                model=settings.embeddings.model,
+                openai_api_key=settings.embeddings.openai_api_key
+            )
+        else:
+            if settings.openrouter.api_key:
+                print("⚠️ No OpenAI API Key found for embeddings. Using FakeEmbeddings. (OpenRouter key detected for generation)")
+            else:
+                print("⚠️ No OpenAI API Key found. Using FakeEmbeddings for testing.")
+            
+            try:
+                from langchain_community.embeddings import FakeEmbeddings
+                return FakeEmbeddings(size=1536)
+            except ImportError:
+                # Fallback if FakeEmbeddings not available, try to use a dummy class
+                class DummyEmbeddings(Embeddings):
+                    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+                        return [[0.0] * 1536 for _ in texts]
+                    def embed_query(self, text: str) -> List[float]:
+                        return [0.0] * 1536
+                return DummyEmbeddings()
 
     async def initialize(self):
-        """Initialize the vector store"""
+        """Initialize the vector store (Async wrapper)"""
+        self.initialize_sync()
+
+    def initialize_sync(self):
+        """Initialize the vector store (Synchronous)"""
         try:
+            if self.vectorstore:
+                return
+
             self.vectorstore = Chroma(
                 collection_name=self.collection_name,
                 embedding_function=self.embedding_function,
@@ -43,6 +69,34 @@ class VectorStoreManager:
         except Exception as e:
             print(f"❌ Failed to initialize vector store: {e}")
             raise
+
+    async def get_client_documents(self, client_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Retrieve documents for a specific client"""
+        if not self.vectorstore:
+            await self.initialize()
+            
+        try:
+            # ChromaDB get method supports filtering
+            results = self.vectorstore.get(
+                where={"client_id": client_id},
+                limit=limit,
+                include=["metadatas", "documents"]
+            )
+            
+            # Format results
+            documents = []
+            if results and results['ids']:
+                for i, id in enumerate(results['ids']):
+                    documents.append({
+                        "id": id,
+                        "content": results['documents'][i],
+                        "metadata": results['metadatas'][i]
+                    })
+            
+            return documents
+        except Exception as e:
+            print(f"❌ Failed to retrieve client documents: {e}")
+            return []
 
     async def add_documents(self, documents: List[Document]) -> List[str]:
         """Add documents to the vector store"""
@@ -100,17 +154,6 @@ class VectorStoreManager:
             print(f"❌ Similarity search with scores failed: {e}")
             return []
 
-
-# Singleton instance
-_vector_store_manager_instance = None
-
-def get_vector_store_manager() -> VectorStoreManager:
-    """Get singleton instance of VectorStoreManager"""
-    global _vector_store_manager_instance
-    if _vector_store_manager_instance is None:
-        _vector_store_manager_instance = VectorStoreManager()
-    return _vector_store_manager_instance
-
     async def delete_documents(self, ids: List[str]):
         """Delete documents by IDs"""
         if not self.vectorstore:
@@ -163,6 +206,24 @@ def get_vector_store_manager() -> VectorStoreManager:
                 print("✅ Vector store persisted to disk")
             except Exception as e:
                 print(f"❌ Failed to persist vector store: {e}")
+
+
+# Singleton instance
+_vector_store_manager_instance = None
+
+def get_sync_vector_store_manager() -> VectorStoreManager:
+    """Get singleton instance of VectorStoreManager (Sync)"""
+    global _vector_store_manager_instance
+    if _vector_store_manager_instance is None:
+        _vector_store_manager_instance = VectorStoreManager()
+        _vector_store_manager_instance.initialize_sync()
+    return _vector_store_manager_instance
+
+
+def get_vector_store_sync() -> Chroma:
+    """Get the Chroma vector store instance (Sync)"""
+    manager = get_sync_vector_store_manager()
+    return manager.vectorstore
 
 
 # Global instance

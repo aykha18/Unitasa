@@ -11,7 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 
-from app.agents.base import BaseAgent
+from app.agents.base_agent import BaseAgent
 from app.agents.state import MarketingAgentState, update_state_timestamp
 from app.rag.lcel_chains import get_confidence_rag_chain, query_with_confidence
 from app.rag.monitoring import record_rag_query

@@ -48,6 +48,8 @@ def create_initial_state(campaign_config: Dict[str, Any]) -> MarketingAgentState
         campaign_config=campaign_config,
         campaign_id=None,
         target_audience=campaign_config.get('target_audience', {}),
+        client_profile={},
+        brand_profile={},
         leads=[],
         qualified_leads=[],
         content_requirements=campaign_config.get('content_requirements', {}),

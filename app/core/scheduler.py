@@ -48,6 +48,7 @@ class SimpleScheduler:
         """Check for posts that need to be published"""
         try:
             async with get_db_session() as db:
+                await self._process_schedule_rules(db)
                 # Find posts that are scheduled and due
                 now = datetime.utcnow()
                 result = await db.execute(
@@ -134,6 +135,132 @@ class SimpleScheduler:
         except Exception as e:
             logger.error(f"Error publishing post {post.id}: {e}")
             raise
+
+    async def _process_schedule_rules(self, db: AsyncSession):
+        try:
+            from zoneinfo import ZoneInfo
+            from sqlalchemy import select, update
+            from app.models.schedule_rule import ScheduleRule
+            now_utc = datetime.utcnow()
+            result = await db.execute(
+                select(ScheduleRule).where(
+                    ScheduleRule.is_active == True
+                )
+            )
+            rules = result.scalars().all()
+            for rule in rules:
+                if rule.end_date and now_utc > rule.end_date:
+                    continue
+                if not rule.next_run_at or now_utc >= rule.next_run_at:
+                    await self._materialize_rule(rule, db)
+                    next_time = await self._compute_next_run(rule, now_utc)
+                    await db.execute(
+                        update(ScheduleRule).where(ScheduleRule.id == rule.id).values(
+                            last_run_at=now_utc,
+                            next_run_at=next_time
+                        )
+                    )
+            await db.commit()
+        except Exception as e:
+            logger.error(f"Error processing schedule rules: {e}", exc_info=True)
+
+    async def _compute_next_run(self, rule, now_utc: datetime) -> datetime:
+        from zoneinfo import ZoneInfo
+        tz = None
+        try:
+            tz = ZoneInfo(rule.timezone or "UTC")
+        except Exception:
+            tz = ZoneInfo("UTC")
+        local_now = now_utc.astimezone(tz)
+        parts = (rule.time_of_day or "00:00").split(":")
+        hh = int(parts[0])
+        mm = int(parts[1]) if len(parts) > 1 else 0
+        target = local_now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if rule.frequency == "daily":
+            if target <= local_now:
+                target = target + timedelta(days=1)
+        elif rule.frequency == "weekly":
+            days = rule.days_of_week or [local_now.weekday()]
+            dow = days[0]
+            ahead = (dow - local_now.weekday()) % 7
+            if ahead == 0 and target <= local_now:
+                ahead = 7
+            target = target + timedelta(days=ahead)
+        elif rule.frequency == "monthly":
+            month = local_now.month
+            year = local_now.year
+            day = local_now.day
+            target = target.replace(day=day)
+            if target <= local_now:
+                month += 1
+                if month > 12:
+                    month = 1
+                    year += 1
+                target = target.replace(year=year, month=month)
+        return target.astimezone(ZoneInfo("UTC"))
+
+    async def _materialize_rule(self, rule, db: AsyncSession):
+        try:
+            from sqlalchemy import select
+            accounts_result = await db.execute(
+                select(SocialAccount).where(
+                    SocialAccount.user_id == rule.user_id,
+                    SocialAccount.platform.in_(rule.platforms),
+                    SocialAccount.is_active == True
+                )
+            )
+            accounts = accounts_result.scalars().all()
+            content_text = rule.content_seed or ""
+            if rule.generation_mode == "automatic":
+                try:
+                    from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
+                    kb = await get_social_content_knowledge_base()
+                    for acc in accounts:
+                        req = {
+                            "platform": acc.platform,
+                            "content_type": rule.content_type or "educational",
+                            "topic": rule.topic
+                        }
+                        items = await kb.get_client_content(client_id=None, content_request=req)
+                        text = ""
+                        if items and isinstance(items, list):
+                            text = items[0].get("content", "")
+                        scheduled = SocialPost(
+                            user_id=rule.user_id,
+                            social_account_id=acc.id,
+                            platform=acc.platform,
+                            content=text or content_text,
+                            status="scheduled" if rule.autopost else "draft",
+                            scheduled_at=rule.next_run_at or datetime.utcnow(),
+                            generated_by_ai=True
+                        )
+                        db.add(scheduled)
+                except Exception:
+                    for acc in accounts:
+                        scheduled = SocialPost(
+                            user_id=rule.user_id,
+                            social_account_id=acc.id,
+                            platform=acc.platform,
+                            content=content_text,
+                            status="scheduled" if rule.autopost else "draft",
+                            scheduled_at=rule.next_run_at or datetime.utcnow(),
+                            generated_by_ai=False
+                        )
+                        db.add(scheduled)
+            else:
+                for acc in accounts:
+                    scheduled = SocialPost(
+                        user_id=rule.user_id,
+                        social_account_id=acc.id,
+                        platform=acc.platform,
+                        content=content_text,
+                        status="scheduled" if rule.autopost else "draft",
+                        scheduled_at=rule.next_run_at or datetime.utcnow(),
+                        generated_by_ai=False
+                    )
+                    db.add(scheduled)
+        except Exception as e:
+            logger.error(f"Error materializing rule {rule.id}: {e}", exc_info=True)
 
 
 # Global scheduler instance

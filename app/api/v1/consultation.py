@@ -144,7 +144,7 @@ async def send_consultation_confirmation_email(booking_request: ConsultationBook
         </div>
         """
         
-        await email_service.send_email(
+        email_service.send_email(
             to_email=booking_request.email,
             subject=subject,
             html_content=html_content
@@ -205,7 +205,7 @@ async def send_team_notification_email(booking_request: ConsultationBookingReque
         """
         
         # Send to team email
-        await email_service.send_email(
+        email_service.send_email(
             to_email="hello@unitasa.in",  # Replace with your team email
             subject=subject,
             html_content=html_content

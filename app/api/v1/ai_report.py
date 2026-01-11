@@ -360,11 +360,13 @@ async def send_report_email(request: AIReportRequest, report_data: Dict[str, Any
         </div>
         """
         
-        await email_service.send_email(
+        success, msg = email_service.send_email(
             to_email=request.email,
             subject=subject,
             html_content=html_content
         )
+        if not success:
+            logger.error(f"Failed to send email: {msg}")
         
         logger.info(f"✅ AI report email sent to {request.email}")
         return True

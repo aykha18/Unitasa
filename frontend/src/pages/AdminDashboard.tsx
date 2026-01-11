@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, Calendar, TrendingUp, Mail, Phone, CheckCircle, Clock, Settings, User as UserIcon, Edit, Save, X } from 'lucide-react';
 import PaymentTest from '../components/test/PaymentTest';
 import config from '../config/environment';
-import { useToast } from '../hooks/useToast';
+import { useToast, ToastProvider } from '../hooks/useToast';
 import Modal from '../components/ui/Modal';
 
 interface DashboardStats {

@@ -46,7 +46,7 @@ class SocialAccount(Base):
 
     # Relationships
     user = relationship("User", back_populates="social_accounts")
-    posts = relationship("SocialPost", back_populates="social_account")
+    posts = relationship("SocialPost", back_populates="social_account", cascade="all, delete-orphan")
     engagements = relationship("Engagement", back_populates="social_account")
     analytics_snapshots = relationship("AnalyticsSnapshot", back_populates="social_account")
 

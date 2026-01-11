@@ -256,7 +256,11 @@ class RazorpayPaymentService:
         """Create a Razorpay payment for co-creator program"""
         try:
             # Determine currency and amount based on customer location
-            if customer_country.upper() == "IN" or currency.upper() == "INR":
+            if currency.upper() == "INR":
+                # If specifically requested in INR, use the amount as is
+                final_currency = "INR"
+                final_amount = amount
+            elif customer_country.upper() == "IN":
                 # Indian customers pay in INR
                 final_currency = "INR"
                 final_amount = amount * 83  # USD to INR conversion
@@ -280,8 +284,8 @@ class RazorpayPaymentService:
                 "order_id": order_result["order_id"],
                 "amount": final_amount,
                 "currency": final_currency,
-                "amount_usd": amount,
-                "amount_inr": amount * 83 if final_currency == "USD" else final_amount,
+                "amount_usd": final_amount if final_currency == "USD" else final_amount / 83,
+                "amount_inr": final_amount if final_currency == "INR" else final_amount * 83,
                 "key_id": order_result["key_id"],
                 "customer_email": customer_email,
                 "customer_name": customer_name,

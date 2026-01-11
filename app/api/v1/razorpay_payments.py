@@ -61,16 +61,12 @@ async def create_razorpay_order(
     try:
         razorpay_service = get_razorpay_service(db_session=db)
         
-        # FOR TESTING: Override amount to ensure it is 1.05 USD (approx 87 INR)
-        # regardless of what frontend sends, to match user request for local testing
-        test_amount = 1.05
-        
         # Create Razorpay order
         success, message, order_data = await razorpay_service.create_co_creator_payment(
             co_creator_id=user.id if user else 0,  # Use user ID if available, or 0 (temp)
             customer_email=request.customer_email,
             customer_name=request.customer_name,
-            amount=test_amount, # Use test amount
+            amount=request.amount,
             currency=request.currency,
             customer_country=request.customer_country
         )

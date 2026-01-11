@@ -3,9 +3,13 @@ Unitasa - Unified Marketing Intelligence Platform
 Main FastAPI application entry point
 """
 
+import logging
 import os
+import sys
 import warnings
 import asyncio
+
+# Force reload trigger
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -82,24 +86,52 @@ try:
     # print("Wise payments module imported successfully")
     
     print("Importing razorpay_payments module...")
-    from app.api.v1 import razorpay_payments
-    print("Razorpay payments module imported successfully")
+    razorpay_payments = None
+    try:
+        from app.api.v1 import razorpay_payments
+        print("Razorpay payments module imported successfully")
+    except Exception as e:
+        print(f"Razorpay payments module import failed: {e}")
     
     print("Importing consultation module...")
-    from app.api.v1 import consultation
-    print("Consultation module imported successfully")
+    consultation = None
+    try:
+        from app.api.v1 import consultation
+        print("Consultation module imported successfully")
+    except Exception as e:
+        print(f"Consultation module import failed: {e}")
     
+    print("Importing pricing module...")
+    pricing = None
+    try:
+        from app.api.v1 import pricing
+        print("Pricing module imported successfully")
+    except Exception as e:
+        print(f"Pricing module import failed: {e}")
+
     print("Importing user_registration module...")
-    from app.api.v1 import user_registration
-    print("User registration module imported successfully")
+    user_registration = None
+    try:
+        from app.api.v1 import user_registration
+        print("User registration module imported successfully")
+    except Exception as e:
+        print(f"User registration module import failed: {e}")
 
     print("Importing auth module...")
-    from app.api.v1 import auth
-    print("Auth module imported successfully")
+    auth = None
+    try:
+        from app.api.v1 import auth
+        print("Auth module imported successfully")
+    except Exception as e:
+        print(f"Auth module import failed: {e}")
     
     print("Importing admin module...")
-    from app.api.v1 import admin
-    print("Admin module imported successfully")
+    admin = None
+    try:
+        from app.api.v1 import admin
+        print("Admin module imported successfully")
+    except Exception as e:
+        print(f"Admin module import failed: {e}")
 
     print("Importing social module...")
     try:
@@ -130,6 +162,7 @@ async def create_default_data(engine):
     from sqlalchemy import select
     from app.models.user import User
     from app.models.campaign import Campaign
+    from app.models.pricing_plan import PricingPlan
     
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     
@@ -159,6 +192,54 @@ async def create_default_data(engine):
                 print(f"SUCCESS Created system user with ID: {user.id}")
             else:
                 print(f"SUCCESS System user already exists with ID: {user.id}")
+
+            # Seed Default Pricing Plans
+            default_plans = [
+                {
+                    "name": "free",
+                    "display_name": "Free Plan",
+                    "price_usd": 0.0,
+                    "price_inr": 0.0,
+                    "description": "Basic access for individuals",
+                    "features": ["Basic Analytics", "1 Social Account", "Community Support"]
+                },
+                {
+                    "name": "pro",
+                    "display_name": "Pro Plan",
+                    "price_usd": 49.0,
+                    "price_inr": 3999.0,
+                    "description": "For growing businesses",
+                    "features": ["Advanced Analytics", "5 Social Accounts", "Priority Support"]
+                },
+                {
+                    "name": "enterprise",
+                    "display_name": "Enterprise Plan",
+                    "price_usd": 199.0,
+                    "price_inr": 15999.0,
+                    "description": "For large organizations",
+                    "features": ["Custom Analytics", "Unlimited Accounts", "Dedicated Manager"]
+                },
+                {
+                    "name": "co_creator",
+                    "display_name": "Co-Creator Program",
+                    "price_usd": 497.0,
+                    "price_inr": 29999.0,
+                    "description": "Exclusive founding member access",
+                    "features": ["Lifetime Access", "Roadmap Influence", "Direct Founder Access"]
+                }
+            ]
+
+            for plan_data in default_plans:
+                result = await session.execute(select(PricingPlan).where(PricingPlan.name == plan_data["name"]))
+                plan = result.scalar_one_or_none()
+                if not plan:
+                    print(f"Creating default plan: {plan_data['name']}")
+                    new_plan = PricingPlan(**plan_data)
+                    session.add(new_plan)
+                else:
+                    print(f"Plan {plan_data['name']} already exists")
+            
+            await session.commit()
             
             # Check if default campaign exists
             result = await session.execute(select(Campaign).where(Campaign.id == 1))
@@ -415,26 +496,50 @@ try:
     # print("Wise payments router included successfully")
     
     print("Including razorpay payments router...")
-    try:
-        app.include_router(razorpay_payments.router, prefix="/api/v1/payments/razorpay", tags=["payments"])
-        print("Razorpay payments router included successfully")
-    except Exception as e:
-        print(f"ERROR including razorpay payments router: {e}")
-        import traceback
-        print(f"Razorpay router traceback: {traceback.format_exc()}")
-        print("Skipping razorpay payments router")
+    if razorpay_payments:
+        try:
+            app.include_router(razorpay_payments.router, prefix="/api/v1/payments/razorpay", tags=["payments"])
+            print("Razorpay payments router included successfully")
+        except Exception as e:
+            print(f"ERROR including razorpay payments router: {e}")
+            import traceback
+            print(f"Razorpay router traceback: {traceback.format_exc()}")
+            print("Skipping razorpay payments router")
+    else:
+        print("Razorpay payments module not available, skipping router")
     
     print("Including consultation router...")
-    app.include_router(consultation.router, prefix="/api/v1/consultation", tags=["consultation"])
-    print("Consultation router included successfully")
+    if consultation:
+        try:
+            app.include_router(consultation.router, prefix="/api/v1/consultation", tags=["consultation"])
+            print("Consultation router included successfully")
+        except Exception as e:
+            print(f"ERROR including consultation router: {e}")
+            print("Skipping consultation router")
+    else:
+        print("Consultation module not available, skipping router")
     
     print("Including user registration router...")
-    app.include_router(user_registration.router, prefix="/api/v1/auth", tags=["authentication"])
-    print("User registration router included successfully")
+    if user_registration:
+        try:
+            app.include_router(user_registration.router, prefix="/api/v1/auth", tags=["authentication"])
+            print("User registration router included successfully")
+        except Exception as e:
+            print(f"ERROR including user registration router: {e}")
+            print("Skipping user registration router")
+    else:
+        print("User registration module not available, skipping router")
 
     print("Including auth router...")
-    app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
-    print("Auth router included successfully")
+    if auth:
+        try:
+            app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
+            print("Auth router included successfully")
+        except Exception as e:
+            print(f"ERROR including auth router: {e}")
+            print("Skipping auth router")
+    else:
+        print("Auth module not available, skipping router")
     
     print("Importing ai_report module...")
     try:
@@ -448,6 +553,17 @@ try:
         print(f"AI report module import failed: {e}")
         print("Skipping AI report module")
     
+    print("Including pricing router...")
+    if pricing:
+        try:
+            app.include_router(pricing.router, prefix="/api/v1", tags=["pricing"])
+            print("Pricing router included successfully")
+        except Exception as e:
+            print(f"ERROR including pricing router: {e}")
+            print("Skipping pricing router")
+    else:
+        print("Pricing module not available, skipping router")
+
     print("Including admin router...")
     try:
         app.include_router(admin.router, prefix="/api/v1", tags=["admin"])

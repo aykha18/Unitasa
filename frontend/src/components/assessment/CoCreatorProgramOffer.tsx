@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { config } from '../../config/environment';
 import { CoCreatorProgramStatus } from '../../types';
 import LandingPageAPI from '../../services/landingPageApi';
 import Button from '../ui/Button';
 import RazorpayCheckout from '../payment/RazorpayCheckout';
+import { pricingService } from '../../services/pricingService';
 import { Crown, Users, Zap, Clock, CheckCircle, X } from 'lucide-react';
-import { useCurrency } from '../../hooks/useCurrency';
 
 interface CoCreatorProgramOfferProps {
   readinessLevel: string;
@@ -15,17 +18,38 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
   readinessLevel,
   score,
 }) => {
+  const { updateUser } = useAuth();
+  const navigate = useNavigate();
   const [programStatus, setProgramStatus] = useState<CoCreatorProgramStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const currency = useCurrency(497);
+  const [pricing, setPricing] = useState<{ priceInr: number }>({ priceInr: 29999 });
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    loadProgramStatus();
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadProgramStatus(), loadPricing()]);
+      setLoading(false);
+    };
+    init();
   }, []);
+
+  const loadPricing = async () => {
+    try {
+      const plans = await pricingService.getAllPlans();
+      const coCreatorPlan = plans.find(p => p.name === 'co_creator');
+      if (coCreatorPlan) {
+        setPricing({
+          priceInr: coCreatorPlan.price_inr
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load pricing:', error);
+    }
+  };
 
   // Auto-hide success toast after 8 seconds
   useEffect(() => {
@@ -43,8 +67,6 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
       setProgramStatus(status);
     } catch (error) {
       console.error('Failed to load co-creator status:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -161,9 +183,9 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
             <div className="bg-white/10 rounded-lg p-6 mb-6">
               <div className="text-center">
                 <div className="text-sm opacity-75 line-through mb-1">
-                  Regular Price: ₹1,67,000+
+                  Regular Price: {pricingService.formatPrice(167000, 'INR')}+
                 </div>
-                <div className="text-5xl font-bold mb-2">{currency.displayText}</div>
+                <div className="text-5xl font-bold mb-2">{pricingService.formatPrice(pricing.priceInr, 'INR')}</div>
                 <div className="text-lg opacity-90 mt-2">Founding Member Price</div>
                 <div className="text-sm opacity-75 bg-red-500/20 px-3 py-1 rounded-full mt-2 inline-block animate-pulse">
                   🔥 75% Founder Discount - Limited Time
@@ -197,13 +219,39 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="relative">
             <RazorpayCheckout
-              onSuccess={(paymentData) => {
+              onSuccess={async (paymentData) => {
                 console.log('Payment successful:', paymentData);
+                
+                // Refresh user data to reflect new subscription status
+                try {
+                  const token = localStorage.getItem('access_token');
+                  if (token) {
+                    const response = await fetch(`${config.apiBaseUrl}/api/v1/auth/me`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    });
+                    
+                    if (response.ok) {
+                      const updatedUser = await response.json();
+                      updateUser(updatedUser);
+                      console.log('User profile updated with new subscription:', updatedUser.subscription_tier);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Failed to refresh user profile:', error);
+                }
+
                 setPaymentSuccess(true);
                 setShowPaymentFlow(false);
                 // Show success message with modern toast
                 setSuccessMessage(`Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}\n\nYou'll receive a confirmation email shortly.`);
                 setShowSuccessToast(true);
+                
+                // Redirect to profile after a short delay to allow user to see success message
+                setTimeout(() => {
+                   navigate('/profile');
+                }, 3000);
               }}
               onError={(error) => {
                 console.error('Payment error:', error);
@@ -214,6 +262,7 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
               }}
               customerEmail=""
               customerName=""
+              priceInr={pricing.priceInr}
             />
           </div>
         </div>
@@ -234,10 +283,11 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
               onClick={() => {
                 setPaymentSuccess(false);
                 setShowPaymentFlow(false);
+                navigate('/profile');
               }}
               className="w-full"
             >
-              Continue
+              Continue to Profile
             </Button>
           </div>
         </div>

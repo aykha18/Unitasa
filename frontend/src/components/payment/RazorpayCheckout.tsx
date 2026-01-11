@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Smartphone, Building, Globe, ArrowLeft, Loader } from 'lucide-react';
 import Button from '../ui/Button';
+import { config } from '../../config/environment';
 
 interface RazorpayCheckoutProps {
   onSuccess: (paymentData: any) => void;
@@ -8,7 +9,9 @@ interface RazorpayCheckoutProps {
   onCancel: () => void;
   customerEmail?: string;
   customerName?: string;
-  amount?: number; // Optional amount override for testing
+  amount?: number; // Optional amount override for testing (USD)
+  priceInr?: number; // Exact INR price
+  priceUsd?: number; // Exact USD price
 }
 
 interface CurrencyInfo {
@@ -31,7 +34,9 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
   onCancel,
   customerEmail = '',
   customerName = '',
-  amount
+  amount,
+  priceInr,
+  priceUsd
 }) => {
   const [selectedCurrency, setSelectedCurrency] = useState<string>('INR');
   const [selectedCountry, setSelectedCountry] = useState<string>('IN');
@@ -44,15 +49,22 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
 
   // Exchange rates and currency info
   const defaultAmountUSD = 497;
-  const testAmountUSD = amount || defaultAmountUSD; // Use provided amount or default
-  const exchangeRate = 83; // USD to INR
+  const targetUsd = priceUsd || amount || defaultAmountUSD;
+  const exchangeRate = 83; // Fallback USD to INR if priceInr not provided
+  
+  // Prioritize priceInr if available and currency is INR
+  const currentAmount = selectedCurrency === 'INR' && priceInr
+    ? priceInr 
+    : (selectedCurrency === 'INR' ? targetUsd * exchangeRate : targetUsd);
 
   const currencyInfo: CurrencyInfo = {
     currency: selectedCurrency,
-    amount: selectedCurrency === 'INR' ? testAmountUSD * exchangeRate : testAmountUSD,
+    amount: currentAmount,
     symbol: selectedCurrency === 'INR' ? '₹' : '$',
     country: selectedCountry,
-    displayAmount: selectedCurrency === 'INR' ? `₹${(testAmountUSD * exchangeRate).toLocaleString()}` : `$${testAmountUSD}`
+    displayAmount: selectedCurrency === 'INR' 
+      ? `₹${currentAmount.toLocaleString()}` 
+      : `$${currentAmount}`
   };
 
   // Load Razorpay script
@@ -78,14 +90,9 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
 
   // Auto-detect user's location
   useEffect(() => {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (timezone.includes('Asia/Kolkata') || timezone.includes('Asia/Calcutta')) {
-      setSelectedCurrency('INR');
-      setSelectedCountry('IN');
-    } else {
-      setSelectedCurrency('USD');
-      setSelectedCountry('US');
-    }
+    // Default to INR for everyone as per requirement
+    setSelectedCurrency('INR');
+    setSelectedCountry('IN');
   }, []);
 
   const handleCurrencyChange = (currency: string, country: string) => {
@@ -95,36 +102,22 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
 
   const createRazorpayOrder = async () => {
     try {
-      // Use the same API URL logic as AdminDashboard
-      const getApiUrl = () => {
-        // In production (not localhost), always use relative URLs
-        if (window.location.hostname !== 'localhost' &&
-            window.location.hostname !== '127.0.0.1') {
-          console.log('Production detected, using relative URLs');
-          return ''; // Relative URLs will use the same domain
-        }
-
-        // If REACT_APP_API_URL is set and it's not the placeholder, use it
-        if (process.env.REACT_APP_API_URL &&
-            !process.env.REACT_APP_API_URL.includes('your-backend-service.railway.app') &&
-            !process.env.REACT_APP_API_URL.includes('railway.app')) {
-          console.log('Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-          return process.env.REACT_APP_API_URL;
-        }
-
-        // Development default
-        console.log('Using localhost default');
-        return 'http://localhost:8000';
+      const apiUrl = config.apiBaseUrl;
+      const token = localStorage.getItem('access_token');
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
       };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
-      const apiUrl = getApiUrl();
       const response = await fetch(`${apiUrl}/api/v1/payments/razorpay/create-order`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
-          amount: testAmountUSD,
+          amount: currentAmount,
           customer_email: customerDetails.email,
           customer_name: customerDetails.name,
           currency: selectedCurrency,
@@ -309,7 +302,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 <span className="text-2xl mr-2">🇮🇳</span>
                 <span className="font-semibold">Indian Rupees</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">₹{(testAmountUSD * exchangeRate).toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-600">₹{(priceInr || targetUsd * exchangeRate).toLocaleString()}</div>
               <div className="text-sm text-gray-600 flex items-center mt-1">
                 <Smartphone className="w-4 h-4 mr-1" />
                 UPI, Cards, Net Banking
@@ -328,7 +321,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
                 <span className="text-2xl mr-2">🌍</span>
                 <span className="font-semibold">US Dollars</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">${testAmountUSD}</div>
+              <div className="text-2xl font-bold text-green-600">${targetUsd}</div>
               <div className="text-sm text-gray-600 flex items-center mt-1">
                 <CreditCard className="w-4 h-4 mr-1" />
                 International Cards
@@ -382,7 +375,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
           </div>
           {selectedCurrency === 'INR' && (
             <div className="text-xs text-gray-500 mt-1">
-              Equivalent to ${testAmountUSD} USD
+              Equivalent to ${targetUsd} USD
             </div>
           )}
         </div>

@@ -3,8 +3,10 @@ Razorpay payment API endpoints for Co-Creator Program
 """
 
 from typing import Dict, Any, Optional
+import uuid
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -12,14 +14,31 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.core.razorpay_service import get_razorpay_service
 from app.core.payment_support_service import get_payment_support_service
+from app.core.jwt_handler import JWTHandler, get_password_hash
 from app.models.payment_transaction import PaymentTransaction
 from app.models.co_creator_program import CoCreator
 from app.models.lead import Lead
+from app.models.user import User
 
 router = APIRouter()
+security = HTTPBearer(auto_error=False)
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    """Get current user if authenticated, otherwise None"""
+    if not credentials:
+        return None
+    try:
+        user_info = JWTHandler.get_user_from_token(credentials.credentials)
+        result = await db.execute(select(User).where(User.id == user_info["user_id"]))
+        return result.scalar_one_or_none()
+    except Exception:
+        return None
 
 class PaymentOrderRequest(BaseModel):
-    amount: float = 497.0  # Default Co-Creator Program amount in USD
+    amount: float = 1.05  # Default Co-Creator Program amount in USD (approx 87 INR for testing)
     customer_email: EmailStr
     customer_name: str
     lead_id: Optional[int] = None
@@ -35,18 +54,23 @@ class PaymentVerificationRequest(BaseModel):
 @router.post("/create-order")
 async def create_razorpay_order(
     request: PaymentOrderRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_current_user_optional)
 ) -> Dict[str, Any]:
     """Create a Razorpay order for Co-Creator Program"""
     try:
         razorpay_service = get_razorpay_service(db_session=db)
         
+        # FOR TESTING: Override amount to ensure it is 1.05 USD (approx 87 INR)
+        # regardless of what frontend sends, to match user request for local testing
+        test_amount = 1.05
+        
         # Create Razorpay order
         success, message, order_data = await razorpay_service.create_co_creator_payment(
-            co_creator_id=1,  # This would come from your co-creator logic
+            co_creator_id=user.id if user else 0,  # Use user ID if available, or 0 (temp)
             customer_email=request.customer_email,
             customer_name=request.customer_name,
-            amount=request.amount,
+            amount=test_amount, # Use test amount
             currency=request.currency,
             customer_country=request.customer_country
         )
@@ -58,6 +82,7 @@ async def create_razorpay_order(
         payment_transaction = PaymentTransaction(
             razorpay_order_id=order_data["order_id"],
             lead_id=request.lead_id,
+            user_id=user.id if user else None,
             amount=order_data["amount_usd"],
             currency="USD",
             payment_method="razorpay",
@@ -167,7 +192,16 @@ async def verify_razorpay_payment(
                 # Check if co-creator already exists for this user
                 # We'll use customer_email to find existing user or create association
                 existing_co_creator = None
-                if payment_transaction.lead_id:
+                
+                # First check by user_id if we have it
+                if payment_transaction.user_id:
+                    result = await db.execute(
+                        select(CoCreator).where(CoCreator.user_id == payment_transaction.user_id)
+                    )
+                    existing_co_creator = result.scalar_one_or_none()
+                
+                # Then check by lead_id
+                if not existing_co_creator and payment_transaction.lead_id:
                     result = await db.execute(
                         select(CoCreator).where(CoCreator.lead_id == payment_transaction.lead_id)
                     )
@@ -177,9 +211,47 @@ async def verify_razorpay_payment(
                     # Reserve a seat in the program
                     program.reserve_seat()
                     
+                    # Find user
+                    user = None
+                    
+                    # Try to get user from transaction
+                    if payment_transaction.user_id:
+                        result = await db.execute(select(User).where(User.id == payment_transaction.user_id))
+                        user = result.scalar_one_or_none()
+                    
+                    # Fallback to email lookup if no user_id or user not found
+                    if not user:
+                        result = await db.execute(select(User).where(User.email == payment_transaction.customer_email))
+                        user = result.scalar_one_or_none()
+                    
+                    if not user:
+                        # User not found - Auto-create user for new customers
+                        try:
+                            temp_password = uuid.uuid4().hex[:12]
+                            hashed_password = get_password_hash(temp_password)
+                            
+                            user = User(
+                                email=payment_transaction.customer_email,
+                                hashed_password=hashed_password,
+                                full_name=payment_transaction.customer_name,
+                                role="user",
+                                is_active=True,
+                                is_verified=True,  # Auto-verify email since they paid
+                                subscription_tier="free"  # Will be upgraded below
+                            )
+                            db.add(user)
+                            await db.flush()
+                            await db.refresh(user)
+                            
+                        except Exception as create_error:
+                            raise HTTPException(
+                                status_code=500, 
+                                detail=f"Failed to create user account: {str(create_error)}"
+                            )
+                    
                     co_creator = CoCreator(
                         program_id=program.id,
-                        user_id=1,  # Default system user - should be updated when user registers
+                        user_id=user.id,
                         lead_id=payment_transaction.lead_id,
                         seat_number=program.seats_filled,
                         status="active",
@@ -195,6 +267,14 @@ async def verify_razorpay_payment(
                     co_creator.add_metadata("onboarding_completed", False)
                     
                     db.add(co_creator)
+                    
+                    # Update user status if exists
+                    if user:
+                        user.activate_co_creator_status(
+                            seat_number=program.seats_filled,
+                            benefits="Lifetime Platform Access, Priority Support, Founder Engagement"
+                        )
+                        db.add(user)
                     
                     # Update lead status if exists
                     if payment_transaction.lead_id:
@@ -253,6 +333,9 @@ async def verify_razorpay_payment(
                 "error": "Payment signature verification failed"
             }
         
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")

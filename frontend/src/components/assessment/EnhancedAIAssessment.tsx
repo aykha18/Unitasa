@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, Target, Zap, Shield, BarChart3, MessageCircle, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Brain, Target, Zap, Shield, BarChart3, MessageCircle, ArrowRight, ArrowLeft, CheckCircle, CreditCard } from 'lucide-react';
 import Button from '../ui/Button';
 import AIReadinessAssessment from './AIReadinessAssessment';
 import { LeadData } from './LeadCaptureForm';
 import { paymentService } from '../../services/paymentService';
+import { pricingService, PricingPlan } from '../../services/pricingService';
+import { useAuth } from '../../context/AuthContext';
+import config from '../../config/environment';
 
 interface AssessmentStep {
   id: string;
@@ -20,6 +23,15 @@ interface EnhancedAIAssessmentProps {
 }
 
 const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete, onClose, leadData }) => {
+  const { user, updateUser } = useAuth();
+  
+  // Custom navigation function since we're not using React Router
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new Event('navigate'));
+    window.scrollTo(0, 0);
+  };
+
   const [currentStep, setCurrentStep] = useState(0);
   const [assessmentData, setAssessmentData] = useState<Record<string, any>>({});
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -27,6 +39,133 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
   const [showResults, setShowResults] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  
+  const [coCreatorPlan, setCoCreatorPlan] = useState<PricingPlan | null>(null);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const plan = plans.find(p => p.name === 'co_creator');
+        if (plan) {
+          setCoCreatorPlan(plan);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+      }
+    };
+    fetchPricing();
+  }, []);
+
+  const handleSecurePayment = async () => {
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    try {
+      // Detect user currency and country
+      const { currency, country } = paymentService.detectUserCurrency();
+      
+      const priceInr = coCreatorPlan ? coCreatorPlan.price_inr : 29999;
+
+      // Create secure payment order through backend
+      const orderData = await paymentService.createPaymentOrder({
+        amount: priceInr,
+        customer_email: user?.email || leadData?.email || '',
+        customer_name: user?.full_name || leadData?.name || 'Co-Creator Member',
+        program_type: 'co_creator',
+        customer_country: 'IN', // Defaulting to IN for INR pricing
+        currency: 'INR'
+      });
+
+      console.log('✅ Secure order created:', orderData);
+
+      // Load Razorpay script
+      await paymentService.loadRazorpayScript();
+
+      // Open Razorpay checkout with secure parameters
+      const options = {
+        key: orderData.key_id, // Secure key from backend
+        amount: orderData.amount * 100, // Amount in paise from backend
+        currency: orderData.currency, // Currency from backend
+        name: 'Unitasa Co-Creator Program',
+        description: `Founding Member Access - ₹${orderData.amount_inr || orderData.amount}`,
+        order_id: orderData.order_id, // Secure order ID from backend
+        handler: async (response: any) => {
+          console.log('💳 Payment completed, verifying...');
+          
+          try {
+            // Verify payment signature on backend
+            const verifyData = await paymentService.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+
+            if (verifyData.success && verifyData.verified) {
+              console.log('✅ Payment verified successfully');
+              
+              // Refresh user data to reflect new subscription status
+              try {
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                  const response = await fetch(`${config.apiBaseUrl}/api/v1/auth/me`, {
+                    headers: {
+                      'Authorization': `Bearer ${token}`
+                    }
+                  });
+                  
+                  if (response.ok) {
+                    const updatedUser = await response.json();
+                    updateUser(updatedUser);
+                    console.log('User profile updated with new subscription:', updatedUser.subscription_tier);
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to refresh user profile:', error);
+              }
+
+              setPaymentSuccess(true);
+              setPaymentLoading(false);
+              setShowPaymentModal(false);
+              
+              // Redirect to profile after a short delay
+              setTimeout(() => {
+                 navigate('/profile');
+              }, 3000);
+            } else {
+              throw new Error('Payment verification failed');
+            }
+            
+          } catch (verifyError) {
+            console.error('❌ Payment verification failed:', verifyError);
+            setPaymentError('Payment completed but verification failed. Please contact support.');
+            setPaymentLoading(false);
+          }
+        },
+        prefill: {
+          name: user?.full_name || leadData?.name || 'Co-Creator Member',
+          email: user?.email || leadData?.email || '',
+          contact: ''
+        },
+        theme: {
+          color: '#7c3aed'
+        },
+        modal: {
+          ondismiss: function() {
+            setPaymentLoading(false);
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+
+    } catch (error: any) {
+      console.error('Payment initialization failed:', error);
+      setPaymentError(error.message || 'Failed to initialize payment');
+      setPaymentLoading(false);
+    }
+  };
 
   const steps: AssessmentStep[] = [
     {
@@ -173,226 +312,21 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
                 Join 25 Founding Co-Creators
               </h4>
               <div className="mb-3">
-                <div className="text-2xl font-bold text-purple-600">$497</div>
-                <div className="text-xs text-gray-500 line-through">Regular: $2,000+</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {coCreatorPlan ? pricingService.formatPrice(coCreatorPlan.price_inr, 'INR') : '₹29,999'}
+                </div>
+                <div className="text-xs text-gray-500 line-through">Regular: ₹1,67,000+</div>
               </div>
               <p className="text-sm text-gray-600 mb-4">
-                Lifetime access to AI platform + direct product influence + priority support
+                {coCreatorPlan?.description || 'Lifetime access to AI platform + direct product influence + priority support'}
               </p>
               <Button 
                 size="sm" 
                 className="w-full bg-purple-600 hover:bg-purple-700"
-                onClick={() => {
-                  console.log('🎯 Secure Founding Spot clicked - Opening Razorpay Payment!');
-                  
-                  // Create proper Razorpay payment modal using DOM
-                  if (!document.getElementById('razorpay-payment-modal')) {
-                    const modal = document.createElement('div');
-                    modal.id = 'razorpay-payment-modal';
-                    modal.style.cssText = `
-                      position: fixed;
-                      top: 0;
-                      left: 0;
-                      width: 100vw;
-                      height: 100vh;
-                      background: rgba(0, 0, 0, 0.8);
-                      z-index: 999999;
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      font-family: Arial, sans-serif;
-                    `;
-                    
-                    modal.innerHTML = `
-                      <div style="
-                        background: white;
-                        padding: 40px;
-                        border-radius: 12px;
-                        text-align: center;
-                        max-width: 500px;
-                        width: 90%;
-                        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                      ">
-                        <h2 style="color: #7c3aed; font-size: 28px; margin-bottom: 20px;">
-                          🚀 Co-Creator Program
-                        </h2>
-                        
-                        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                          <div style="font-size: 28px; font-weight: bold; color: #7c3aed;">
-                            $497 USD
-                          </div>
-                          <div style="font-size: 18px; font-weight: bold; color: #7c3aed; margin-top: 5px;">
-                            ₹41,500 INR
-                          </div>
-                          <div style="font-size: 14px; color: #6b7280; text-decoration: line-through; margin-top: 8px;">
-                            Regular: $2,000+ / ₹1,67,000+
-                          </div>
-                          <div style="font-size: 14px; color: #059669; font-weight: 600; margin-top: 5px;">
-                            🚀 Founding Member Price • ⚡ Only 12 spots left
-                          </div>
-                        </div>
-                        
-                        <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
-                          Lifetime access to AI platform + direct product influence + priority support
-                        </p>
-                        
-                        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                          <button onclick="processPayment()" 
-                                  style="background: #7c3aed; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600;">
-                            💳 Pay with Razorpay
-                          </button>
-                          
-                          <button onclick="closePaymentModal()" 
-                                  style="background: #6b7280; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
-                            Cancel
-                          </button>
-                        </div>
-                        
-                        <div style="margin-top: 20px; font-size: 12px; color: #6b7280;">
-                          🔒 Secure payment powered by Razorpay • 256-bit SSL encryption
-                        </div>
-                      </div>
-                    `;
-                    
-                    document.body.appendChild(modal);
-                    console.log('💳 Razorpay payment modal created successfully!');
-                    
-                    // Add global functions for the modal
-                    (window as any).processPayment = function() {
-                      console.log('💳 Opening Razorpay checkout...');
-                      
-                      // Load Razorpay script if not already loaded
-                      if (!(window as any).Razorpay) {
-                        const script = document.createElement('script');
-                        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-                        script.onload = function() {
-                          openRazorpayCheckout();
-                        };
-                        document.head.appendChild(script);
-                      } else {
-                        openRazorpayCheckout();
-                      }
-                      
-                      function openRazorpayCheckout() {
-                        // Currency detection and conversion
-                        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                        const isIndianUser = userTimezone.includes('Asia/Kolkata') || userTimezone.includes('Asia/Calcutta');
-                        
-                        // Pricing: $497 USD = ₹41,500 INR (approximate conversion rate 1 USD = 83.5 INR)
-                        const usdPrice = 497;
-                        const inrPrice = Math.round(usdPrice * 83.5); // ₹41,500
-                        
-                        const currency = isIndianUser ? 'INR' : 'INR'; // Razorpay primarily supports INR
-                        const amount = isIndianUser ? inrPrice * 100 : usdPrice * 83.5 * 100; // Convert to paise
-                        const displayPrice = isIndianUser ? `₹${inrPrice.toLocaleString('en-IN')}` : `$${usdPrice} (₹${inrPrice.toLocaleString('en-IN')})`;
-                        
-                        console.log('💰 Pricing Details:', {
-                          userTimezone,
-                          isIndianUser,
-                          currency,
-                          amount: amount / 100,
-                          displayPrice
-                        });
-                        
-                        const options = {
-                          key: 'rzp_test_RcQxnSEfdjl6Nr', // Your actual Razorpay test key
-                          amount: amount, // Amount in paise
-                          currency: currency,
-                          name: 'Unitasa Co-Creator Program',
-                          description: `Founding Member Access - ${displayPrice}`,
-                          image: '/logo.png', // Your logo URL
-                          handler: function(response: any) {
-                            console.log('✅ Payment successful:', response);
-                            alert('🎉 Payment successful! Welcome to the Co-Creator Program!\\n\\nPayment ID: ' + response.razorpay_payment_id + '\\n\\nYou will receive onboarding instructions via email shortly.');
-                            (window as any).closePaymentModal();
-                          },
-                          prefill: {
-                            name: leadData?.name || 'Co-Creator Member',
-                            email: leadData?.email || 'member@unitasa.in',
-                            contact: '+919999999999'
-                          },
-                          notes: {
-                            program: 'Co-Creator Founding Member',
-                            price_usd: '$497',
-                            price_inr: `₹${inrPrice.toLocaleString('en-IN')}`,
-                            currency: currency,
-                            spots_remaining: '12',
-                            user_timezone: userTimezone
-                          },
-                          theme: {
-                            color: '#7c3aed'
-                          },
-                          method: {
-                            netbanking: true,
-                            card: true,
-                            upi: true,
-                            wallet: true,
-                            emi: false,
-                            paylater: false
-                          },
-                          modal: {
-                            ondismiss: function() {
-                              console.log('❌ Payment cancelled by user');
-                            }
-                          }
-                        };
-                        
-                        const rzp = new (window as any).Razorpay(options);
-                        rzp.open();
-                      }
-                    };
-                    
-                    (window as any).closePaymentModal = function() {
-                      const modal = document.getElementById('razorpay-payment-modal');
-                      if (modal) {
-                        modal.remove();
-                        console.log('💳 Payment modal closed');
-                      }
-                    };
-                  }
-                }}
+                onClick={() => setShowPaymentModal(true)}
               >
                 Secure Founding Spot
               </Button>
-              
-              {/* Emergency Test - Native HTML Button */}
-              <button 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('🚨 NATIVE BUTTON CLICKED IN ASSESSMENT!');
-                  alert('Native button in assessment works!');
-                  setShowPaymentModal(true);
-                }}
-                style={{
-                  background: '#ef4444',
-                  color: 'white',
-                  padding: '8px 16px',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  width: '100%',
-                  marginTop: '8px',
-                  fontSize: '14px'
-                }}
-              >
-                🚨 EMERGENCY TEST - CLICK ME
-              </button>
-              
-              {/* Debug State Display */}
-              <div style={{
-                background: '#f3f4f6',
-                padding: '10px',
-                marginTop: '10px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontFamily: 'monospace',
-                border: '1px solid #d1d5db'
-              }}>
-                <strong>🔍 Debug State:</strong><br/>
-                showPaymentModal: {showPaymentModal ? 'true' : 'false'}<br/>
-                paymentSuccess: {paymentSuccess ? 'true' : 'false'}
-              </div>
               
               <div className="text-xs text-center text-gray-500 mt-2">
                 ⚡ Only 12 spots remaining
@@ -463,79 +397,85 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
         </div>
       )}
 
-      {/* ULTRA AGGRESSIVE MODAL - WILL DEFINITELY SHOW */}
+      {/* Payment Details Modal */}
       {showPaymentModal && (
-        <div style={{
-          position: 'fixed',
-          top: '0px',
-          left: '0px',
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(255, 0, 0, 0.9)',
-          zIndex: '999999',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'Arial, sans-serif'
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            padding: '40px',
-            borderRadius: '10px',
-            textAlign: 'center',
-            maxWidth: '500px',
-            width: '90%',
-            border: '5px solid #ff0000',
-            boxShadow: '0 0 50px rgba(0,0,0,0.8)'
-          }}>
-            <h1 style={{ 
-              color: '#ff0000', 
-              fontSize: '32px', 
-              marginBottom: '20px',
-              textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-            }}>
-              🚨 MODAL IS WORKING! 🚨
-            </h1>
-            
-            <p style={{ fontSize: '18px', marginBottom: '20px', color: '#333' }}>
-              <strong>SUCCESS!</strong> The button clicks are working and the modal is rendering!
-            </p>
-            
-            <div style={{ 
-              backgroundColor: '#f0f0f0', 
-              padding: '15px', 
-              borderRadius: '5px',
-              marginBottom: '20px',
-              fontFamily: 'monospace'
-            }}>
-              <strong>Debug Info:</strong><br/>
-              showPaymentModal: {showPaymentModal ? 'TRUE' : 'FALSE'}<br/>
-              paymentSuccess: {paymentSuccess ? 'TRUE' : 'FALSE'}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all">
+            {/* Header */}
+            <div className="bg-purple-600 p-6 text-center">
+              <h2 className="text-2xl font-bold text-white mb-2">
+                🚀 Co-Creator Program
+              </h2>
+              <p className="text-purple-100 text-sm">
+                Join the elite group of founding members
+              </p>
             </div>
             
-            <p style={{ fontSize: '16px', marginBottom: '30px', color: '#666' }}>
-              This proves the React state management and modal rendering is working correctly!
-            </p>
-            
-            <button
-              onClick={() => {
-                console.log('🎉 Modal close button clicked');
-                setShowPaymentModal(false);
-                alert('Modal closed successfully! The button functionality is working perfectly.');
-              }}
-              style={{
-                backgroundColor: '#22c55e',
-                color: 'white',
-                padding: '15px 30px',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '18px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              ✅ CLOSE MODAL - IT WORKS!
-            </button>
+            <div className="p-8">
+              {/* Pricing */}
+              <div className="bg-purple-50 rounded-lg p-6 text-center mb-6 border border-purple-100">
+                <div className="text-4xl font-bold text-purple-700 mb-1">
+                  {coCreatorPlan ? pricingService.formatPrice(coCreatorPlan.price_inr, 'INR') : '₹29,999'}
+                </div>
+                <div className="text-sm text-gray-500 line-through mb-2">
+                  Regular Price: ₹1,67,000+
+                </div>
+                <div className="inline-block bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">
+                  🔥 Founding Member Price • ⚡ Only 12 spots left
+                </div>
+              </div>
+              
+              {/* Benefits Summary */}
+              <div className="space-y-3 mb-8">
+                <div className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700 text-sm">Lifetime access to Unitasa AI Platform</span>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700 text-sm">Direct influence on product roadmap</span>
+                </div>
+                <div className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700 text-sm">Priority support & early access to features</span>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleSecurePayment}
+                  disabled={paymentLoading}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-lg py-6 shadow-lg shadow-purple-200"
+                >
+                  {paymentLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Secure My Spot Now
+                    </div>
+                  )}
+                </Button>
+                
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  disabled={paymentLoading}
+                  className="w-full py-3 text-gray-500 hover:text-gray-700 text-sm font-medium transition-colors"
+                >
+                  No, I'll miss this opportunity
+                </button>
+              </div>
+              
+              {/* Security Note */}
+              <div className="mt-6 text-center flex items-center justify-center text-xs text-gray-400">
+                <Shield className="w-3 h-3 mr-1" />
+                Secure payment powered by Razorpay • 256-bit SSL encryption
+              </div>
+            </div>
           </div>
         </div>
       )}

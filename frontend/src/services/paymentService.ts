@@ -64,11 +64,19 @@ class PaymentService {
    */
   async createPaymentOrder(request: PaymentOrderRequest): Promise<PaymentOrderResponse> {
     try {
+      // Get auth token if available
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${this.baseUrl}/create-order`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(request)
       });
 
@@ -95,11 +103,19 @@ class PaymentService {
    */
   async verifyPayment(request: PaymentVerificationRequest): Promise<PaymentVerificationResponse> {
     try {
+      // Get auth token if available
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${this.baseUrl}/verify-payment`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(request)
       });
 

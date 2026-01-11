@@ -6,7 +6,9 @@ import { LeadData } from './LeadCaptureForm';
 import { paymentService } from '../../services/paymentService';
 import ConsultationBooking from '../booking/ConsultationBooking';
 import SimpleAIReportModal from '../reports/SimpleAIReportModal';
-import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService } from '../../services/pricingService';
+import { useAuth } from '../../context/AuthContext';
+import { config } from '../../config/environment';
 
 interface AssessmentStep {
   id: string;
@@ -22,6 +24,15 @@ interface EnhancedAIAssessmentProps {
 }
 
 const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete, onClose, leadData }) => {
+  const { user, updateUser } = useAuth();
+  
+  // Custom navigation function since we're not using React Router
+  const navigate = (path: string) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new Event('navigate'));
+    window.scrollTo(0, 0);
+  };
+
   const [currentStep, setCurrentStep] = useState(0);
   const [assessmentData, setAssessmentData] = useState<Record<string, any>>({});
   const [showResults, setShowResults] = useState(false);
@@ -32,9 +43,27 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
   const [successMessage, setSuccessMessage] = useState('');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  
-  // Fixed pricing for co-creator program
-  const coCreatorPrice = '₹29,999';
+  const [pricing, setPricing] = useState<{ priceInr: number }>({ priceInr: 29999 });
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const coCreatorPlan = plans.find(p => p.name === 'co_creator');
+        if (coCreatorPlan) {
+          setPricing({
+            priceInr: coCreatorPlan.price_inr
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load pricing:', error);
+      }
+    };
+    loadPricing();
+  }, []);
+
+  const formattedPrice = pricingService.formatPrice(pricing.priceInr, 'INR');
+  const coCreatorPriceValue = pricing.priceInr;
 
   // Auto-hide success toast after 8 seconds
   useEffect(() => {
@@ -97,13 +126,12 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
       
       // Create secure payment order through backend
       const orderData = await paymentService.createPaymentOrder({
-        amount: 361.0,
-        customer_email: leadData?.email || 'member@unitasa.in',
-        customer_name: leadData?.name || 'Co-Creator Member',
-        lead_id: undefined, // You can add lead ID if available
+        amount: coCreatorPriceValue,
+        customer_email: user?.email || leadData?.email || '',
+        customer_name: user?.full_name || leadData?.name || 'Co-Creator Member',
         program_type: 'co_creator',
-        currency: currency,
-        customer_country: country
+        customer_country: 'IN', // Defaulting to IN for INR pricing
+        currency: 'INR'
       });
 
       console.log('✅ Secure order created:', orderData);
@@ -117,7 +145,7 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
         amount: orderData.amount * 100, // Amount in paise from backend
         currency: orderData.currency, // Currency from backend
         name: 'Unitasa Co-Creator Program',
-        description: `Founding Member Access - $${orderData.amount_usd} / ₹${orderData.amount_inr}`,
+        description: `Founding Member Access - ₹${orderData.amount_inr || orderData.amount}`,
         order_id: orderData.order_id, // Secure order ID from backend
         handler: async (response: any) => {
           console.log('💳 Payment completed, verifying...');
@@ -132,12 +160,38 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
 
             if (verifyData.success && verifyData.verified) {
               console.log('✅ Payment verified successfully');
+              
+              // Refresh user data to reflect new subscription status
+              try {
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                  const response = await fetch(`${config.apiBaseUrl}/api/v1/auth/me`, {
+                    headers: {
+                      'Authorization': `Bearer ${token}`
+                    }
+                  });
+                  
+                  if (response.ok) {
+                    const updatedUser = await response.json();
+                    updateUser(updatedUser);
+                    console.log('User profile updated with new subscription:', updatedUser.subscription_tier);
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to refresh user profile:', error);
+              }
+
               setPaymentSuccess(true);
               setPaymentLoading(false);
               
               // Show success message with modern toast
               setSuccessMessage(`🎉 Payment successful! Welcome to the Co-Creator Program!\n\nPayment ID: ${response.razorpay_payment_id}\n\nYou will receive onboarding instructions via email shortly.`);
               setShowSuccessToast(true);
+              
+              // Redirect to profile after a short delay to allow user to see success message
+              setTimeout(() => {
+                 navigate('/profile');
+              }, 3000);
             } else {
               throw new Error('Payment verification failed');
             }
@@ -337,7 +391,7 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
                 <div className="text-center mb-4">
                   {/* Fixed pricing for co-creator program */}
                   <div className="text-3xl font-bold text-purple-600">
-                    {coCreatorPrice}
+                    {formattedPrice}
                   </div>
                   <div className="text-sm text-gray-500 line-through mt-2">
                     Regular: ₹1,67,000+

@@ -14,6 +14,8 @@ from .co_creator_program import CoCreatorProgram, CoCreator
 from .payment_transaction import PaymentTransaction
 from .founder_story import FounderStory, FounderMilestone
 from .chat_session import ChatSession, ChatMessage
+from .schedule_rule import ScheduleRule
+from .pricing_plan import PricingPlan
 
 __all__ = [
     "Base",
@@ -30,5 +32,7 @@ __all__ = [
     "FounderStory",
     "FounderMilestone",
     "ChatSession",
-    "ChatMessage"
+    "ChatMessage",
+    "ScheduleRule",
+    "PricingPlan"
 ]

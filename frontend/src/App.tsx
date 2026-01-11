@@ -37,7 +37,6 @@ import {
 } from './utils/bundleOptimization';
 import { register as registerSW } from './utils/serviceWorker';
 import { runTask11_2Validation } from './utils/performanceValidator';
-import { ToastProvider } from './hooks/useToast';
 
 // Lazy load pages
 const UnifiedDashboard = React.lazy(() => import('./pages/Dashboard/UnifiedDashboard'));

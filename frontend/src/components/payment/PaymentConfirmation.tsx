@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PaymentResult, CoCreatorProfile } from '../../types';
+import { pricingService } from '../../services/pricingService';
 import Button from '../ui/Button';
 import {
   CheckCircle,
@@ -31,11 +32,29 @@ const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [price, setPrice] = useState('₹29,999');
+  const [priceValue, setPriceValue] = useState(29999);
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const coCreatorPlan = plans.find(p => p.name === 'co_creator');
+        if (coCreatorPlan) {
+          setPrice(pricingService.formatPrice(coCreatorPlan.price_inr, 'INR'));
+          setPriceValue(coCreatorPlan.price_inr);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    };
+    fetchPrice();
+  }, []);
 
   useEffect(() => {
     loadCoCreatorProfile();
     generateReceipt();
-  }, [paymentResult]);
+  }, [paymentResult, priceValue]);
 
   const loadCoCreatorProfile = async () => {
     if (!paymentResult.coCreatorId) return;
@@ -60,8 +79,8 @@ const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
       // In a real implementation, this would generate a PDF receipt
       const receiptData = {
         paymentId: paymentResult.paymentIntentId,
-        amount: 250.00,
-        currency: 'USD',
+        amount: priceValue,
+        currency: 'INR',
         date: new Date().toISOString(),
         description: 'Co-Creator Program - Lifetime Access'
       };
@@ -188,7 +207,7 @@ const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-300">Amount Paid:</span>
-                  <span className="font-semibold">$497.00</span>
+                  <span className="font-semibold">{price}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Payment ID:</span>

@@ -3,7 +3,7 @@ import { CoCreatorProgramStatus } from '../../types';
 import LandingPageAPI from '../../services/landingPageApi';
 import Button from '../ui/Button';
 import config from '../../config/environment';
-import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService } from '../../services/pricingService';
 import {
   Crown,
   Users,
@@ -35,10 +35,35 @@ const CoCreatorProgramInterface: React.FC<CoCreatorProgramInterfaceProps> = ({
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const [timeLeft, setTimeLeft] = useState<{days: number, hours: number, minutes: number, seconds: number} | null>(null);
   const [recentJoins, setRecentJoins] = useState<string[]>([]);
-  const currency = useCurrency(497);
+  const [price, setPrice] = useState('');
 
   useEffect(() => {
-    loadProgramStatus();
+    const init = async () => {
+      try {
+        setLoading(true);
+        // Fetch pricing
+        const plans = await pricingService.getAllPlans();
+        const coCreatorPlan = plans.find(p => p.name === 'co_creator');
+        if (coCreatorPlan) {
+          setPrice(pricingService.formatPrice(coCreatorPlan.price_inr, 'INR'));
+        } else {
+          // Fallback if plan not found
+          setPrice('₹29,999'); 
+        }
+
+        // Load program status
+        const status = await LandingPageAPI.getCoCreatorStatus();
+        setProgramStatus(status);
+      } catch (error) {
+        console.error('Failed to initialize Co-Creator Interface:', error);
+        // Set fallbacks on error
+        setPrice('₹29,999'); 
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    init();
     setupWebSocketConnection();
     startCountdownTimer();
 
@@ -76,16 +101,7 @@ const CoCreatorProgramInterface: React.FC<CoCreatorProgramInterfaceProps> = ({
     return () => clearInterval(interval);
   };
 
-  const loadProgramStatus = async () => {
-    try {
-      const status = await LandingPageAPI.getCoCreatorStatus();
-      setProgramStatus(status);
-    } catch (error) {
-      console.error('Failed to load co-creator status:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const setupWebSocketConnection = () => {
     // Skip WebSocket connection if disabled
@@ -343,7 +359,7 @@ const CoCreatorProgramInterface: React.FC<CoCreatorProgramInterfaceProps> = ({
 
           <div className="bg-red-500/20 border border-red-400 rounded-lg p-4 max-w-lg mx-auto mb-6">
             <div className="text-red-200 font-semibold">⚡ FOUNDER PRICING ENDS SOON</div>
-            <div className="text-sm text-red-300">Regular price increases to $2,000+ after founding phase</div>
+            <div className="text-sm text-red-300">Regular price increases to ₹1,67,000+ after founding phase</div>
           </div>
 
           {/* Real-time Seat Counter */}
@@ -487,7 +503,7 @@ const CoCreatorProgramInterface: React.FC<CoCreatorProgramInterfaceProps> = ({
             <div className="text-sm opacity-70 line-through mb-1">
               Regular Price: ₹1,67,000+
             </div>
-            <div className="text-5xl font-bold mb-2 text-yellow-400">{currency.displayText}</div>
+            <div className="text-5xl font-bold mb-2 text-yellow-400">{price}</div>
             <div className="text-lg opacity-90 mb-2 mt-2">Founding Member Price</div>
             <div className="text-sm opacity-70 bg-red-500/20 px-3 py-1 rounded-full inline-block">
               🔥 75% Founder Discount

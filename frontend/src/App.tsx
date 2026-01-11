@@ -37,6 +37,21 @@ import {
 } from './utils/bundleOptimization';
 import { register as registerSW } from './utils/serviceWorker';
 import { runTask11_2Validation } from './utils/performanceValidator';
+import { ToastProvider } from './hooks/useToast';
+
+// Lazy load pages
+const UnifiedDashboard = React.lazy(() => import('./pages/Dashboard/UnifiedDashboard'));
+const EmailVerificationPage = React.lazy(() => import('./pages/EmailVerificationPage'));
+const CoCreatorSignupPage = React.lazy(() => import('./pages/CoCreatorSignupPage'));
+const GenerateContentPage = React.lazy(() => import('./pages/GenerateContentPage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+const BrandProfilePage = React.lazy(() => import('./pages/BrandProfilePage'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const SchedulePostsPage = React.lazy(() => import('./pages/SchedulePostsPage'));
+const ClientOnboardingPage = React.lazy(() => import('./pages/ClientOnboardingPage'));
+const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
+const ImageSuggestionsPage = React.lazy(() => import('./pages/ImageSuggestionsPage'));
+const ChatAssistantPage = React.lazy(() => import('./pages/ChatAssistantPage'));
 
 function App() {
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
@@ -202,28 +217,24 @@ function App() {
       case '/login':
         return <SignInPage />;
       case '/dashboard':
-        const UnifiedDashboard = React.lazy(() => import('./pages/Dashboard/UnifiedDashboard'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <UnifiedDashboard />
           </React.Suspense>
         );
       case '/verify-email':
-        const EmailVerificationPage = React.lazy(() => import('./pages/EmailVerificationPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <EmailVerificationPage />
           </React.Suspense>
         );
       case '/co-creator':
-        const CoCreatorSignupPage = React.lazy(() => import('./pages/CoCreatorSignupPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <CoCreatorSignupPage />
           </React.Suspense>
         );
       case '/generate-content':
-        const GenerateContentPage = React.lazy(() => import('./pages/GenerateContentPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <GenerateContentPage />
@@ -232,14 +243,12 @@ function App() {
       case '/settings':
       case '/settings/integrations':
       case '/settings/team':
-        const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <SettingsPage />
           </React.Suspense>
         );
       case '/brand-profile':
-        const BrandProfilePage = React.lazy(() => import('./pages/BrandProfilePage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <BrandProfilePage />
@@ -254,48 +263,36 @@ function App() {
       case '/contact':
         return <Contact />;
       case '/admin':
-        // Lazy load admin dashboard
-        const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <AdminDashboard />
           </React.Suspense>
         );
       case '/schedule-posts':
-        // Lazy load schedule posts page
-        const SchedulePostsPage = React.lazy(() => import('./pages/SchedulePostsPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <SchedulePostsPage />
           </React.Suspense>
         );
       case '/onboarding':
-        // Lazy load onboarding page
-        const ClientOnboardingPage = React.lazy(() => import('./pages/ClientOnboardingPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <ClientOnboardingPage />
           </React.Suspense>
         );
       case '/smart-hashtags':
-        // Lazy load smart hashtags page
-        const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <SmartHashtagsPage />
           </React.Suspense>
         );
       case '/image-suggestions':
-        // Lazy load image suggestions page
-        const ImageSuggestionsPage = React.lazy(() => import('./pages/ImageSuggestionsPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <ImageSuggestionsPage />
           </React.Suspense>
         );
       case '/chat-assistant':
-        // Lazy load chat assistant page
-        const ChatAssistantPage = React.lazy(() => import('./pages/ChatAssistantPage'));
         return (
           <React.Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <ChatAssistantPage />

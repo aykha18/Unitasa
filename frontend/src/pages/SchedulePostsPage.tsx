@@ -57,6 +57,10 @@ const SchedulePostsPage: React.FC = () => {
   const [tone, setTone] = useState('professional');
   const [contentType, setContentType] = useState('educational');
   const [drafts, setDrafts] = useState<any[]>([]);
+  const [historyPosts, setHistoryPosts] = useState<any[]>([]);
+  const [historyTab, setHistoryTab] = useState<'posted' | 'failed'>('posted');
+  const [postedOffset, setPostedOffset] = useState(0);
+  const [failedOffset, setFailedOffset] = useState(0);
   const [toast, setToast] = useState<{ show: boolean; title: string; message: string; type: 'success' | 'error' | 'warning' | 'info' }>({ 
     show: false, 
     title: '', 
@@ -99,6 +103,25 @@ const SchedulePostsPage: React.FC = () => {
     }
 
     return 'http://localhost:8001';
+  };
+
+  const fetchHistory = async (status: 'posted' | 'failed', offset: number) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/social/history?status=${status}&limit=5&offset=${offset}`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      if (res.status === 401) {
+        window.location.href = '/signin';
+        return;
+      }
+      if (res.ok) {
+        const h = await res.json();
+        setHistoryPosts(h.history_posts || []);
+      }
+    } catch (e) {
+      console.error('Error fetching history', e);
+    }
   };
 
   const fetchAccounts = async () => {
@@ -492,6 +515,7 @@ const SchedulePostsPage: React.FC = () => {
   useEffect(() => {
     fetchScheduledPosts();
     fetchAccounts();
+    fetchHistory('posted', 0);
   }, []);
 
   return (
@@ -1152,6 +1176,111 @@ const SchedulePostsPage: React.FC = () => {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Post History */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mt-8 mb-8">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Post History</h2>
+                <p className="text-gray-600 text-sm mt-1">Logs of posted and failed content</p>
+              </div>
+              <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => { setHistoryTab('posted'); fetchHistory('posted', postedOffset); }}
+                  className={`px-3 py-2 rounded-md transition-colors ${historyTab === 'posted' ? 'bg-white shadow-sm text-green-700' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Successful
+                </button>
+                <button
+                  onClick={() => { setHistoryTab('failed'); fetchHistory('failed', failedOffset); }}
+                  className={`ml-2 px-3 py-2 rounded-md transition-colors ${historyTab === 'failed' ? 'bg-white shadow-sm text-red-700' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Failed
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            {historyPosts.length === 0 ? (
+              <div className="text-center py-12 text-gray-600">No history available</div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {historyPosts.map((post) => (
+                    <div key={post.id} className={`border rounded-lg p-4 ${post.status === 'failed' ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              post.status === 'posted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {post.status.toUpperCase()}
+                            </span>
+                            <span className="text-sm text-gray-600 capitalize">{post.platform}</span>
+                          </div>
+                          <p className="text-gray-900 mb-2">{post.content}</p>
+                          <div className="flex flex-col text-sm text-gray-600">
+                            <span>
+                              <Clock className="w-3 h-3 inline mr-1" />
+                              {historyTab === 'posted'
+                                ? `Posted: ${post.posted_at ? new Date(post.posted_at).toLocaleString() : '-'}`
+                                : `Failed: ${post.failed_at ? new Date(post.failed_at).toLocaleString() : '-'}`}
+                            </span>
+                            {historyTab === 'failed' && post.failure_reason && (
+                              <span className="text-red-600 mt-1 font-medium">Error: {post.failure_reason}</span>
+                            )}
+                            {historyTab === 'posted' && post.post_url && (
+                              <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline mt-1">
+                                View Post
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (historyTab === 'posted') {
+                        const newOffset = Math.max(0, postedOffset - 5);
+                        setPostedOffset(newOffset);
+                        fetchHistory('posted', newOffset);
+                      } else {
+                        const newOffset = Math.max(0, failedOffset - 5);
+                        setFailedOffset(newOffset);
+                        fetchHistory('failed', newOffset);
+                      }
+                    }}
+                    disabled={(historyTab === 'posted' ? postedOffset : failedOffset) === 0}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (historyTab === 'posted') {
+                        const newOffset = postedOffset + 5;
+                        setPostedOffset(newOffset);
+                        fetchHistory('posted', newOffset);
+                      } else {
+                        const newOffset = failedOffset + 5;
+                        setFailedOffset(newOffset);
+                        fetchHistory('failed', newOffset);
+                      }
+                    }}
+                    disabled={historyPosts.length < 5}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
             )}
           </div>
         </div>

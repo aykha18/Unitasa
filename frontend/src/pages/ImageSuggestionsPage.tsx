@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Image, Search, Download, Heart, Share2, RefreshCw } from 'lucide-react';
 import { Button } from '../components/ui';
 import { aiContentHubService, ImageSuggestion } from '../services/aiContentHubService';
@@ -53,7 +54,7 @@ const ImageSuggestionsPage: React.FC = () => {
       } else {
         // Fallback: copy URL to clipboard
         await navigator.clipboard.writeText(image.download_url || image.url);
-        alert('Image URL copied to clipboard!');
+        toast.success('Image URL copied to clipboard!');
       }
     } catch (error) {
       console.error('Error sharing image:', error);

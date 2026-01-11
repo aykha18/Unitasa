@@ -1,10 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, Star, Zap, Shield, TrendingUp, Users, Award, Gift, ArrowRight } from 'lucide-react';
+import { pricingService } from '../../services/pricingService';
 
 export {};
 
 const TrialMessaging: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState({ hours: 24, minutes: 0, seconds: 0 });
+  const [coCreatorPrice, setCoCreatorPrice] = useState('₹29,999');
+  const [proPrice, setProPrice] = useState('₹4,999');
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const ccPlan = plans.find(p => p.name === 'co_creator');
+        const pPlan = plans.find(p => p.name === 'pro');
+        
+        if (ccPlan) {
+          setCoCreatorPrice(pricingService.formatPrice(ccPlan.price_inr, 'INR'));
+        }
+        if (pPlan) {
+          setProPrice(pricingService.formatPrice(pPlan.price_inr, 'INR'));
+        }
+      } catch (error) {
+        console.error('Failed to fetch prices:', error);
+      }
+    };
+    fetchPrices();
+  }, []);
 
   // Countdown timer for urgency
   useEffect(() => {
@@ -60,9 +83,9 @@ const TrialMessaging: React.FC = () => {
 
   const urgencyMessages = [
     '⏰ Limited time: Free AI assessment expires in ' + timeLeft.hours + ' hours',
-    '🎯 Only 100 founding members get lifetime access at ₹29,999',
+    `🎯 Only 100 founding members get lifetime access at ${coCreatorPrice}`,
     '🚀 Join successful founders who increased revenue by 300%',
-    '⚡ Don\'t miss out on enterprise AI marketing from ₹4,999/month'
+    `⚡ Don't miss out on enterprise AI marketing from ${proPrice}/month`
   ];
 
   const [currentUrgencyMessage, setCurrentUrgencyMessage] = useState(0);
@@ -191,7 +214,7 @@ const TrialMessaging: React.FC = () => {
               </div>
               <h4 className="text-white font-bold mb-2">Flexible Pricing</h4>
               <p className="text-blue-100 text-sm">
-                Choose from ₹4,999/mo to ₹29,999 one-time based on your needs
+                Choose from {proPrice}/mo to {coCreatorPrice} one-time based on your needs
               </p>
             </div>
 

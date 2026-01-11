@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Sparkles, Hash, Copy, RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '../components/ui';
 import { aiContentHubService, Hashtag } from '../services/aiContentHubService';
@@ -65,7 +66,7 @@ const SmartHashtagsPage: React.FC = () => {
     try {
       const allHashtags = hashtags.join(' ');
       await navigator.clipboard.writeText(allHashtags);
-      alert('All hashtags copied to clipboard!');
+      toast.success('All hashtags copied to clipboard!');
     } catch (err) {
       console.error('Failed to copy hashtags:', err);
     }

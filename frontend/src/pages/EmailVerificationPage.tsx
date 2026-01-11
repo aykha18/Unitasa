@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { CheckCircle, Mail, AlertCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui';
 
@@ -58,7 +59,7 @@ const EmailVerificationPage: React.FC = () => {
 
   const handleResendVerification = async () => {
     if (!email) {
-      alert('Please enter your email address');
+      toast.error('Please enter your email address');
       return;
     }
 
@@ -76,13 +77,13 @@ const EmailVerificationPage: React.FC = () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        alert('Verification email sent! Please check your inbox.');
+        toast.success('Verification email sent! Please check your inbox.');
       } else {
-        alert(result.detail || result.message || 'Failed to resend verification email');
+        toast.error(result.detail || result.message || 'Failed to resend verification email');
       }
     } catch (error) {
       console.error('Resend error:', error);
-      alert('Network error occurred. Please try again.');
+      toast.error('Network error occurred. Please try again.');
     } finally {
       setIsResending(false);
     }

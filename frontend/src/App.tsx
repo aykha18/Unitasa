@@ -52,6 +52,8 @@ const SmartHashtagsPage = React.lazy(() => import('./pages/SmartHashtagsPage'));
 const ImageSuggestionsPage = React.lazy(() => import('./pages/ImageSuggestionsPage'));
 const ChatAssistantPage = React.lazy(() => import('./pages/ChatAssistantPage'));
 
+import { Toaster } from 'react-hot-toast';
+
 function App() {
   const [showPerformanceDashboard, setShowPerformanceDashboard] = useState(false);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -323,6 +325,7 @@ function App() {
         />
       )}
 
+      <Toaster position="top-right" />
       {/* Global Assessment Modal */}
       {isAssessmentOpen && (
         <React.Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { ArrowRight, Calendar, BookOpen, Users, Zap } from 'lucide-react';
 import Button from '../ui/Button';
+import { pricingService } from '../../services/pricingService';
 
 interface NextStepsSectionProps {
   steps: string[];
@@ -13,6 +15,26 @@ const NextStepsSection: React.FC<NextStepsSectionProps> = ({
   readinessLevel,
   onStartPayment,
 }) => {
+  const [formattedPrice, setFormattedPrice] = useState('₹29,999');
+
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const coCreatorPlan = plans.find(p => p.name === 'co_creator');
+        if (coCreatorPlan) {
+          setFormattedPrice(pricingService.formatPrice(coCreatorPlan.price_inr, 'INR'));
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    };
+    
+    if (readinessLevel === 'co_creator_qualified') {
+      fetchPrice();
+    }
+  }, [readinessLevel]);
+
   const getActionButton = () => {
     switch (readinessLevel) {
       case 'priority_integration':
@@ -37,7 +59,7 @@ const NextStepsSection: React.FC<NextStepsSectionProps> = ({
                 if (onStartPayment) {
                   onStartPayment();
                 } else {
-                  alert('Priority integration setup is being prepared...');
+                  toast('Priority integration setup is being prepared...', { icon: '🚧' });
                 }
               }}
             >
@@ -61,11 +83,11 @@ const NextStepsSection: React.FC<NextStepsSectionProps> = ({
                 if (onStartPayment) {
                   onStartPayment();
                 } else {
-                  alert('Payment system is being initialized...');
+                  toast('Payment system is being initialized...', { icon: '💳' });
                 }
               }}
             >
-              Join Co-Creator Program ($497)
+              Join Co-Creator Program ({formattedPrice})
             </Button>
             <Button
               variant="outline"

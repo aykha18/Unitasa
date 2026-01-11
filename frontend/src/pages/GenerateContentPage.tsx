@@ -16,6 +16,16 @@ type GeneratedItem = {
   source: string;
 };
 
+const getPlatformLimit = (platform: string) => {
+  switch(platform.toLowerCase()) {
+    case 'twitter': return 280;
+    case 'instagram': return 2200;
+    case 'linkedin': return 3000;
+    case 'facebook': return 63206;
+    default: return 280;
+  }
+};
+
 const GenerateContentPage: React.FC = () => {
   const [platform, setPlatform] = useState('twitter');
   const [contentType, setContentType] = useState('educational');
@@ -74,6 +84,14 @@ const GenerateContentPage: React.FC = () => {
     } finally {
       setPosting(prev => ({ ...prev, [item.id]: false }));
     }
+  };
+
+  const updateContent = (id: string, newContent: string) => {
+    setResults(prev => prev.map(item => 
+      item.id === id 
+        ? { ...item, content: newContent, character_count: newContent.length } 
+        : item
+    ));
   };
 
   return (
@@ -155,13 +173,19 @@ const GenerateContentPage: React.FC = () => {
           {results.map((item) => (
             <Card key={item.id}>
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 mr-6">
                   <div className="flex items-center space-x-2 mb-2">
                     <Megaphone className="w-5 h-5 text-blue-600" />
                     <span className="text-sm text-gray-600 capitalize">{item.platform}</span>
                     <span className="text-xs text-gray-400">• {new Date(item.generated_at).toLocaleString()}</span>
                   </div>
-                  <p className="text-gray-900">{item.content}</p>
+                  <textarea
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-y text-gray-900 font-sans"
+                    rows={4}
+                    value={item.content}
+                    onChange={(e) => updateContent(item.id, e.target.value)}
+                    placeholder="Enter your content here..."
+                  />
                   {item.hashtags?.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center">
                       <Hash className="w-4 h-4 text-gray-500 mr-2" />
@@ -171,8 +195,10 @@ const GenerateContentPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">{item.character_count} chars</div>
+                <div className="text-right flex-shrink-0 w-64">
+                  <div className={`text-sm ${item.character_count > getPlatformLimit(item.platform) ? 'text-red-600 font-bold' : 'text-gray-500'}`}>
+                    {item.character_count} / {getPlatformLimit(item.platform)} chars
+                  </div>
                   <div className="mt-1 text-sm font-medium text-green-600">{item.call_to_action}</div>
                   <div className="mt-3 flex items-center justify-end space-x-2">
                     <Button

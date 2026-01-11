@@ -3,7 +3,7 @@ import { LucideIcon } from 'lucide-react';
 
 interface ButtonProps {
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -35,6 +35,7 @@ const Button: React.FC<ButtonProps> = ({
     secondary: 'bg-secondary-600 text-white hover:bg-secondary-700 focus:ring-secondary-500',
     outline: 'border-2 border-unitasa-electric text-unitasa-electric hover:bg-unitasa-electric hover:text-white focus:ring-unitasa-electric',
     ghost: 'text-unitasa-electric hover:bg-unitasa-electric/10 focus:ring-unitasa-electric',
+    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   };
   
   const sizeClasses = {

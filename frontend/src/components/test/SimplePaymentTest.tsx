@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import Button from '../ui/Button';
 
 const SimplePaymentTest: React.FC = () => {
@@ -10,8 +11,8 @@ const SimplePaymentTest: React.FC = () => {
     setClickCount(prev => prev + 1);
     setShowModal(true);
     
-    // Show alert to confirm click is working
-    alert(`Button clicked ${clickCount + 1} times! Modal should open.`);
+    // Show toast to confirm click is working
+    toast.success(`Button clicked ${clickCount + 1} times! Modal should open.`);
   };
 
   return (
@@ -43,7 +44,7 @@ const SimplePaymentTest: React.FC = () => {
       <button 
         onClick={() => {
           console.log('Native button clicked');
-          alert('Native HTML button works!');
+          toast('Native HTML button works!', { icon: '✅' });
         }}
         style={{
           background: '#22c55e',

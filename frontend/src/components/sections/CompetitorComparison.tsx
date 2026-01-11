@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, X, Zap, Users, TrendingUp, Shield, Clock, DollarSign } from 'lucide-react';
+import { pricingService } from '../../services/pricingService';
 
 export {};
 
@@ -24,7 +25,7 @@ const CompetitorComparison: React.FC = () => {
     {
       name: 'Traditional Marketing Agency',
       logo: '🏢',
-      monthlyCost: '$5,000+',
+      monthlyCost: '₹4,00,000+',
       setupTime: '2-4 weeks',
       features: {
         aiAutomation: false,
@@ -45,7 +46,7 @@ const CompetitorComparison: React.FC = () => {
     {
       name: 'Social Media Tools Stack',
       logo: '🛠️',
-      monthlyCost: '$500+',
+      monthlyCost: '₹40,000+',
       setupTime: '1-2 weeks',
       features: {
         aiAutomation: false,
@@ -66,7 +67,7 @@ const CompetitorComparison: React.FC = () => {
     {
       name: 'Basic AI Content Tools',
       logo: '🤖',
-      monthlyCost: '$200+',
+      monthlyCost: '₹16,000+',
       setupTime: '3-5 days',
       features: {
         aiAutomation: true,
@@ -85,6 +86,57 @@ const CompetitorComparison: React.FC = () => {
       ]
     }
   ];
+
+  const [priceRange, setPriceRange] = useState('...');
+  const [founderPrice, setFounderPrice] = useState('...');
+  const [proPriceFormatted, setProPriceFormatted] = useState('...');
+  const [enterprisePriceFormatted, setEnterprisePriceFormatted] = useState('...');
+  const [unitasaPrices, setUnitasaPrices] = useState({ pro: 0, enterprise: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const pro = plans.find(p => p.name === 'pro');
+        const enterprise = plans.find(p => p.name === 'enterprise');
+        const coCreator = plans.find(p => p.name === 'co_creator');
+
+        if (pro && enterprise) {
+          const proPrice = pricingService.formatPrice(pro.price_inr, 'INR');
+          const entPrice = pricingService.formatPrice(enterprise.price_inr, 'INR');
+          setPriceRange(`${proPrice} - ${entPrice}/mo`);
+          setProPriceFormatted(proPrice);
+          setEnterprisePriceFormatted(entPrice);
+          setUnitasaPrices({ pro: pro.price_inr, enterprise: enterprise.price_inr });
+        } else {
+            // Fallback
+            setPriceRange('₹4,999 - ₹19,999/mo');
+            setProPriceFormatted('₹4,999');
+            setEnterprisePriceFormatted('₹19,999');
+            setUnitasaPrices({ pro: 4999, enterprise: 19999 });
+        }
+
+        if (coCreator) {
+          setFounderPrice(pricingService.formatPrice(coCreator.price_inr, 'INR'));
+        } else {
+            setFounderPrice('₹29,999');
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+        // Fallback
+        setPriceRange('₹4,999 - ₹19,999/mo');
+        setFounderPrice('₹29,999');
+        setProPriceFormatted('₹4,999');
+        setEnterprisePriceFormatted('₹19,999');
+        setUnitasaPrices({ pro: 4999, enterprise: 19999 });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPricing();
+  }, []);
 
   const unitasaFeatures = {
     aiAutomation: true,
@@ -142,10 +194,18 @@ const CompetitorComparison: React.FC = () => {
                 <div className="text-2xl mb-2">🚀</div>
                 <h4 className="font-bold text-blue-600">Unitasa</h4>
                 <div className="text-xs text-green-600 font-medium mt-1">
-                  ₹4,999 - ₹19,999/mo
+                  {loading ? (
+                    <span className="inline-block w-24 h-4 bg-gray-200 animate-pulse rounded"></span>
+                  ) : (
+                    priceRange
+                  )}
                 </div>
                 <div className="text-xs text-blue-500 mt-1">
-                  (Founding: ₹29,999 one-time)
+                  {loading ? (
+                    <span className="inline-block w-32 h-3 bg-gray-200 animate-pulse rounded mt-1"></span>
+                  ) : (
+                    `(Founding: ${founderPrice} one-time)`
+                  )}
                 </div>
               </div>
 
@@ -232,11 +292,23 @@ const CompetitorComparison: React.FC = () => {
               <div className="text-sm text-blue-100">Average Agency Cost</div>
             </div>
             <div className="bg-white/10 rounded-lg p-4">
-              <div className="text-2xl font-bold">₹4,999-19,999</div>
+              <div className="text-2xl font-bold">
+                {loading ? (
+                  <div className="h-8 w-24 bg-white/20 animate-pulse rounded mx-auto"></div>
+                ) : (
+                  `${proPriceFormatted}-${enterprisePriceFormatted.replace('₹', '')}`
+                )}
+              </div>
               <div className="text-sm text-blue-100">Unitasa Cost</div>
             </div>
             <div className="bg-white/10 rounded-lg p-4">
-              <div className="text-3xl font-bold text-yellow-300">₹3-6 lakh</div>
+              <div className="text-3xl font-bold text-yellow-300">
+                {loading ? (
+                  <div className="h-9 w-32 bg-white/20 animate-pulse rounded mx-auto"></div>
+                ) : (
+                  `₹${((400000 - unitasaPrices.pro) / 100000).toFixed(1)}-${((800000 - unitasaPrices.enterprise) / 100000).toFixed(1)} lakh`
+                )}
+              </div>
               <div className="text-sm text-blue-100">Monthly Savings</div>
             </div>
           </div>

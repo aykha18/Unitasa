@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import Button from '../ui/Button';
 import RazorpayCheckout from '../payment/RazorpayCheckout';
 
@@ -11,7 +12,7 @@ const ButtonTest: React.FC = () => {
     console.log('🎯 Button clicked! Count:', clickCount + 1);
     setClickCount(prev => prev + 1);
     setShowPaymentModal(true);
-    alert('Button clicked! Opening payment modal...');
+    toast('Button clicked! Opening payment modal...', { icon: '👆' });
   };
 
   return (
@@ -30,7 +31,7 @@ const ButtonTest: React.FC = () => {
       <Button 
         onClick={() => {
           console.log('Simple button clicked');
-          alert('Simple button works!');
+          toast('Simple button works!', { icon: '✅' });
         }}
         className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg ml-4"
       >
@@ -61,11 +62,11 @@ const ButtonTest: React.FC = () => {
                 console.log('Payment successful:', paymentData);
                 setPaymentSuccess(true);
                 setShowPaymentModal(false);
-                alert(`🎉 Payment successful! Transaction ID: ${paymentData.transactionId}`);
+                toast.success(`🎉 Payment successful! Transaction ID: ${paymentData.transactionId}`);
               }}
               onError={(error) => {
                 console.error('Payment error:', error);
-                alert(`❌ Payment failed: ${error}`);
+                toast.error(`❌ Payment failed: ${error}`);
                 setShowPaymentModal(false);
               }}
               onCancel={() => {

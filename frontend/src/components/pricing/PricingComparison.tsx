@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { Check, X, Crown, Zap, Star, CheckCircle, Calendar } from 'lucide-react';
 import Button from '../ui/Button';
 import RazorpayCheckout from '../payment/RazorpayCheckout';
-import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService, PricingPlan } from '../../services/pricingService';
 
 interface PricingTier {
   name: string;
   basePriceUSD: number;
+  basePriceINR: number;
   description: string;
   features: string[];
   limitations?: string[];
@@ -21,56 +23,40 @@ const PricingComparison: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
-  const currency = useCurrency(49);
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+  
+  const [currency, setCurrency] = useState({ currency: 'INR', symbol: '₹' });
+  
+  // Co-creator plan for checkout
+  const [coCreatorPlan, setCoCreatorPlan] = useState<PricingPlan | null>(null);
 
-  // Base pricing in USD
-  const BASE_PRICING = {
-    pro: {
-      monthly: 49,
-      quarterly: 132, // 10% discount
-      annual: 499     // 15% discount
-    },
-    enterprise: {
-      monthly: 149,
-      quarterly: 402, // 10% discount
-      annual: 1519    // 15% discount
-    }
-  };
-
-  // Currency conversion rates
-  const getConversionRate = (currency: string) => {
-    switch (currency) {
-      case 'INR': return 83;
-      case 'EUR': return 0.85;
-      default: return 1;
-    }
-  };
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const data = await pricingService.getAllPlans();
+        setPlans(data);
+        const ccPlan = data.find(p => p.name === 'co_creator');
+        if (ccPlan) setCoCreatorPlan(ccPlan);
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   // Calculate discounted price based on billing cycle
-  const getDiscountedPrice = (monthlyPrice: number, cycle: BillingCycle) => {
+  const getDiscountedPrice = (price: number, cycle: BillingCycle) => {
     const discounts = {
       monthly: 1,
       quarterly: 0.9, // 10% off
       annual: 0.85    // 15% off
     };
-    return Math.round(monthlyPrice * discounts[cycle]);
-  };
-
-  // Convert USD to current currency
-  const convertPrice = (usdPrice: number) => {
-    const rate = getConversionRate(currency.currency);
-    return Math.round(usdPrice * rate);
+    return Math.round(price * discounts[cycle]);
   };
 
   // Format price with currency symbol
-  const formatPrice = (amount: number) => {
-    if (currency.currency === 'INR') {
-      return `₹${amount.toLocaleString('en-IN')}`;
-    } else if (currency.currency === 'EUR') {
-      return `€${amount}`;
-    } else {
-      return `$${amount}`;
-    }
+  const formatDisplayPrice = (amount: number, currencyCode: string) => {
+    return pricingService.formatPrice(amount, currencyCode as 'USD' | 'INR');
   };
 
   // Get billing cycle label
@@ -91,10 +77,19 @@ const PricingComparison: React.FC = () => {
     }
   };
 
+  const getPlanPrice = (planName: string, type: 'USD' | 'INR') => {
+    const name = planName.toLowerCase();
+    const plan = plans.find(p => p.name === name);
+    // Fallback values if plan not found
+    if (!plan) return type === 'USD' ? (name === 'pro' ? 49 : 149) : (name === 'pro' ? 4999 : 19999);
+    return type === 'USD' ? plan.price_usd : plan.price_inr;
+  };
+
   const pricingTiers: PricingTier[] = [
     {
       name: 'Pro',
-      basePriceUSD: BASE_PRICING.pro[billingCycle],
+      basePriceUSD: getPlanPrice('Pro', 'USD'),
+      basePriceINR: getPlanPrice('Pro', 'INR'),
       description: 'Complete AI marketing automation for growing businesses',
       features: [
         'Unlimited AI content generation',
@@ -110,7 +105,8 @@ const PricingComparison: React.FC = () => {
     },
     {
       name: 'Enterprise',
-      basePriceUSD: BASE_PRICING.enterprise[billingCycle],
+      basePriceUSD: getPlanPrice('Enterprise', 'USD'),
+      basePriceINR: getPlanPrice('Enterprise', 'INR'),
       description: 'Advanced AI solutions for large organizations',
       features: [
         'Everything in Pro',
@@ -124,18 +120,10 @@ const PricingComparison: React.FC = () => {
     }
   ];
 
-  const calculateAnnualSavings = () => {
-    const standardAnnual = 99 * 12; // $1,188
-    const founderPrice = 497;
-    return standardAnnual - founderPrice; // $691 first year savings
-  };
-
-  const calculateLifetimeValue = () => {
-    const standardMonthly = 99;
-    const yearsOfUse = 5; // Conservative estimate
-    const totalStandardCost = standardMonthly * 12 * yearsOfUse; // $5,940
-    const founderPrice = 497;
-    return totalStandardCost - founderPrice; // $5,443 lifetime savings
+  // Logic to calculate savings - updated to be dynamic if needed, or kept simple
+  const getFounderPrice = (type: 'USD' | 'INR') => {
+    if (coCreatorPlan) return type === 'USD' ? coCreatorPlan.price_usd : coCreatorPlan.price_inr;
+    return type === 'USD' ? 497 : 29999;
   };
 
   return (
@@ -178,8 +166,9 @@ const PricingComparison: React.FC = () => {
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-2 gap-8 mb-16 max-w-5xl mx-auto">
           {pricingTiers.map((tier, index) => {
-            const convertedPrice = convertPrice(tier.basePriceUSD);
-            const discountedPrice = getDiscountedPrice(convertedPrice, billingCycle);
+            const isINR = currency.currency === 'INR';
+            const basePrice = isINR ? tier.basePriceINR : tier.basePriceUSD;
+            const discountedPrice = getDiscountedPrice(basePrice, billingCycle);
 
             return (
               <div
@@ -214,7 +203,7 @@ const PricingComparison: React.FC = () => {
                         <span className={`text-5xl font-bold ${
                           tier.highlighted ? 'text-blue-600' : 'text-gray-900'
                         }`}>
-                          {formatPrice(discountedPrice)}
+                          {formatDisplayPrice(discountedPrice, 'INR')}
                         </span>
                         <span className="text-xl text-gray-600 ml-1">
                           /{billingCycle === 'monthly' ? 'month' : billingCycle === 'quarterly' ? '3 months' : 'year'}
@@ -314,7 +303,7 @@ const PricingComparison: React.FC = () => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg mx-auto">
             <h4 className="font-bold text-red-800 mb-2">⏰ Founder Pricing Ends Soon</h4>
             <p className="text-red-700 text-sm mb-4">
-              Only 12 founding spots remaining. Price increases to $2,000+ after founding phase.
+              Only 12 founding spots remaining. Price increases to {pricingService.formatPrice(167000, 'INR')}+ after founding phase.
             </p>
             <Button 
               className="bg-red-600 hover:bg-red-700"
@@ -334,17 +323,28 @@ const PricingComparison: React.FC = () => {
                   console.log('Payment successful:', paymentData);
                   setPaymentSuccess(true);
                   setShowPaymentModal(false);
-                  alert(`🎉 Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}\n\nYou'll receive onboarding instructions via email shortly.`);
+                  
+                  // Show success message
+                  toast.success(`Welcome to the Co-Creator Program! Transaction ID: ${paymentData.transactionId}`, {
+                    duration: 6000
+                  });
+                  toast.success("You'll receive onboarding instructions via email shortly.", {
+                    duration: 6000,
+                    icon: '📧'
+                  });
                 }}
                 onError={(error) => {
-                  console.error('Payment error:', error);
-                  alert(`❌ Payment failed: ${error}\n\nPlease try again or contact support@unitasa.in`);
+                  console.error('Payment failed:', error);
+                  toast.error(`Payment failed: ${error}`);
+                  toast.error('Please try again or contact support@unitasa.in');
                 }}
                 onCancel={() => {
                   setShowPaymentModal(false);
                 }}
                 customerEmail=""
                 customerName=""
+                priceInr={coCreatorPlan?.price_inr}
+                priceUsd={coCreatorPlan?.price_usd}
               />
             </div>
           </div>

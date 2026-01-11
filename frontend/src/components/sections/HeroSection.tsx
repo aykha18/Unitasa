@@ -124,7 +124,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onStartAssessment }) => {
                   </div>
                   <div className="flex items-start">
                     <span className="text-red-500 mr-2">💸</span>
-                    <span>$500+/month on tools that don't talk to each other</span>
+                    <span>₹40,000+/month on tools that don't talk to each other</span>
                   </div>
                 </div>
                 <div className="mt-4 p-3 bg-unitasa-light/50 rounded-lg">

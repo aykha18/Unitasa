@@ -282,7 +282,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
                   variant="outline"
                   onClick={async () => {
                     if (!formData.name || !formData.email || !formData.challenges) {
-                      alert('Please fill in the required fields first');
+                      toast.error('Please fill in the required fields first');
                       return;
                     }
                     
@@ -296,11 +296,11 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
                         consultationType: 'ai_strategy_session'
                       });
                       
-                      alert('✅ Information saved! We\'ll send you a calendar link via email shortly.');
+                      toast.success('Information saved! We\'ll send you a calendar link via email shortly.');
                       onClose();
                     } catch (error) {
                       console.error('Save for later error:', error);
-                      alert('Information saved locally. We\'ll follow up via email.');
+                      toast('Information saved locally. We\'ll follow up via email.', { icon: '💾' });
                       onClose();
                     } finally {
                       setLoading(false);

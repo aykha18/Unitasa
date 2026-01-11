@@ -3,7 +3,7 @@ import { ArrowLeft, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Zap, Star
 import { Button } from '../components/ui';
 import { config } from '../config/environment';
 import { useAuth } from '../context/AuthContext';
-import { useCurrency } from '../hooks/useCurrency';
+import { pricingService, PricingPlan } from '../services/pricingService';
 
 // Google OAuth types
 declare global {
@@ -47,10 +47,20 @@ const SignInPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
   const [showPlanSelection, setShowPlanSelection] = useState(false);
-  const currency = useCurrency(49);
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
 
   // Load Google OAuth script and fetch client ID
   useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const fetchedPlans = await pricingService.getAllPlans();
+        setPlans(fetchedPlans);
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+      }
+    };
+    fetchPlans();
+
     console.log('🔍 DEBUG: SignInPage useEffect triggered');
 
     const fetchGoogleClientId = async () => {
@@ -318,6 +328,34 @@ const SignInPage: React.FC = () => {
     navigate('/forgot-password');
   };
 
+  // Calculate dynamic prices
+  const getPrice = (planName: string, cycle: 'monthly' | 'quarterly' | 'annual') => {
+    const plan = plans.find(p => p.name === planName);
+    const basePrice = plan ? plan.price_inr : (planName === 'pro' ? 4999 : 19999);
+    
+    let multiplier = 1;
+    let months = 1;
+    
+    if (cycle === 'quarterly') {
+      multiplier = 0.9; // 10% discount
+      months = 3;
+    } else if (cycle === 'annual') {
+      multiplier = 0.85; // 15% discount
+      months = 12;
+    }
+    
+    const total = Math.round(basePrice * months * multiplier);
+    const monthly = Math.round(total / months);
+    
+    return {
+      total: pricingService.formatPrice(total, 'INR'),
+      monthly: pricingService.formatPrice(monthly, 'INR')
+    };
+  };
+
+  const proPrices = getPrice('pro', formData.billingCycle || 'monthly');
+  const enterprisePrices = getPrice('enterprise', formData.billingCycle || 'monthly');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-unitasa-light via-white to-unitasa-light">
       {/* Header */}
@@ -537,9 +575,9 @@ const SignInPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="mb-2">
-                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">{currency.symbol}4,999<span className="text-sm font-normal">/month</span></p>}
-                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">{currency.symbol}13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">({currency.symbol}4,499/mo)</span></p>}
-                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">{currency.symbol}42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">({currency.symbol}3,540/mo)</span></p>}
+                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">{proPrices.total}<span className="text-sm font-normal">/month</span></p>}
+                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">{proPrices.total}<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">({proPrices.monthly}/mo)</span></p>}
+                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">{proPrices.total}<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">({proPrices.monthly}/mo)</span></p>}
                       </div>
                       <ul className="text-sm text-gray-600 space-y-1">
                         <li>• 5 CRM integrations</li>
@@ -565,9 +603,9 @@ const SignInPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="mb-2">
-                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}19,999<span className="text-sm font-normal">/month</span></p>}
-                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">({currency.symbol}17,999/mo)</span></p>}
-                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">{currency.symbol}1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">({currency.symbol}13,999/mo)</span></p>}
+                        {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">{enterprisePrices.total}<span className="text-sm font-normal">/month</span></p>}
+                        {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">{enterprisePrices.total}<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">({enterprisePrices.monthly}/mo)</span></p>}
+                        {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">{enterprisePrices.total}<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">({enterprisePrices.monthly}/mo)</span></p>}
                       </div>
                       <ul className="text-sm text-gray-600 space-y-1">
                         <li>• Unlimited CRM integrations</li>

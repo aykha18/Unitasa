@@ -187,9 +187,7 @@ const CRMSpecificRecommendations: React.FC<CRMSpecificRecommendationsProps> = ({
             iconPosition="left"
             className="w-full"
             onClick={() => {
-              console.log(`Start ${normalizedResult.currentCRM} Integration clicked`);
-              // TODO: Implement CRM integration flow
-              alert(`${normalizedResult.currentCRM} integration setup coming soon!`);
+              toast(`${normalizedResult.currentCRM} integration setup coming soon!`, { icon: '🚀' });
             }}
           >
             Start {normalizedResult.currentCRM} Integration

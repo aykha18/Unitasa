@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { useConfirm } from '../context/ConfirmContext';
 import { Card } from '../components/ui';
 import CreatePostModal from '../components/social/CreatePostModal';
 import {
@@ -69,6 +71,7 @@ const SocialDashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     loadDashboardData();
@@ -98,7 +101,7 @@ const SocialDashboard: React.FC = () => {
         handleOAuthCallback(code, state);
       } else if (error) {
         console.error('OAuth error:', error);
-        alert(`OAuth authentication failed: ${error}`);
+        toast.error(`OAuth authentication failed: ${error}`);
         // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -128,13 +131,13 @@ const SocialDashboard: React.FC = () => {
       // Verify state matches
       if (storedState !== state) {
         console.error('❌ State mismatch:', { stored: storedState, received: state });
-        alert('OAuth state verification failed. Please try again.');
+        toast.error('OAuth state verification failed. Please try again.');
         return;
       }
 
       if (!platform || !storedCodeVerifier) {
         console.error('❌ Missing OAuth session data');
-        alert('OAuth session data missing. Please try again.');
+        toast.error('OAuth session data missing. Please try again.');
         return;
       }
 
@@ -161,12 +164,12 @@ const SocialDashboard: React.FC = () => {
       console.log('📨 Backend connection result:', result);
 
       if (result.success) {
-        alert(`✅ Successfully connected your ${platform} account!`);
+        toast.success(`Successfully connected your ${platform} account!`);
         // Reload dashboard to show connected account
         loadDashboardData();
       } else {
         console.error('❌ Connection failed:', result);
-        alert(`❌ Failed to connect ${platform} account: ${result.detail || result.message || 'Unknown error'}`);
+        toast.error(`Failed to connect ${platform} account: ${result.detail || result.message || 'Unknown error'}`);
       }
 
       // Clean up session storage and URL
@@ -178,7 +181,7 @@ const SocialDashboard: React.FC = () => {
 
     } catch (error) {
       console.error('💥 OAuth callback handling failed:', error);
-      alert('💥 Failed to complete account connection. Please try again.');
+      toast.error('Failed to complete account connection. Please try again.');
     }
   };
 
@@ -254,7 +257,10 @@ const SocialDashboard: React.FC = () => {
 
       // Check if this is demo mode
       if (data.demo_mode) {
-        alert(`Demo Mode: ${data.message}\n\nIn production, this would redirect to ${platform} for authentication.`);
+        toast.success(`Demo Mode: ${data.message}`, {
+          duration: 5000,
+          icon: '🧪'
+        });
         return;
       }
 
@@ -263,12 +269,19 @@ const SocialDashboard: React.FC = () => {
       window.location.href = data.auth_url;
     } catch (error) {
       console.error('Failed to get OAuth URL:', error);
-      alert('Failed to connect account. Check console for details.');
+      toast.error('Failed to connect account. Check console for details.');
     }
   };
 
   const handleDisconnectAccount = async (accountId: number, platform: string) => {
-    if (!window.confirm(`Are you sure you want to disconnect your ${platform} account?`)) {
+    const isConfirmed = await confirm({
+      title: 'Disconnect Account',
+      message: `Are you sure you want to disconnect your ${platform} account?`,
+      confirmText: 'Disconnect',
+      type: 'danger'
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -279,16 +292,16 @@ const SocialDashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        alert(`Successfully disconnected ${platform} account!`);
+        toast.success(`Successfully disconnected ${platform} account!`);
         // Reload dashboard to update the accounts list
         loadDashboardData();
       } else {
         const error = await response.json();
-        alert(`Failed to disconnect account: ${error.detail || error.message || 'Unknown error'}`);
+        toast.error(`Failed to disconnect account: ${error.detail || error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Failed to disconnect account:', error);
-      alert('Failed to disconnect account. Check console for details.');
+      toast.error('Failed to disconnect account. Check console for details.');
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { config } from '../../config/environment';
 import { CoCreatorProgramStatus } from '../../types';
@@ -25,8 +26,6 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
   const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [pricing, setPricing] = useState<{ priceInr: number }>({ priceInr: 29000 });
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -51,15 +50,7 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
     }
   };
 
-  // Auto-hide success toast after 8 seconds
-  useEffect(() => {
-    if (showSuccessToast) {
-      const timer = setTimeout(() => {
-        setShowSuccessToast(false);
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessToast]);
+  // Auto-hide success toast removed as we use react-hot-toast now
 
   const loadProgramStatus = async () => {
     try {
@@ -245,8 +236,13 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
                 setPaymentSuccess(true);
                 setShowPaymentFlow(false);
                 // Show success message with modern toast
-                setSuccessMessage(`Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}\n\nYou'll receive a confirmation email shortly.`);
-                setShowSuccessToast(true);
+                toast.success(`Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}`, {
+                  duration: 6000
+                });
+                toast.success("You'll receive a confirmation email shortly.", {
+                  duration: 6000,
+                  icon: '📧'
+                });
                 
                 // Redirect to profile after a short delay to allow user to see success message
                 setTimeout(() => {
@@ -255,7 +251,8 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
               }}
               onError={(error) => {
                 console.error('Payment error:', error);
-                alert(`Payment failed: ${error}\n\nPlease try again or contact support@unitasa.in`);
+                toast.error(`Payment failed: ${error}`);
+                toast.error('Please try again or contact support@unitasa.in');
               }}
               onCancel={() => {
                 setShowPaymentFlow(false);
@@ -293,34 +290,7 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
         </div>
       )}
 
-      {/* Modern Success Toast */}
-      {showSuccessToast && (
-        <div className="fixed top-4 right-4 z-50 max-w-md">
-          <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 transform transition-all duration-300 ease-in-out">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-green-500" />
-              </div>
-              <div className="ml-3 flex-1">
-                <h3 className="text-sm font-medium text-gray-900">
-                  Payment Successful!
-                </h3>
-                <p className="mt-1 text-sm text-gray-600 whitespace-pre-line">
-                  {successMessage}
-                </p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <button
-                  onClick={() => setShowSuccessToast(false)}
-                  className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modern Success Toast - Removed as we use react-hot-toast now */}
     </div>
   );
 };

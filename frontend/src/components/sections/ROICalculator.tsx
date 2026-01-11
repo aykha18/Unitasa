@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, TrendingUp, DollarSign, Clock, Users, Target, ArrowRight } from 'lucide-react';
-import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService } from '../../services/pricingService';
 
 interface ROIData {
   currentSpend: number;
@@ -10,9 +10,30 @@ interface ROIData {
 }
 
 const ROICalculator: React.FC = () => {
-  const currency = useCurrency(497);
+  // Always default to INR for consistency
+  const [currency] = useState({ currency: 'INR', symbol: '₹' });
+  const [unitasaCost, setUnitasaCost] = useState(19999); // Default to Enterprise plan
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const enterprisePlan = plans.find(p => p.name === 'enterprise');
+        if (enterprisePlan) {
+          setUnitasaCost(enterprisePlan.price_inr);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing for ROI calculator:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPricing();
+  }, []);
+
   const [roiData, setRoiData] = useState<ROIData>({
-    currentSpend: 5000,
+    currentSpend: 50000, // Adjusted default for INR context
     teamSize: 3,
     hoursSaved: 15,
     conversionIncrease: 40
@@ -29,14 +50,15 @@ const ROICalculator: React.FC = () => {
   // Calculate ROI when data changes
   useEffect(() => {
     const monthlyMarketingCost = roiData.currentSpend;
-    const teamHourlyRate = 25; // Average marketing salary per hour
+    // Average marketing salary per hour in India (approx. ₹800-1200 for mid-level)
+    const teamHourlyRate = 1000; 
     const monthlyHours = roiData.teamSize * roiData.hoursSaved * 4.33; // Weekly hours * 4.33 weeks
     const timeSavingsValue = monthlyHours * teamHourlyRate;
     const conversionValue = monthlyMarketingCost * (roiData.conversionIncrease / 100);
 
     const totalMonthlySavings = timeSavingsValue + conversionValue;
     const annualSavings = totalMonthlySavings * 12;
-    const unitasaMonthlyCost = currency.currency === 'INR' ? 35000 : 450; // Monthly subscription
+    const unitasaMonthlyCost = unitasaCost; // Monthly subscription
     const roiPercentage = ((annualSavings - (unitasaMonthlyCost * 12)) / (unitasaMonthlyCost * 12)) * 100;
     const paybackPeriod = unitasaMonthlyCost > 0 ? (unitasaMonthlyCost * 12) / annualSavings : 0;
     const productivityGain = (roiData.hoursSaved / 40) * 100; // Percentage of work week saved
@@ -48,15 +70,10 @@ const ROICalculator: React.FC = () => {
       paybackPeriod: Math.round(paybackPeriod * 10) / 10, // Round to 1 decimal
       productivityGain: Math.round(productivityGain)
     });
-  }, [roiData, currency]);
+  }, [roiData, unitasaCost]);
 
   const formatAmount = (amount: number) => {
-    if (currency.currency === 'INR') {
-      return amount.toLocaleString('en-IN');
-    } else if (currency.currency === 'EUR') {
-      return amount.toString();
-    }
-    return amount.toLocaleString('en-US');
+    return amount.toLocaleString('en-IN');
   };
 
   const handleInputChange = (field: keyof ROIData, value: number) => {
@@ -177,14 +194,19 @@ const ROICalculator: React.FC = () => {
           </div>
 
           {/* Results Section */}
-          <div className="space-y-6">
+          <div className="space-y-6 relative">
+            {loading && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            )}
             {/* Monthly Savings */}
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Monthly Savings</div>
                   <div className="text-3xl font-bold text-green-600">
-                    {currency.symbol}{formatAmount(calculation.monthlySavings)}
+                    ₹{formatAmount(calculation.monthlySavings)}
                   </div>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
@@ -197,8 +219,9 @@ const ROICalculator: React.FC = () => {
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Annual Savings</div>
                   <div className="text-3xl font-bold text-green-600">
-                    {currency.symbol}{formatAmount(calculation.annualSavings)}
+                    ₹{formatAmount(calculation.annualSavings)}
                   </div>
+
                 </div>
                 <DollarSign className="w-8 h-8 text-green-500" />
               </div>

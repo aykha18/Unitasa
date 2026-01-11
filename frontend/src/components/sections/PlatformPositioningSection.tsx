@@ -1,28 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Zap, Link, Brain, BarChart3, Shield, Clock, Share2 } from 'lucide-react';
 import { Card } from '../ui';
 import ConsultationBooking from '../booking/ConsultationBooking';
-import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService } from '../../services/pricingService';
 
 const PlatformPositioningSection: React.FC = () => {
   const [showConsultation, setShowConsultation] = useState(false);
-  const currency = useCurrency(362);
+  const [coCreatorPrice, setCoCreatorPrice] = useState('₹29,999');
 
-  // Helper functions for dynamic pricing
-  const getConvertedAmount = (usdAmount: number) => {
-    const rate = currency.currency === 'INR' ? 83 : currency.currency === 'EUR' ? 0.85 : 1;
-    return Math.round(usdAmount * rate);
-  };
-
-  const formatAmount = (amount: number) => {
-    if (currency.currency === 'INR') {
-      return amount.toLocaleString('en-IN');
-    } else if (currency.currency === 'EUR') {
-      return amount.toString();
-    } else {
-      return amount.toString();
-    }
-  };
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const plan = plans.find(p => p.name === 'co_creator');
+        if (plan) {
+          setCoCreatorPrice(pricingService.formatPrice(plan.price_inr, 'INR'));
+        }
+      } catch (error) {
+        console.error('Failed to fetch price:', error);
+      }
+    };
+    fetchPrice();
+  }, []);
 
   const features = [
     {
@@ -171,13 +170,13 @@ const PlatformPositioningSection: React.FC = () => {
                 <tr>
                   <td className="py-4 px-4 font-medium">Total Cost</td>
                   <td className="py-4 px-4 text-center">
-                    <span className="text-green-600 font-semibold">{currency.displayText} lifetime*</span>
+                    <span className="text-green-600 font-semibold">{coCreatorPrice} lifetime*</span>
                     <div className="text-xs text-gray-500 line-through mt-1">
-                      Regular: {currency.symbol}{formatAmount(getConvertedAmount(2000))}+
+                      Regular: ₹1,67,000+
                     </div>
                   </td>
-                  <td className="py-4 px-4 text-center text-gray-500">{currency.symbol}{formatAmount(getConvertedAmount(500))}+/month</td>
-                  <td className="py-4 px-4 text-center text-gray-500">{currency.symbol}{formatAmount(getConvertedAmount(50000))}+</td>
+                  <td className="py-4 px-4 text-center text-gray-500">₹41,500+/month</td>
+                  <td className="py-4 px-4 text-center text-gray-500">₹41,50,000+</td>
                 </tr>
               </tbody>
             </table>

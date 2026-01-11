@@ -5,7 +5,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import * as serviceWorker from './utils/serviceWorker';
 import { AuthProvider } from './context/AuthContext';
-import { ToastProvider } from './hooks/useToast';
+import { ConfirmProvider } from './context/ConfirmContext';
 
 // Global error handler for Chrome extension and other async errors (disabled to prevent reload loop)
 // window.addEventListener('error', (event) => {
@@ -32,9 +32,9 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <AuthProvider>
-    <ToastProvider>
+    <ConfirmProvider>
       <App />
-    </ToastProvider>
+    </ConfirmProvider>
   </AuthProvider>
 );
 

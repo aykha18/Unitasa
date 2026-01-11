@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { Sparkles, PenTool, Image, MessageSquare, Zap, Loader2, Calendar } from 'lucide-react';
 import { Button } from '../../../components/ui';
 
@@ -64,14 +65,14 @@ const AIContentHub: React.FC<AIContentHubProps> = ({ user }) => {
           ...prev,
           [`${featureKey}_${platform}`]: data.content || []
         }));
-        alert(`Generated ${data.content?.length || 0} content pieces for ${platform}!`);
+        toast.success(`Generated ${data.content?.length || 0} content pieces for ${platform}!`);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.detail || 'Failed to generate content'}`);
+        toast.error(`Error: ${error.detail || 'Failed to generate content'}`);
       }
     } catch (error) {
       console.error('Content generation error:', error);
-      alert('Failed to generate content. Please try again.');
+      toast.error('Failed to generate content. Please try again.');
     } finally {
       setLoading(prev => ({ ...prev, [`${featureKey}_${platform}`]: false }));
     }

@@ -10,6 +10,7 @@ import { PaymentIntent, PaymentForm, PaymentResult } from '../../types';
 import Button from '../ui/Button';
 import TrustBadges, { InlineTrustBadges, PaymentMethodBadges } from './TrustBadges';
 import { categorizeStripeError } from './PaymentErrorHandler';
+import { pricingService } from '../../services/pricingService';
 import {
   CreditCard,
   AlertCircle,
@@ -280,6 +281,10 @@ const PaymentFormComponent: React.FC<PaymentFormComponentProps> = ({ onPaymentSu
     hidePostalCode: false,
   };
 
+  const formattedPrice = paymentIntent 
+    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: paymentIntent.currency.toUpperCase() }).format(paymentIntent.amount / 100)
+    : pricingService.formatPrice(29999, 'INR');
+
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header */}
@@ -400,7 +405,7 @@ const PaymentFormComponent: React.FC<PaymentFormComponentProps> = ({ onPaymentSu
           <h3 className="text-xl font-semibold text-white mb-4">Order Summary</h3>
           <div className="flex justify-between items-center mb-2">
             <span className="text-gray-300">Co-Creator Program (Lifetime)</span>
-            <span className="text-white font-semibold">$497.00</span>
+            <span className="text-white font-semibold">{formattedPrice}</span>
           </div>
           <div className="flex justify-between items-center mb-4 text-sm text-gray-400">
             <span>Processing Fee</span>
@@ -409,7 +414,7 @@ const PaymentFormComponent: React.FC<PaymentFormComponentProps> = ({ onPaymentSu
           <div className="border-t border-white/20 pt-4">
             <div className="flex justify-between items-center text-xl font-bold text-white">
               <span>Total</span>
-              <span>$497.00</span>
+              <span>{formattedPrice}</span>
             </div>
             <p className="text-sm text-gray-300 mt-2">One-time payment • Lifetime value: $6,000+ • 75% founder discount</p>
           </div>
@@ -449,7 +454,7 @@ const PaymentFormComponent: React.FC<PaymentFormComponentProps> = ({ onPaymentSu
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open('mailto:support@automark.ai?subject=Payment Issue&body=Payment ID: ' + paymentIntent?.id, '_blank')}
+                      onClick={() => window.open('mailto:support@unitasa.in?subject=Payment Issue&body=Payment ID: ' + paymentIntent?.id, '_blank')}
                       className="text-red-200 border-red-400 hover:bg-red-400/10"
                     >
                       Contact Support
@@ -464,15 +469,15 @@ const PaymentFormComponent: React.FC<PaymentFormComponentProps> = ({ onPaymentSu
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open('tel:+1-555-AUTOMARK', '_self')}
+                          onClick={() => window.open('tel:+91-9876543210', '_self')}
                           className="text-red-200 border-red-400 hover:bg-red-400/10 justify-start"
                         >
-                          📞 Call to Pay: +1-555-AUTOMARK
+                          📞 Call to Pay
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open('mailto:payments@automark.ai?subject=Alternative Payment Request', '_blank')}
+                          onClick={() => window.open('mailto:payments@unitasa.in?subject=Alternative Payment Request', '_blank')}
                           className="text-red-200 border-red-400 hover:bg-red-400/10 justify-start"
                         >
                           💳 Request Bank Transfer

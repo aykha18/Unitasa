@@ -45,15 +45,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
     loadSupportedCRMs();
   }, []);
 
-  // Auto-hide success toast after 8 seconds
-  useEffect(() => {
-    if (showSuccessToast) {
-      const timer = setTimeout(() => {
-        setShowSuccessToast(false);
-      }, 8000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuccessToast]);
+  // Auto-hide success toast removed as we use react-hot-toast now
 
   const loadSupportedCRMs = async () => {
     try {
@@ -304,12 +296,18 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
                 setPaymentSuccess(true);
                 setShowPaymentModal(false);
                 // Show success message with modern toast
-                setSuccessMessage(`🎉 Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}\n\nYou'll receive onboarding instructions via email shortly.`);
-                setShowSuccessToast(true);
+                toast.success(`Payment successful! Welcome to the Co-Creator Program!\n\nTransaction ID: ${paymentData.transactionId}`, {
+                  duration: 6000
+                });
+                toast.success("You'll receive onboarding instructions via email shortly.", {
+                  duration: 6000,
+                  icon: '📧'
+                });
               }}
               onError={(error) => {
                 console.error('Payment error:', error);
-                alert(`❌ Payment failed: ${error}\n\nPlease try again or contact support@unitasa.in`);
+                toast.error(`Payment failed: ${error}`);
+                toast.error('Please try again or contact support@unitasa.in');
               }}
               onCancel={() => {
                 setShowPaymentModal(false);
@@ -345,34 +343,7 @@ export const AssessmentResults: React.FC<AssessmentResultsProps> = ({
         </div>
       )}
 
-      {/* Modern Success Toast */}
-      {showSuccessToast && (
-        <div className="fixed top-4 right-4 z-50 max-w-md">
-          <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 transform transition-all duration-300 ease-in-out">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-green-500" />
-              </div>
-              <div className="ml-3 flex-1">
-                <h3 className="text-sm font-medium text-gray-900">
-                  Payment Successful!
-                </h3>
-                <p className="mt-1 text-sm text-gray-600 whitespace-pre-line">
-                  {successMessage}
-                </p>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <button
-                  onClick={() => setShowSuccessToast(false)}
-                  className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 rounded"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modern Success Toast - Removed as we use react-hot-toast now */}
     </div>
   );
 };

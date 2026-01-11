@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui';
 import { 
@@ -454,9 +455,9 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <Button 
                               variant="outline"
-                              onClick={() => alert(`Upgrade to ${plan.display_name} coming soon! Check out our Co-Creator program for the best value.`)}
-                            >
-                              Upgrade to {plan.display_name}
+                              onClick={() => toast.success(`Upgrade to ${plan.display_name} coming soon! Check out our Co-Creator program for the best value.`, { icon: '🚀' })}
+                          >
+                            Upgrade to {plan.display_name}
                             </Button>
                           </div>
                         </div>
@@ -476,9 +477,9 @@ const SettingsPage: React.FC = () => {
                           </div>
                           <Button 
                             variant="outline"
-                            onClick={() => alert("Pro plan upgrade coming soon! Check out our Co-Creator program for the best value.")}
-                          >
-                            Upgrade to Pro
+                            onClick={() => toast.success("Pro plan upgrade coming soon! Check out our Co-Creator program for the best value.", { icon: '🚀' })}
+                        >
+                          Upgrade to Pro
                           </Button>
                        </div>
                      </div>

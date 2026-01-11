@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Clock, CheckCircle, Star, ArrowRight, Zap, TrendingUp, Users, Award } from 'lucide-react';
 import { useCurrency } from '../../hooks/useCurrency';
+import { pricingService, PricingPlan } from '../../services/pricingService';
 
 const TrialEnhancementSection: React.FC = () => {
   const currency = useCurrency(497);
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'enterprise'>('pro');
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const fetchedPlans = await pricingService.getAllPlans();
+        setPlans(fetchedPlans);
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   const trialFeatures = [
     {
@@ -102,10 +116,12 @@ const TrialEnhancementSection: React.FC = () => {
   ];
 
   const getPlanDetails = (plan: 'pro' | 'enterprise') => {
+    const planData = plans.find(p => p.name === plan);
+    
     if (plan === 'pro') {
       return {
         name: 'Pro Plan',
-        price: currency.currency === 'INR' ? '₹4,999' : '$65',
+        price: planData ? pricingService.formatPrice(planData.price_inr, 'INR') : (currency.currency === 'INR' ? '₹4,999' : '$65'),
         period: '/month',
         features: [
           'Up to 5 CRM integrations',
@@ -119,7 +135,7 @@ const TrialEnhancementSection: React.FC = () => {
     } else {
       return {
         name: 'Enterprise Plan',
-        price: currency.currency === 'INR' ? '₹19,999' : '$250',
+        price: planData ? pricingService.formatPrice(planData.price_inr, 'INR') : (currency.currency === 'INR' ? '₹19,999' : '$250'),
         period: '/month',
         features: [
           'Unlimited CRM integrations',

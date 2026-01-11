@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, Mail, Lock, User, Building } from 'lucide-react';
 import { Button } from '../components/ui';
 import { config } from '../config/environment';
+import { pricingService } from '../services/pricingService';
 // Removed React Router dependency - using custom navigation
 
 // Google OAuth types
@@ -41,6 +43,43 @@ const SignupPage: React.FC = () => {
     window.history.pushState({}, '', path);
     window.dispatchEvent(new Event('navigate'));
   };
+
+  const [prices, setPrices] = useState({
+    pro: { monthly: 4999, quarterly: 14997, annual: 49990 },
+    enterprise: { monthly: 19999, quarterly: 59997, annual: 199990 }
+  });
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const plans = await pricingService.getAllPlans();
+        const proPlan = plans.find(p => p.name === 'pro');
+        const entPlan = plans.find(p => p.name === 'enterprise');
+        
+        if (proPlan && entPlan) {
+          // Assuming fetched price is monthly
+          const proMonthly = proPlan.price_inr;
+          const entMonthly = entPlan.price_inr;
+
+          setPrices({
+            pro: {
+              monthly: proMonthly,
+              quarterly: proMonthly * 3, // No discount for now unless specified
+              annual: proMonthly * 12 * 0.8 // 20% off for annual
+            },
+            enterprise: {
+              monthly: entMonthly,
+              quarterly: entMonthly * 3,
+              annual: entMonthly * 12 * 0.8
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    };
+    fetchPrices();
+  }, []);
 
   // Load Google OAuth script and fetch client ID
   useEffect(() => {
@@ -142,9 +181,11 @@ const SignupPage: React.FC = () => {
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
-        alert(`🎉 ${data.message}`);
+        toast.success(data.message);
         console.log('🔍 DEBUG: Navigating to dashboard');
-        navigate('/dashboard');
+        setTimeout(() => {
+          navigate(data.redirect_url || '/dashboard');
+        }, 1500);
       } else {
         console.log('🔍 DEBUG: Google signup failed with API error');
         throw new Error(data.message || 'Google signup failed');
@@ -318,10 +359,12 @@ const SignupPage: React.FC = () => {
         console.log('Registration successful:', result);
         
         // Show success message
-        alert(`🎉 ${result.message}`);
+        toast.success(result.message);
         
         // Redirect to success page or dashboard
-        navigate('/signup/success');
+        setTimeout(() => {
+          navigate('/signup/success');
+        }, 1500);
       } else {
         throw new Error(result.message || 'Registration failed');
       }
@@ -627,9 +670,9 @@ const SignupPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="mb-2">
-                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">₹4,999<span className="text-sm font-normal">/month</span></p>}
-                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">₹13,497<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">(₹4,499/mo)</span></p>}
-                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">₹42,486<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">(₹3,540/mo)</span></p>}
+                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-green-600">{pricingService.formatPrice(prices.pro.monthly, 'INR')}<span className="text-sm font-normal">/month</span></p>}
+                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-green-600">{pricingService.formatPrice(prices.pro.quarterly, 'INR')}<span className="text-sm font-normal">/quarter</span><span className="text-sm text-green-600 ml-2">({pricingService.formatPrice(Math.round(prices.pro.quarterly / 3), 'INR')}/mo)</span></p>}
+                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-green-600">{pricingService.formatPrice(prices.pro.annual, 'INR')}<span className="text-sm font-normal">/year</span><span className="text-sm text-green-600 ml-2">({pricingService.formatPrice(Math.round(prices.pro.annual / 12), 'INR')}/mo)</span></p>}
                     </div>
                     <ul className="text-sm text-gray-600 space-y-1">
                       <li>• 5 CRM integrations</li>
@@ -656,9 +699,9 @@ const SignupPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="mb-2">
-                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">₹19,999<span className="text-sm font-normal">/month</span></p>}
-                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">₹53,997<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">(₹17,999/mo)</span></p>}
-                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">₹1,67,986<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">(₹13,999/mo)</span></p>}
+                      {formData.billingCycle === 'monthly' && <p className="text-2xl font-bold text-purple-600">{pricingService.formatPrice(prices.enterprise.monthly, 'INR')}<span className="text-sm font-normal">/month</span></p>}
+                      {formData.billingCycle === 'quarterly' && <p className="text-2xl font-bold text-purple-600">{pricingService.formatPrice(prices.enterprise.quarterly, 'INR')}<span className="text-sm font-normal">/quarter</span><span className="text-sm text-purple-600 ml-2">({pricingService.formatPrice(Math.round(prices.enterprise.quarterly / 3), 'INR')}/mo)</span></p>}
+                      {formData.billingCycle === 'annual' && <p className="text-2xl font-bold text-purple-600">{pricingService.formatPrice(prices.enterprise.annual, 'INR')}<span className="text-sm font-normal">/year</span><span className="text-sm text-purple-600 ml-2">({pricingService.formatPrice(Math.round(prices.enterprise.annual / 12), 'INR')}/mo)</span></p>}
                     </div>
                     <ul className="text-sm text-gray-600 space-y-1">
                       <li>• Unlimited CRM integrations</li>

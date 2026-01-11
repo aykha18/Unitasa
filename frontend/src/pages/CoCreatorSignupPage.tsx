@@ -5,7 +5,7 @@ import { pricingService } from '../services/pricingService';
 
 const CoCreatorSignupPage: React.FC = () => {
   const [isStartingAssessment, setIsStartingAssessment] = useState(false);
-  const [price, setPrice] = useState<string>('₹29,999');
+  const [price, setPrice] = useState<string>('₹29,000');
 
   useEffect(() => {
     const fetchPrice = async () => {

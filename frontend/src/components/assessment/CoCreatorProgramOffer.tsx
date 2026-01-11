@@ -24,7 +24,7 @@ const CoCreatorProgramOffer: React.FC<CoCreatorProgramOfferProps> = ({
   const [loading, setLoading] = useState(true);
   const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [pricing, setPricing] = useState<{ priceInr: number }>({ priceInr: 29999 });
+  const [pricing, setPricing] = useState<{ priceInr: number }>({ priceInr: 29000 });
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 

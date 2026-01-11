@@ -313,7 +313,7 @@ const EnhancedAIAssessment: React.FC<EnhancedAIAssessmentProps> = ({ onComplete,
               </h4>
               <div className="mb-3">
                 <div className="text-2xl font-bold text-purple-600">
-                  {coCreatorPlan ? pricingService.formatPrice(coCreatorPlan.price_inr, 'INR') : '₹29,999'}
+                  {coCreatorPlan ? pricingService.formatPrice(coCreatorPlan.price_inr, 'INR') : '₹29,000'}
                 </div>
                 <div className="text-xs text-gray-500 line-through">Regular: ₹1,67,000+</div>
               </div>

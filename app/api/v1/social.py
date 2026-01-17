@@ -125,21 +125,27 @@ async def get_current_user(
 
 
 @router.get("/auth/{platform}/url")
-async def get_oauth_url(platform: str, user_id: int = Query(1, description="User ID")):
+async def get_oauth_url(
+    platform: str,
+    current_user: User = Depends(get_current_user)
+):
     """Get OAuth authorization URL for a platform"""
     try:
+        user_id = current_user.id
         if platform == "twitter":
             logger.info(f"Generating Twitter OAuth URL for user_id={user_id}")
             # For development/demo purposes, return a mock OAuth URL if credentials are not configured
             try:
                 oauth_service = TwitterOAuthService()
-                auth_url, code_verifier, state = oauth_service.get_authorization_url()
+                # Generate state with user_id embedded to persist across callback
+                state = f"{secrets.token_urlsafe(16)}.{user_id}"
+                auth_url, code_verifier, state = oauth_service.get_authorization_url(state=state)
             except ValueError as e:
                 logger.warning(f"Twitter credentials not configured: {e}")
                 # Twitter credentials not configured - return demo URL
                 code_verifier = secrets.token_urlsafe(32)[:43]
-                state = secrets.token_urlsafe(16)
-
+                state = f"{secrets.token_urlsafe(16)}.{user_id}"
+                
                 # Return a demo URL that shows the OAuth flow would work
                 auth_url = f"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=demo&redirect_uri=http://localhost:8001/api/v1/social/auth/twitter/callback&scope=tweet.read%20tweet.write%20users.read%20offline.access&state={state}&code_challenge=demo&code_challenge_method=S256"
 
@@ -352,10 +358,19 @@ async def oauth_callback(
     code: str = Query(..., description="Authorization code from OAuth provider"),
     state: str = Query(..., description="State parameter for security"),
     code_verifier: Optional[str] = Query(None, description="PKCE code verifier (optional, retrieved from server storage)"),
-    error: Optional[str] = Query(None, description="Error from OAuth provider"),
-    user_id: int = Query(1, description="User ID")
+    error: Optional[str] = Query(None, description="Error from OAuth provider")
 ):
     """Handle OAuth callback from social media platforms and automatically connect account"""
+    # Extract user_id from state
+    user_id = 1  # Default fallback
+    try:
+        parts = state.split('.')
+        if len(parts) > 1 and parts[-1].isdigit():
+            user_id = int(parts[-1])
+            logger.info(f"Extracted user_id={user_id} from state")
+    except Exception as e:
+        logger.error(f"Failed to extract user_id from state: {e}")
+
     logger.info(f"OAuth callback triggered: platform={platform}, has_code={code is not None}, has_state={state is not None}, has_error={error is not None}, user_id={user_id}")
 
     if error:

@@ -112,21 +112,21 @@ class TokenRefreshService:
             return False
 
     async def _refresh_twitter_tokens(self, db: AsyncSession, account: SocialAccount) -> bool:
-        """Refresh Twitter access tokens"""
+        """Refresh Twitter access tokens.
+
+        If refresh fails, mark the account as needing reconnection so the UI
+        doesn't continue to show it as fully connected with invalid tokens.
+        """
         try:
             from app.core.encryption import decrypt_data, encrypt_data
 
-            # Decrypt the refresh token
             refresh_token = decrypt_data(account.refresh_token)
 
-            # Refresh the tokens
             token_data = self.twitter_oauth.refresh_access_token(refresh_token)
 
-            # Encrypt and update the database
             new_access_token = encrypt_data(token_data['access_token'])
             new_refresh_token = encrypt_data(token_data.get('refresh_token', refresh_token))
 
-            # Update account in database
             account.access_token = new_access_token
             account.refresh_token = new_refresh_token
             account.token_expires_at = token_data.get('expires_at')
@@ -136,6 +136,16 @@ class TokenRefreshService:
 
         except Exception as e:
             logger.error(f"Twitter token refresh failed for account {account.id}: {e}")
+
+            # Mark account as needing reconnection so the dashboard can prompt
+            # the user to reconnect instead of silently keeping a broken link.
+            account.is_active = False
+            if account.platform_settings is None:
+                account.platform_settings = {}
+            account.platform_settings["needs_reconnection"] = True
+            account.platform_settings["reconnection_reason"] = "twitter_token_refresh_failed"
+            account.last_synced_at = datetime.utcnow()
+
             return False
 
     async def _refresh_facebook_tokens(self, db: AsyncSession, account: SocialAccount) -> bool:

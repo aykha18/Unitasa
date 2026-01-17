@@ -187,7 +187,6 @@ const SocialDashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      // Check if we have OAuth parameters - if so, skip loading data for now
       const urlParams = new URLSearchParams(window.location.search);
       const hasOAuthParams = urlParams.get('code') || urlParams.get('state') || urlParams.get('error');
 
@@ -197,11 +196,15 @@ const SocialDashboard: React.FC = () => {
         return;
       }
 
-      // Load accounts, campaigns, and analytics in parallel
+      const token = localStorage.getItem('access_token');
+      const authHeaders = token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+
       const [accountsRes, campaignsRes, analyticsRes] = await Promise.all([
-        fetch('/api/v1/social/accounts'),
-        fetch('/api/v1/social/campaigns'),
-        fetch('/api/v1/social/analytics')
+        fetch('/api/v1/social/accounts', { headers: authHeaders }),
+        fetch('/api/v1/social/campaigns', { headers: authHeaders }),
+        fetch('/api/v1/social/analytics', { headers: authHeaders })
       ]);
 
       const accounts = await accountsRes.json();
@@ -230,11 +233,28 @@ const SocialDashboard: React.FC = () => {
     sessionStorage.removeItem('oauth_auth_url');
 
     try {
-      // Get OAuth URL
       console.log('Fetching OAuth URL from backend...');
-      const response = await fetch(`/api/v1/social/auth/${platform}/url?user_id=1`);
+      const token = localStorage.getItem('access_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/v1/social/auth/${platform}/url`, {
+        method: 'GET',
+        headers,
+      });
       console.log('Backend response status:', response.status);
+
       const data = await response.json();
+      if (!response.ok || !data.auth_url) {
+        console.error('Invalid OAuth URL response:', data);
+        toast.error(data.detail || data.message || 'Failed to start OAuth flow');
+        return;
+      }
+
       console.log('OAuth data received from backend:', {
         has_auth_url: !!data.auth_url,
         state: data.state,
@@ -243,7 +263,6 @@ const SocialDashboard: React.FC = () => {
         auth_url_preview: data.auth_url ? data.auth_url.substring(0, 100) + '...' : null
       });
 
-      // Store OAuth data in sessionStorage
       sessionStorage.setItem('oauth_code_verifier', data.code_verifier);
       sessionStorage.setItem('oauth_state', data.state);
       sessionStorage.setItem('oauth_platform', platform);
@@ -255,7 +274,6 @@ const SocialDashboard: React.FC = () => {
         has_code_verifier: !!data.code_verifier
       });
 
-      // Check if this is demo mode
       if (data.demo_mode) {
         toast.success(`Demo Mode: ${data.message}`, {
           duration: 5000,
@@ -264,7 +282,6 @@ const SocialDashboard: React.FC = () => {
         return;
       }
 
-      // Redirect to OAuth
       console.log('Redirecting to OAuth provider:', data.auth_url.substring(0, 100) + '...');
       window.location.href = data.auth_url;
     } catch (error) {

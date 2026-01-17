@@ -198,6 +198,16 @@ alembic/versions/*.pyc
 
 # Testing
 .coverage
+
+# Local data and helper artifacts (not required for app runtime)
+/data/clients/
+/data/external_knowledge/
+/docs/rag_issues.txt
+/list_dbs.py
+/populate_aykha_kb.py
+/reproduce_issue.py
+/scripts/
+/tests/test_twitter_service_mock.py
 htmlcov/
 .pytest_cache/
 .tox/

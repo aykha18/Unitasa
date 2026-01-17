@@ -361,8 +361,7 @@ async def oauth_callback(
     error: Optional[str] = Query(None, description="Error from OAuth provider")
 ):
     """Handle OAuth callback from social media platforms and automatically connect account"""
-    # Extract user_id from state
-    user_id = 1  # Default fallback
+    user_id = None
     try:
         parts = state.split('.')
         if len(parts) > 1 and parts[-1].isdigit():
@@ -370,6 +369,20 @@ async def oauth_callback(
             logger.info(f"Extracted user_id={user_id} from state")
     except Exception as e:
         logger.error(f"Failed to extract user_id from state: {e}")
+
+    if user_id is None:
+        logger.error("Could not determine user_id from OAuth state")
+        content = f"""
+        <html>
+        <head><title>Authentication Error</title></head>
+        <body>
+        <h1>Authentication Error</h1>
+        <p>We could not verify your account for this connection. Please go back to your dashboard and try connecting again.</p>
+        <a href="{settings.frontend_url}/dashboard">Back to Dashboard</a>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=content)
 
     logger.info(f"OAuth callback triggered: platform={platform}, has_code={code is not None}, has_state={state is not None}, has_error={error is not None}, user_id={user_id}")
 

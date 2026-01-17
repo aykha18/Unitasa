@@ -301,7 +301,8 @@ const SchedulePostsPage: React.FC = () => {
         body: JSON.stringify({
           content: contentToPost,
           platforms: [formData.platform],
-          scheduled_at: formData.scheduled_time
+          scheduled_at: formData.scheduled_time,
+          timezone_offset_minutes: new Date().getTimezoneOffset()
         }),
       });
 

@@ -5,9 +5,10 @@ Social media management API endpoints for client-facing platform
 import os
 import secrets
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request, Query
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -28,6 +29,7 @@ from app.models.social_account import SocialAccount, SocialPost, Engagement
 from app.models.campaign import Campaign
 from app.models.user import User
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
+from app.core.jwt_handler import JWTHandler
 import logging
 
 settings = get_settings()
@@ -45,6 +47,7 @@ def decrypt_data(data: str) -> str:
     return data  # TODO: Implement proper decryption
 
 router = APIRouter()
+security = HTTPBearer()
 
 
 # Pydantic models
@@ -98,22 +101,27 @@ class SchedulePostRequest(BaseModel):
     platforms: List[str] = Field(..., description="Platforms to post to")
     scheduled_at: datetime = Field(..., description="When to post")
     campaign_id: Optional[int] = Field(None, description="Associated campaign")
+    timezone_offset_minutes: Optional[int] = Field(None, description="Client timezone offset in minutes (UTC - local)")
 
 
 # Dependencies
-async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> User:
     """Get current authenticated user"""
-    # For now, return a mock user - in production this would validate JWT tokens
-    # TODO: Implement proper JWT authentication
-    user_id = getattr(request.state, 'user_id', 1)  # Default to user ID 1 for development
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    return user
+    try:
+        user_info = JWTHandler.get_user_from_token(credentials.credentials)
+        result = await db.execute(select(User).where(User.id == user_info["user_id"]))
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="User not found or inactive")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to authenticate user: {e}")
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
 
 
 @router.get("/auth/{platform}/url")
@@ -1276,8 +1284,11 @@ async def schedule_post(
 
         scheduled_posts = []
 
-        # Validate scheduled time is in the future
-        if request.scheduled_at <= datetime.utcnow():
+        scheduled_at = request.scheduled_at
+        if request.timezone_offset_minutes is not None:
+            scheduled_at = scheduled_at + timedelta(minutes=request.timezone_offset_minutes)
+
+        if scheduled_at <= datetime.utcnow():
             raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
 
         # Create scheduled posts for each platform
@@ -1308,7 +1319,7 @@ async def schedule_post(
                 platform=platform,
                 content=request.content,
                 status=initial_status,
-                scheduled_at=request.scheduled_at,
+                scheduled_at=scheduled_at,
                 generated_by_ai=False
             )
 
@@ -1317,7 +1328,7 @@ async def schedule_post(
             scheduled_posts.append({
                 "id": scheduled_post.id,
                 "platform": platform,
-                "scheduled_at": request.scheduled_at.isoformat(),
+                "scheduled_at": scheduled_at.isoformat(),
                 "status": initial_status
             })
 

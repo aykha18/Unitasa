@@ -179,7 +179,7 @@ async def verify_razorpay_payment(
                         program_name="Founding Users Co-Creator Program",
                         total_seats=25,
                         seats_filled=0,
-                        program_price=497.0,
+                        program_price=29000.0,  # Default price in INR
                         is_active=True
                     )
                     db.add(program)

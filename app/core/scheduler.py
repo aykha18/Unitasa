@@ -100,14 +100,16 @@ class SimpleScheduler:
             if not account or not account.is_active:
                 raise Exception(f"Social account {post.social_account_id} not found or inactive")
 
-            # Decrypt access token
             from app.api.v1.social import decrypt_data
             access_token = decrypt_data(account.access_token)
+            refresh_token = decrypt_data(account.refresh_token) if account.refresh_token else None
 
-            # Publish based on platform
             result = None
             if post.platform == "twitter":
                 service = get_twitter_service(access_token)
+                if refresh_token and account.token_expires_at:
+                    service._refresh_token = refresh_token
+                    service._token_expires_at = account.token_expires_at
                 result = service.post_content(post.content)
             elif post.platform == "facebook":
                 service = get_facebook_service(access_token)

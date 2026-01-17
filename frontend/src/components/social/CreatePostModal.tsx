@@ -36,15 +36,20 @@ const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClose, conn
         setResult(null);
 
         try {
+            const token = localStorage.getItem('access_token');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+            }
+
             const response = await fetch('/api/v1/social/posts', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                     content,
                     platforms: selectedPlatforms,
-                    // campaign_id: null // Optional
                 }),
             });
 

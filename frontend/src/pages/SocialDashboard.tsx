@@ -196,15 +196,10 @@ const SocialDashboard: React.FC = () => {
         return;
       }
 
-      const token = localStorage.getItem('access_token');
-      const authHeaders = token
-        ? { Authorization: `Bearer ${token}` }
-        : {};
-
       const [accountsRes, campaignsRes, analyticsRes] = await Promise.all([
-        fetch('/api/v1/social/accounts', { headers: authHeaders }),
-        fetch('/api/v1/social/campaigns', { headers: authHeaders }),
-        fetch('/api/v1/social/analytics', { headers: authHeaders })
+        fetch('/api/v1/social/accounts'),
+        fetch('/api/v1/social/campaigns'),
+        fetch('/api/v1/social/analytics')
       ]);
 
       const accounts = await accountsRes.json();

@@ -26,6 +26,7 @@ from app.core.mastodon_service import MastodonOAuthService, get_mastodon_service
 from app.core.bluesky_service import BlueskyOAuthService, get_bluesky_service
 from app.core.pinterest_service import PinterestOAuthService, get_pinterest_service
 from app.models.social_account import SocialAccount, SocialPost, Engagement
+from app.models.schedule_rule import ScheduleRule
 from app.models.campaign import Campaign
 from app.models.user import User
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
@@ -102,6 +103,23 @@ class SchedulePostRequest(BaseModel):
     scheduled_at: datetime = Field(..., description="When to post")
     campaign_id: Optional[int] = Field(None, description="Associated campaign")
     timezone_offset_minutes: Optional[int] = Field(None, description="Client timezone offset in minutes (UTC - local)")
+
+
+class CreateScheduleRuleRequest(BaseModel):
+    name: str = Field(..., description="Rule name")
+    platforms: List[str] = Field(..., description="Target platforms")
+    frequency: str = Field(..., description="Frequency (daily, weekly, monthly)")
+    time_of_day: str = Field(..., description="Time of day (HH:MM)")
+    timezone: str = Field("UTC", description="Timezone")
+    days_of_week: List[str] = Field(default_factory=list, description="Days of week for weekly recurrence")
+    recurrence_config: Dict[str, Any] = Field(default_factory=dict, description="Advanced recurrence config")
+    content_variation: Dict[str, Any] = Field(default_factory=dict, description="Content variation settings")
+    topic: Optional[str] = Field(None, description="Topic")
+    tone: Optional[str] = Field(None, description="Tone")
+    content_type: Optional[str] = Field(None, description="Content type")
+    autopost: bool = Field(True, description="Whether to post automatically")
+    start_date: Optional[datetime] = Field(None, description="Start date")
+    end_date: Optional[datetime] = Field(None, description="End date")
 
 
 # Dependencies
@@ -1569,6 +1587,89 @@ async def delete_scheduled_post(
         await db.rollback()
         logger.error(f"Failed to delete post: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to delete post: {str(e)}")
+
+
+@router.post("/schedule/rules")
+async def create_schedule_rule(
+    request: CreateScheduleRuleRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new recurring schedule rule"""
+    try:
+        rule = ScheduleRule(
+            user_id=user.id,
+            name=request.name,
+            platforms=request.platforms,
+            frequency=request.frequency,
+            time_of_day=request.time_of_day,
+            timezone=request.timezone,
+            days_of_week=request.days_of_week,
+            recurrence_config=request.recurrence_config,
+            content_variation=request.content_variation,
+            topic=request.topic,
+            tone=request.tone,
+            content_type=request.content_type,
+            autopost=request.autopost,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            is_active=True
+        )
+        
+        db.add(rule)
+        await db.commit()
+        await db.refresh(rule)
+        
+        return {
+            "success": True,
+            "rule": {
+                "id": rule.id,
+                "name": rule.name,
+                "frequency": rule.frequency,
+                "time_of_day": rule.time_of_day,
+                "platforms": rule.platforms,
+                "is_active": rule.is_active
+            }
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create schedule rule: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create schedule rule: {str(e)}")
+
+
+@router.get("/schedule/rules")
+async def get_schedule_rules(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all recurring schedule rules for the user"""
+    try:
+        result = await db.execute(
+            select(ScheduleRule).where(
+                ScheduleRule.user_id == user.id,
+                ScheduleRule.is_active == True
+            ).order_by(ScheduleRule.created_at.desc())
+        )
+        rules = result.scalars().all()
+        
+        return {
+            "rules": [
+                {
+                    "id": rule.id,
+                    "name": rule.name,
+                    "frequency": rule.frequency,
+                    "time_of_day": rule.time_of_day,
+                    "platforms": rule.platforms,
+                    "is_active": rule.is_active,
+                    "days_of_week": rule.days_of_week,
+                    "next_run_at": rule.next_run_at.isoformat() if rule.next_run_at else None
+                }
+                for rule in rules
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch schedule rules: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch schedule rules: {str(e)}")
 
 
 # AI Content Hub API Endpoints

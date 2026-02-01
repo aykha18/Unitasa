@@ -1597,25 +1597,24 @@ async def create_schedule_rule(
 ):
     """Create a new recurring schedule rule"""
     try:
-        # Check for duplicate rules
+        # Check for duplicate rules (same timing and overlapping platforms)
         existing_rule_result = await db.execute(
             select(ScheduleRule).where(
                 ScheduleRule.user_id == user.id,
-                ScheduleRule.name == request.name,
                 ScheduleRule.frequency == request.frequency,
                 ScheduleRule.time_of_day == request.time_of_day,
                 ScheduleRule.is_active == True
             )
         )
-        existing_rule = existing_rule_result.scalars().first()
+        existing_rules = existing_rule_result.scalars().all()
         
-        if existing_rule:
+        for existing_rule in existing_rules:
             # Check if platforms overlap
             common_platforms = set(existing_rule.platforms) & set(request.platforms)
             if common_platforms:
                 raise HTTPException(
                     status_code=400, 
-                    detail=f"A similar rule '{request.name}' already exists for {request.frequency} at {request.time_of_day}"
+                    detail=f"A rule '{existing_rule.name}' already exists for {request.frequency} at {request.time_of_day} on overlapping platforms ({', '.join(common_platforms)})"
                 )
 
         # Validate connected accounts

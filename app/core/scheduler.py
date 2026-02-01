@@ -3,7 +3,7 @@ Simple scheduler service for automated social media posting
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 import structlog
 
@@ -50,7 +50,8 @@ class SimpleScheduler:
             async with get_db_session() as db:
                 await self._process_schedule_rules(db)
                 # Find posts that are scheduled and due
-                now = datetime.utcnow()
+                # Use naive UTC for DB comparison if column is naive
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
                 result = await db.execute(
                     select(SocialPost).where(
                         SocialPost.status == "scheduled",
@@ -143,7 +144,10 @@ class SimpleScheduler:
             from zoneinfo import ZoneInfo
             from sqlalchemy import select, update
             from app.models.schedule_rule import ScheduleRule
-            now_utc = datetime.utcnow()
+            
+            # Use aware datetime for logic, convert to naive for DB
+            now_utc = datetime.now(timezone.utc)
+            
             result = await db.execute(
                 select(ScheduleRule).where(
                     ScheduleRule.is_active == True
@@ -151,15 +155,37 @@ class SimpleScheduler:
             )
             rules = result.scalars().all()
             for rule in rules:
-                if rule.end_date and now_utc > rule.end_date:
-                    continue
-                if not rule.next_run_at or now_utc >= rule.next_run_at:
+                # Handle end_date (ensure it's aware if it's naive)
+                if rule.end_date:
+                    rule_end = rule.end_date
+                    if rule_end.tzinfo is None:
+                        rule_end = rule_end.replace(tzinfo=timezone.utc)
+                    if now_utc > rule_end:
+                        continue
+                
+                # Handle next_run_at comparison
+                should_run = False
+                if not rule.next_run_at:
+                    should_run = True
+                else:
+                    rule_next = rule.next_run_at
+                    if rule_next.tzinfo is None:
+                        rule_next = rule_next.replace(tzinfo=timezone.utc)
+                    if now_utc >= rule_next:
+                        should_run = True
+                
+                if should_run:
                     await self._materialize_rule(rule, db)
                     next_time = await self._compute_next_run(rule, now_utc)
+                    
+                    # Convert to naive UTC for DB storage
+                    next_run_naive = next_time.astimezone(timezone.utc).replace(tzinfo=None)
+                    last_run_naive = now_utc.astimezone(timezone.utc).replace(tzinfo=None)
+                    
                     await db.execute(
                         update(ScheduleRule).where(ScheduleRule.id == rule.id).values(
-                            last_run_at=now_utc,
-                            next_run_at=next_time
+                            last_run_at=last_run_naive,
+                            next_run_at=next_run_naive
                         )
                     )
             await db.commit()
@@ -173,21 +199,48 @@ class SimpleScheduler:
             tz = ZoneInfo(rule.timezone or "UTC")
         except Exception:
             tz = ZoneInfo("UTC")
+            
+        # Ensure now_utc is aware
+        if now_utc.tzinfo is None:
+            now_utc = now_utc.replace(tzinfo=timezone.utc)
+            
         local_now = now_utc.astimezone(tz)
         parts = (rule.time_of_day or "00:00").split(":")
         hh = int(parts[0])
         mm = int(parts[1]) if len(parts) > 1 else 0
         target = local_now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        
         if rule.frequency == "daily":
             if target <= local_now:
                 target = target + timedelta(days=1)
         elif rule.frequency == "weekly":
             days = rule.days_of_week or [local_now.weekday()]
-            dow = days[0]
-            ahead = (dow - local_now.weekday()) % 7
-            if ahead == 0 and target <= local_now:
-                ahead = 7
-            target = target + timedelta(days=ahead)
+            # Ensure days are integers
+            days = [int(d) for d in days] if days else [local_now.weekday()]
+            
+            # Find the next day in the list that is today or future
+            current_dow = local_now.weekday()
+            sorted_days = sorted(days)
+            
+            found_next = False
+            for d in sorted_days:
+                if d > current_dow:
+                    target = target + timedelta(days=(d - current_dow))
+                    found_next = True
+                    break
+                elif d == current_dow:
+                    if target > local_now:
+                        found_next = True
+                        break
+            
+            if not found_next:
+                # Wrap around to the first day next week
+                first_day = sorted_days[0]
+                days_ahead = (first_day - current_dow + 7) % 7
+                if days_ahead == 0:
+                    days_ahead = 7
+                target = target + timedelta(days=days_ahead)
+                
         elif rule.frequency == "monthly":
             month = local_now.month
             year = local_now.year
@@ -199,7 +252,8 @@ class SimpleScheduler:
                     month = 1
                     year += 1
                 target = target.replace(year=year, month=month)
-        return target.astimezone(ZoneInfo("UTC"))
+                
+        return target.astimezone(timezone.utc)
 
     async def _materialize_rule(self, rule, db: AsyncSession):
         try:

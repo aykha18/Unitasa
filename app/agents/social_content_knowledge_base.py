@@ -691,15 +691,16 @@ class SocialContentKnowledgeBase:
         
         client_kb = self.client_knowledge_bases[client_id]
         
-        # Handle both dict and kwargs input
+        # Handle empty request
         if content_request is None:
-            content_request = kwargs
+            content_request = {}
             
         topic = content_request.get("topic", "")
         platform = content_request.get("platform", "twitter").lower()
         content_type = content_request.get("content_type")
+        limit = content_request.get("limit", 1)
         
-        suggestions = await client_kb.get_content_suggestions(topic, platform, content_type)
+        suggestions = await client_kb.get_content_suggestions(topic, platform, content_type, limit=limit)
         
         # Prepare dynamic variables from client profile
         profile = client_kb.brand_profile

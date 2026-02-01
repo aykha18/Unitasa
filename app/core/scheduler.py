@@ -287,6 +287,18 @@ class SimpleScheduler:
     async def _materialize_rule(self, rule, db: AsyncSession):
         try:
             from sqlalchemy import select
+            from app.models.user import User
+            
+            # Get user for client_id construction
+            user_result = await db.execute(select(User).where(User.id == rule.user_id))
+            user = user_result.scalar_one_or_none()
+            
+            client_id = f"client_{rule.user_id}"
+            if user and user.company:
+                safe_company = "".join(c for c in user.company if c.isalnum())
+                if safe_company:
+                    client_id = f"client_{safe_company}_{rule.user_id}"
+
             accounts_result = await db.execute(
                 select(SocialAccount).where(
                     SocialAccount.user_id == rule.user_id,
@@ -301,12 +313,12 @@ class SimpleScheduler:
                     from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
                     kb = await get_social_content_knowledge_base()
                     for acc in accounts:
-                        # Deduplication: Check posts from the last 24 hours
-                        yesterday = datetime.utcnow() - timedelta(days=1)
+                        # Deduplication: Check posts from the last 30 days to ensure variety
+                        lookback = datetime.utcnow() - timedelta(days=30)
                         existing_posts = await db.execute(
                             select(SocialPost.content).where(
                                 SocialPost.social_account_id == acc.id,
-                                SocialPost.created_at >= yesterday
+                                SocialPost.created_at >= lookback
                             )
                         )
                         # Normalize recent content for comparison (lower case, stripped)
@@ -320,29 +332,31 @@ class SimpleScheduler:
                         req = {
                             "platform": acc.platform,
                             "content_type": rule.content_type or "educational",
-                            "topic": rule.topic
+                            "topic": rule.topic,
+                            "limit": 10  # Request multiple candidates to find a unique one
                         }
 
-                        # Retry loop to find unique content (up to 3 attempts)
-                        items = []
-                        max_retries = 3
+                        # Retry loop to find unique content
+                        max_retries = 2
                         for attempt in range(max_retries):
-                            items = await kb.get_client_content(client_id=None, content_request=req)
+                            items = await kb.get_client_content(client_id=client_id, content_request=req)
                             if items and isinstance(items, list):
-                                candidate = items[0].get("content", "")
-                                if candidate:
-                                    # Check normalized candidate against normalized history
-                                    normalized_candidate = candidate.strip().lower()
-                                    if normalized_candidate not in recent_content_hashes:
-                                        text = candidate
-                                        break
-                                    else:
-                                        logger.info(f"Generated duplicate content for rule {rule.id} (attempt {attempt+1}/{max_retries}). Retrying.")
+                                for item in items:
+                                    candidate = item.get("content", "")
+                                    if candidate:
+                                        normalized_candidate = candidate.strip().lower()
+                                        if normalized_candidate not in recent_content_hashes:
+                                            text = candidate
+                                            break
+                                if text:
+                                    break
+                                else:
+                                    logger.info(f"All {len(items)} generated items were duplicates for rule {rule.id} (attempt {attempt+1}/{max_retries}). Retrying.")
                             
                             # Small delay to prevent tight loops
-                            await asyncio.sleep(0.05)
+                            await asyncio.sleep(0.5)
                         
-                        # Fallback: if unique generation failed, use the last generated content
+                        # Fallback: if unique generation failed, use the first generated content
                         if not text and items and isinstance(items, list):
                             text = items[0].get("content", "")
                             logger.warning(f"Could not generate unique content for rule {rule.id} after {max_retries} attempts. Using duplicate content.")

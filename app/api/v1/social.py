@@ -1122,6 +1122,9 @@ async def create_post(
             "results": results
         }
 
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Failed to create post: error={str(e)}", exc_info=True)
         await db.rollback()
@@ -1183,6 +1186,9 @@ async def perform_engagement(
         else:
             raise HTTPException(status_code=400, detail="Platform not supported for engagement")
 
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Engagement failed: {str(e)}")
@@ -1397,6 +1403,9 @@ async def schedule_post(
             "scheduled_posts": scheduled_posts
         }
 
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Post scheduling failed: {str(e)}", exc_info=True)

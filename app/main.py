@@ -316,7 +316,7 @@ async def lifespan(app: FastAPI):
                 background_tasks.extend([token_refresh_task, client_notification_task, scheduler_task])
 
                 print("✅ Background services started:")
-                print("   • Token refresh service (runs every 4 hours)")
+                print("   • Token refresh service (runs every 1 hour)")
                 print("   • Client notification service (runs daily)")
                 print("   • Social media scheduler (runs every 60 seconds)")
 

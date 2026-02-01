@@ -444,6 +444,22 @@ try:
     from app.api.v1 import landing
     app.include_router(landing.router, prefix="/api/v1/landing", tags=["landing"])
     print("Landing router included successfully")
+
+    print("Including admin dashboard router...")
+    try:
+        from app.api.v1 import admin_dashboard
+        app.include_router(admin_dashboard.router, prefix="/api/v1/admin", tags=["admin"])
+        print("Admin dashboard router included successfully")
+    except Exception as e:
+        print(f"ERROR including admin dashboard router: {e}")
+
+    print("Including onboarding router...")
+    try:
+        from app.api.v1 import onboarding
+        app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["onboarding"])
+        print("Onboarding router included successfully")
+    except Exception as e:
+        print(f"ERROR including onboarding router: {e}")
     
     # Conditionally include routers that may depend on AI packages
     if 'chat' in globals():

@@ -301,15 +301,52 @@ class SimpleScheduler:
                     from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
                     kb = await get_social_content_knowledge_base()
                     for acc in accounts:
+                        # Deduplication: Check posts from the last 24 hours
+                        yesterday = datetime.utcnow() - timedelta(days=1)
+                        existing_posts = await db.execute(
+                            select(SocialPost.content).where(
+                                SocialPost.social_account_id == acc.id,
+                                SocialPost.created_at >= yesterday
+                            )
+                        )
+                        # Normalize recent content for comparison (lower case, stripped)
+                        recent_content_hashes = {
+                            (row[0] or "").strip().lower() 
+                            for row in existing_posts.all() 
+                            if row[0]
+                        }
+
+                        text = ""
                         req = {
                             "platform": acc.platform,
                             "content_type": rule.content_type or "educational",
                             "topic": rule.topic
                         }
-                        items = await kb.get_client_content(client_id=None, content_request=req)
-                        text = ""
-                        if items and isinstance(items, list):
+
+                        # Retry loop to find unique content (up to 3 attempts)
+                        items = []
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            items = await kb.get_client_content(client_id=None, content_request=req)
+                            if items and isinstance(items, list):
+                                candidate = items[0].get("content", "")
+                                if candidate:
+                                    # Check normalized candidate against normalized history
+                                    normalized_candidate = candidate.strip().lower()
+                                    if normalized_candidate not in recent_content_hashes:
+                                        text = candidate
+                                        break
+                                    else:
+                                        logger.info(f"Generated duplicate content for rule {rule.id} (attempt {attempt+1}/{max_retries}). Retrying.")
+                            
+                            # Small delay to prevent tight loops
+                            await asyncio.sleep(0.05)
+                        
+                        # Fallback: if unique generation failed, use the last generated content
+                        if not text and items and isinstance(items, list):
                             text = items[0].get("content", "")
+                            logger.warning(f"Could not generate unique content for rule {rule.id} after {max_retries} attempts. Using duplicate content.")
+
                         scheduled = SocialPost(
                             user_id=rule.user_id,
                             social_account_id=acc.id,

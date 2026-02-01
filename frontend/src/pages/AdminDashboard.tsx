@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, DollarSign, Calendar, TrendingUp, Mail, Phone, CheckCircle, Clock, Settings, User as UserIcon, Edit, Save, X } from 'lucide-react';
+import { Users, DollarSign, Calendar, TrendingUp, Mail, Phone, CheckCircle, Clock, Settings, User as UserIcon, Edit, Save, X, Activity, Server, AlertTriangle } from 'lucide-react';
 import PaymentTest from '../components/test/PaymentTest';
 import config from '../config/environment';
 import { useToast, ToastProvider } from '../hooks/useToast';
@@ -13,6 +13,25 @@ interface DashboardStats {
   totalRevenueUSD: number;
   totalRevenueINR: number;
   conversionRate: number;
+}
+
+interface SystemStatus {
+  status: string;
+  timestamp: string;
+  metrics: {
+    active_agents: number;
+    tasks_completed_total: number;
+    tasks_completed_24h: number;
+    error_rate_percent: number;
+    total_errors: number;
+  };
+  recent_activity: {
+    id: number;
+    platform: string;
+    status: string;
+    time: string;
+    summary: string;
+  }[];
 }
 
 interface Lead {
@@ -48,7 +67,7 @@ interface User {
 }
 
 const AdminDashboardContent: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'users' | 'system'>('overview');
   const [stats, setStats] = useState<DashboardStats>({
     totalLeads: 0,
     assessmentsCompleted: 0,
@@ -62,6 +81,7 @@ const AdminDashboardContent: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -112,6 +132,12 @@ const AdminDashboardContent: React.FC = () => {
         headers: { 'Authorization': `Bearer ${password}` },
       });
       if (usersResponse.ok) setUsers(await usersResponse.json());
+
+      // Fetch system status
+      const systemResponse = await fetch(`${apiUrl}/api/v1/admin/system-status`, {
+        headers: { 'Authorization': `Bearer ${password}` },
+      });
+      if (systemResponse.ok) setSystemStatus(await systemResponse.json());
 
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -235,6 +261,12 @@ const AdminDashboardContent: React.FC = () => {
               className={`px-4 py-2 rounded-lg ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
             >
               User Management
+            </button>
+            <button
+              onClick={() => setActiveTab('system')}
+              className={`px-4 py-2 rounded-lg ${activeTab === 'system' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+            >
+              System Status
             </button>
           </div>
         </div>
@@ -448,6 +480,89 @@ const AdminDashboardContent: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
+              </div>
+            )}
+
+            {activeTab === 'system' && systemStatus && (
+              <div className="space-y-6">
+                 {/* Status Header */}
+                 <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                       <div>
+                          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                             <Server className="w-6 h-6 text-blue-600" />
+                             System Health: {systemStatus.status === 'operational' ? 
+                                <span className="text-green-600">Operational</span> : 
+                                <span className="text-red-600">{systemStatus.status}</span>
+                             }
+                          </h2>
+                          <p className="text-gray-500 text-sm mt-1">Last updated: {new Date(systemStatus.timestamp).toLocaleString()}</p>
+                       </div>
+                       <button onClick={fetchDashboardData} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm">
+                          Refresh
+                       </button>
+                    </div>
+                 </div>
+
+                 {/* Metrics Grid */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatCard 
+                       icon={<Users className="w-8 h-8 text-blue-600" />} 
+                       title="Active Agents" 
+                       value={systemStatus.metrics.active_agents} 
+                       bgColor="bg-blue-50" 
+                    />
+                    <StatCard 
+                       icon={<CheckCircle className="w-8 h-8 text-green-600" />} 
+                       title="Tasks (Total)" 
+                       value={systemStatus.metrics.tasks_completed_total} 
+                       bgColor="bg-green-50" 
+                    />
+                    <StatCard 
+                       icon={<Clock className="w-8 h-8 text-purple-600" />} 
+                       title="Tasks (24h)" 
+                       value={systemStatus.metrics.tasks_completed_24h} 
+                       bgColor="bg-purple-50" 
+                    />
+                    <StatCard 
+                       icon={<AlertTriangle className="w-8 h-8 text-red-600" />} 
+                       title="Error Rate (%)" 
+                       value={systemStatus.metrics.error_rate_percent} 
+                       bgColor="bg-red-50" 
+                    />
+                 </div>
+
+                 {/* Recent Activity Log */}
+                 <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <Activity className="w-5 h-5 text-gray-500" />
+                          Recent Activity Log
+                       </h3>
+                    </div>
+                    <div className="divide-y divide-gray-200">
+                       {systemStatus.recent_activity.length === 0 ? (
+                          <div className="p-6 text-center text-gray-500">No recent activity recorded</div>
+                       ) : (
+                          systemStatus.recent_activity.map((log) => (
+                             <div key={log.id} className="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                   <div className={`w-2 h-2 rounded-full ${log.status === 'posted' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                   <div>
+                                      <p className="text-sm font-medium text-gray-900">{log.summary}</p>
+                                      <p className="text-xs text-gray-500">{log.platform} • {new Date(log.time).toLocaleString()}</p>
+                                   </div>
+                                </div>
+                                <span className={`px-2 py-1 text-xs font-medium rounded capitalize ${
+                                   log.status === 'posted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                   {log.status}
+                                </span>
+                             </div>
+                          ))
+                       )}
+                    </div>
+                 </div>
               </div>
             )}
           </>

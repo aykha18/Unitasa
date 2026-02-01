@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.models.social_account import SocialPost, SocialAccount
 from app.models.user import User
 from app.models.schedule_rule import ScheduleRule
-from app.core.auth import get_current_active_user
+from app.api.v1.auth import get_current_user as get_current_active_user
 
 router = APIRouter()
 

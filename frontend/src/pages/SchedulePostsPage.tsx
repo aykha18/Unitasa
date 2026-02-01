@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Plus, Trash2, Send, LayoutList, Calendar as CalendarIcon, Rocket, Settings } from 'lucide-react';
+import { Calendar, Clock, Plus, Trash2, Send, LayoutList, Calendar as CalendarIcon, Rocket, Settings, Edit2 } from 'lucide-react';
 import { Button, Modal } from '../components/ui';
 import Toast from '../components/ui/Toast';
 import CalendarView from '../components/social/CalendarView';

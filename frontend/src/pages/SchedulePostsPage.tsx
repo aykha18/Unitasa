@@ -16,6 +16,17 @@ interface SocialAccount {
   };
 }
 
+interface ScheduleRule {
+  id: number;
+  name: string;
+  frequency: string;
+  time_of_day: string;
+  platforms: string[];
+  is_active: boolean;
+  days_of_week?: string[];
+  next_run_at?: string;
+}
+
 interface ScheduledPost {
   id: string;
   content: string;
@@ -86,6 +97,8 @@ const SchedulePostsPage: React.FC = () => {
 
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [showManageRules, setShowManageRules] = useState(false);
+  const [rules, setRules] = useState<ScheduleRule[]>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; postId: string | null; postContent?: string }>({ 
     isOpen: false, 
     postId: null 
@@ -142,6 +155,42 @@ const SchedulePostsPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);
+    }
+  };
+
+  const fetchRules = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/social/schedule/rules`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRules(data.rules || []);
+      }
+    } catch (error) {
+      console.error('Error fetching rules:', error);
+    }
+  };
+
+  const handleDeleteRule = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this rule?')) return;
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/social/schedule/rules/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      });
+      
+      if (response.ok) {
+        setToast({ show: true, title: 'Success', message: 'Rule deleted successfully', type: 'success' });
+        fetchRules();
+      } else {
+        setToast({ show: true, title: 'Error', message: 'Failed to delete rule', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+      setToast({ show: true, title: 'Error', message: 'Failed to delete rule', type: 'error' });
     }
   };
 
@@ -517,6 +566,7 @@ const SchedulePostsPage: React.FC = () => {
     fetchScheduledPosts();
     fetchAccounts();
     fetchHistory('posted', 0);
+    fetchRules();
   }, []);
 
   return (
@@ -581,6 +631,14 @@ const SchedulePostsPage: React.FC = () => {
               </Button>
               <Button
                 variant="outline"
+                onClick={() => setShowManageRules(true)}
+                className="ml-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+              >
+                <LayoutList className="w-4 h-4 mr-2" />
+                Manage Rules
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => setShowCampaignForm(true)}
                 className="ml-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
               >
@@ -598,6 +656,82 @@ const SchedulePostsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Manage Rules Modal */}
+        {showManageRules && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                  <LayoutList className="w-6 h-6 mr-2 text-indigo-600" />
+                  Manage Recurring Rules
+                </h2>
+                <button
+                  onClick={() => setShowManageRules(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-6">
+                {rules.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No recurring rules</h3>
+                    <p className="mt-1 text-sm text-gray-500">Get started by creating a new recurring schedule.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platforms</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Run</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {rules.map((rule) => (
+                          <tr key={rule.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rule.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {rule.frequency} at {rule.time_of_day}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex space-x-2">
+                                {rule.platforms.map(p => (
+                                  <span key={p} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 capitalize">
+                                    {p}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {rule.next_run_at ? new Date(rule.next_run_at).toLocaleString() : 'Pending'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <button
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Settings Modal */}
         {showSettings && (

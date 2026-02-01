@@ -1597,6 +1597,45 @@ async def create_schedule_rule(
 ):
     """Create a new recurring schedule rule"""
     try:
+        # Check for duplicate rules
+        existing_rule_result = await db.execute(
+            select(ScheduleRule).where(
+                ScheduleRule.user_id == user.id,
+                ScheduleRule.name == request.name,
+                ScheduleRule.frequency == request.frequency,
+                ScheduleRule.time_of_day == request.time_of_day,
+                ScheduleRule.is_active == True
+            )
+        )
+        existing_rule = existing_rule_result.scalars().first()
+        
+        if existing_rule:
+            # Check if platforms overlap
+            common_platforms = set(existing_rule.platforms) & set(request.platforms)
+            if common_platforms:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"A similar rule '{request.name}' already exists for {request.frequency} at {request.time_of_day}"
+                )
+
+        # Validate connected accounts
+        active_accounts_result = await db.execute(
+            select(SocialAccount).where(
+                SocialAccount.user_id == user.id,
+                SocialAccount.platform.in_(request.platforms),
+                SocialAccount.is_active == True
+            )
+        )
+        active_accounts = active_accounts_result.scalars().all()
+        active_platforms = {acc.platform for acc in active_accounts}
+        
+        missing_platforms = set(request.platforms) - active_platforms
+        if missing_platforms:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No active accounts found for: {', '.join(missing_platforms)}. Please connect them first."
+            )
+
         rule = ScheduleRule(
             user_id=user.id,
             name=request.name,
@@ -1635,6 +1674,38 @@ async def create_schedule_rule(
         await db.rollback()
         logger.error(f"Failed to create schedule rule: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create schedule rule: {str(e)}")
+
+
+@router.delete("/schedule/rules/{rule_id}")
+async def delete_schedule_rule(
+    rule_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a recurring schedule rule"""
+    try:
+        result = await db.execute(
+            select(ScheduleRule).where(
+                ScheduleRule.id == rule_id,
+                ScheduleRule.user_id == user.id
+            )
+        )
+        rule = result.scalar_one_or_none()
+        
+        if not rule:
+            raise HTTPException(status_code=404, detail="Rule not found")
+            
+        # Hard delete or soft delete? Let's use soft delete
+        rule.is_active = False
+        await db.commit()
+        
+        return {"success": True, "message": "Rule deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to delete schedule rule: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete schedule rule: {str(e)}")
 
 
 @router.get("/schedule/rules")

@@ -227,7 +227,7 @@ token_refresh_service = TokenRefreshService()
 
 
 async def scheduled_token_refresh():
-    """Scheduled task to refresh tokens - run this every 4-6 hours"""
+    """Scheduled task to refresh tokens - run this every 1 hour"""
     while True:
         try:
             logger.info("Starting scheduled token refresh...")
@@ -241,8 +241,8 @@ async def scheduled_token_refresh():
         except Exception as e:
             logger.error(f"Scheduled token refresh failed: {e}")
 
-        # Wait 4 hours before next refresh
-        await asyncio.sleep(4 * 60 * 60)
+        # Wait 1 hour before next refresh
+        await asyncio.sleep(60 * 60)
 
 
 if __name__ == "__main__":

@@ -122,6 +122,35 @@ class SimpleScheduler:
                 raise Exception(f"Unsupported platform: {post.platform}")
 
             if result and result.get('success'):
+                # Check for updated tokens and save them
+                if result.get('updated_tokens'):
+                    try:
+                        from app.api.v1.social import encrypt_data
+                        updated_tokens = result['updated_tokens']
+                        
+                        # Encrypt new tokens
+                        new_access_token = encrypt_data(updated_tokens['access_token'])
+                        new_refresh_token = None
+                        if updated_tokens.get('refresh_token'):
+                            new_refresh_token = encrypt_data(updated_tokens['refresh_token'])
+                        
+                        # Update account values
+                        values = {
+                            "access_token": new_access_token,
+                            "token_expires_at": updated_tokens.get('expires_at'),
+                            "last_synced_at": datetime.utcnow()
+                        }
+                        
+                        if new_refresh_token:
+                            values["refresh_token"] = new_refresh_token
+                            
+                        await db.execute(
+                            update(SocialAccount).where(SocialAccount.id == account.id).values(**values)
+                        )
+                        logger.info(f"Updated tokens for account {account.id} after successful post")
+                    except Exception as e:
+                        logger.error(f"Failed to save updated tokens for account {account.id}: {e}")
+
                 # Update post status
                 await db.execute(
                     update(SocialPost).where(SocialPost.id == post.id).values(

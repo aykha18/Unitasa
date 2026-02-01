@@ -366,6 +366,8 @@ async def get_oauth_url(
         else:
             raise HTTPException(status_code=400, detail=f"Platform '{platform}' not supported")
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate auth URL: {str(e)}")
 
@@ -766,6 +768,8 @@ async def connect_account(
             }
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to connect account: {str(e)}")
@@ -864,6 +868,8 @@ async def disconnect_account(
         await db.commit()
 
         return {"success": True, "message": "Account disconnected"}
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to disconnect account: {str(e)}")
@@ -900,6 +906,8 @@ async def update_account_settings(
         
         return {"success": True, "settings": account.platform_settings}
         
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
@@ -1669,6 +1677,8 @@ async def create_schedule_rule(
                 "is_active": rule.is_active
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Failed to create schedule rule: {str(e)}", exc_info=True)

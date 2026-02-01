@@ -1572,6 +1572,63 @@ async def approve_scheduled_post(
         raise HTTPException(status_code=500, detail=f"Failed to approve post: {str(e)}")
 
 
+class UpdateScheduledPostRequest(BaseModel):
+    content: Optional[str] = Field(None, description="Updated content")
+    scheduled_at: Optional[datetime] = Field(None, description="Updated schedule time")
+
+
+@router.patch("/scheduled/{post_id}")
+async def update_scheduled_post(
+    post_id: int,
+    request: UpdateScheduledPostRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a scheduled post"""
+    try:
+        from app.models.social_account import SocialPost
+        
+        result = await db.execute(
+            select(SocialPost).where(
+                SocialPost.id == post_id,
+                SocialPost.user_id == user.id
+            )
+        )
+        post = result.scalar_one_or_none()
+        
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+            
+        if request.content is not None:
+            post.content = request.content
+            
+        if request.scheduled_at is not None:
+            if request.scheduled_at <= datetime.utcnow():
+                raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
+            post.scheduled_at = request.scheduled_at
+            
+        await db.commit()
+        await db.refresh(post)
+        
+        return {
+            "success": True, 
+            "message": "Post updated successfully",
+            "post": {
+                "id": post.id,
+                "content": post.content,
+                "scheduled_at": post.scheduled_at.isoformat()
+            }
+        }
+        
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to update post: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update post: {str(e)}")
+
+
 @router.delete("/scheduled/{post_id}")
 async def delete_scheduled_post(
     post_id: int,

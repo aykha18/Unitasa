@@ -103,6 +103,15 @@ const SchedulePostsPage: React.FC = () => {
     isOpen: false, 
     postId: null 
   });
+  
+  const [editModal, setEditModal] = useState<{ isOpen: boolean; post: ScheduledPost | null }>({
+    isOpen: false,
+    post: null
+  });
+  const [editFormData, setEditFormData] = useState({
+    content: '',
+    scheduled_time: ''
+  });
 
   // API Configuration
   const getApiBaseUrl = () => {
@@ -499,6 +508,66 @@ const SchedulePostsPage: React.FC = () => {
     } catch (e) {
       console.error(e);
       setToast({ show: true, title: 'Error', message: 'Failed to approve draft', type: 'error' });
+    }
+  };
+
+  // Edit scheduled post
+  const handleEditClick = (post: ScheduledPost) => {
+    // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
+    let formattedDate = '';
+    if (post.scheduled_at) {
+      const date = new Date(post.scheduled_at);
+      const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+      formattedDate = localDate.toISOString().slice(0, 16);
+    }
+
+    setEditFormData({
+      content: post.content,
+      scheduled_time: formattedDate
+    });
+    setEditModal({
+      isOpen: true,
+      post: post
+    });
+  };
+
+  const handleUpdatePost = async () => {
+    if (!editModal.post) return;
+    
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/social/scheduled/${editModal.post.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          content: editFormData.content,
+          scheduled_at: editFormData.scheduled_time
+        }),
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/signin';
+        return;
+      }
+
+      if (response.ok) {
+        setToast({ show: true, title: 'Success', message: 'Post updated successfully!', type: 'success' });
+        setEditModal({ isOpen: false, post: null });
+        fetchScheduledPosts();
+      } else {
+        const error = await response.json();
+        setToast({ show: true, title: 'Error', message: formatApiError(error), type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+      setToast({ show: true, title: 'Error', message: 'Failed to update post. Please try again.', type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1251,14 +1320,24 @@ const SchedulePostsPage: React.FC = () => {
                         </div>
                       </div>
                       {post.status === 'pending' && (
-                        <Button
-                          onClick={() => handleDeleteClick(post)}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            onClick={() => handleEditClick(post)}
+                            variant="outline"
+                            size="sm"
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteClick(post)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1450,6 +1529,54 @@ const SchedulePostsPage: React.FC = () => {
               <p className="text-sm text-gray-800 italic">"{deleteConfirmation.postContent}"</p>
             </div>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={editModal.isOpen}
+        onClose={() => setEditModal({ isOpen: false, post: null })}
+        title="Edit Post"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setEditModal({ isOpen: false, post: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleUpdatePost}
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Content
+            </label>
+            <textarea
+              value={editFormData.content}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, content: e.target.value }))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              rows={4}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Schedule Time
+            </label>
+            <input
+              type="datetime-local"
+              value={editFormData.scheduled_time}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, scheduled_time: e.target.value }))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
         </div>
       </Modal>
 

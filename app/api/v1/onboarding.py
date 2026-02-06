@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.models.user import User
-from app.api.v1.auth import get_current_user as get_current_active_user
+from app.api.v1.auth import get_current_active_user
 from app.agents.ingestion_agent import ingest_website
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
 

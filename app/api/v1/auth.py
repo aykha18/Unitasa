@@ -403,12 +403,11 @@ async def confirm_password_reset(
             detail="Password reset confirmation failed"
         )
 
-@router.get("/me")
-async def get_current_user(
+async def get_current_active_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
-) -> Dict[str, Any]:
-    """Get current user information from token"""
+) -> User:
+    """Dependency to get current active user"""
     try:
         # Extract user info from token
         user_info = JWTHandler.get_user_from_token(credentials.credentials)
@@ -422,7 +421,22 @@ async def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive"
             )
-        
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[GET_CURRENT_USER] Error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+
+@router.get("/me")
+async def get_current_user(
+    user: User = Depends(get_current_active_user)
+) -> Dict[str, Any]:
+    """Get current user information from token"""
+    try:
         return {
             "id": user.id,
             "email": user.email,

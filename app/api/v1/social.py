@@ -31,6 +31,7 @@ from app.models.campaign import Campaign
 from app.models.user import User
 from app.agents.social_content_knowledge_base import get_social_content_knowledge_base
 from app.core.jwt_handler import JWTHandler
+from app.core.encryption import encrypt_data, decrypt_data
 import logging
 
 settings = get_settings()
@@ -40,12 +41,7 @@ except ImportError:
     # Fallback to standard logging if structlog is not available
     logger = logging.getLogger(__name__)
 
-# Mock encryption functions for now - replace with actual implementation
-def encrypt_data(data: str) -> str:
-    return data  # TODO: Implement proper encryption
 
-def decrypt_data(data: str) -> str:
-    return data  # TODO: Implement proper decryption
 
 router = APIRouter()
 security = HTTPBearer()

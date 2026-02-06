@@ -7,6 +7,8 @@ A comprehensive AI-powered marketing automation platform that helps businesses s
 Unitasa is an AI-driven marketing platform that combines:
 
 - **🤖 AI-Powered Lead Generation**: Intelligent assessment and qualification system
+- **🚀 One-Click Onboarding**: Instant brand profile generation from website URL
+- **🛠️ System Observability**: Real-time health monitoring, database metrics, and resource usage tracking
 - **🔗 Universal CRM Integration**: Connect with Pipedrive, Zoho, HubSpot, Monday, and Salesforce
 - **💳 Payment Processing**: Secure payments via Razorpay with dynamic currency detection
 - **📱 Social Media Management**: LinkedIn, and other platform integrations
@@ -22,8 +24,8 @@ Unitasa is an AI-driven marketing platform that combines:
 │                React + TypeScript Frontend                  │
 │  - Landing Page with Dynamic Currency Detection            │
 │  - CRM Assessment & Lead Generation                        │
-│  - Payment Processing with Razorpay                        │
-│  - Social Media Management Dashboard                       │
+│  - One-Click Onboarding Flow                               │
+│  - Admin Dashboard with System Observability               │
 └─────────────────────┬───────────────────────────────────────┘
                       │ HTTP/HTTPS
                       ▼
@@ -40,8 +42,8 @@ Unitasa is an AI-driven marketing platform that combines:
 │  ┌────────────────────▼─────────────────────────────────┐  │
 │  │        🤖 AI Assessment Engine                       │  │
 │  │  - CRM readiness evaluation                          │  │
-│  │  - Lead scoring and qualification                    │  │
-│  │  - Personalized recommendations                       │  │
+│  │  - Website Ingestion & Analysis                      │  │
+│  │  - Content Generation Agents                         │  │
 │  └────────────────────┬─────────────────────────────────┘  │
 │                       │                                     │
 │  ┌────────────────────▼─────────────────────────────────┐  │
@@ -54,7 +56,7 @@ Unitasa is an AI-driven marketing platform that combines:
 │  ┌────────────────────▼─────────────────────────────────┐  │
 │  │        📱 Social Media Integration                   │  │
 │  │  - LinkedIn API integration                          │  │
-│  │  - Automated posting and engagement                  │  │
+│  │  - Scheduled Posting & Management                    │  │
 │  │  - Analytics and reporting                           │  │
 │  └────────────────────┬─────────────────────────────────┘  │
 │                       │                                     │
@@ -80,6 +82,7 @@ Unitasa is an AI-driven marketing platform that combines:
 - **React 18**: Modern React with hooks and functional components
 - **TypeScript**: Type-safe JavaScript development
 - **Tailwind CSS**: Utility-first CSS framework
+- **Recharts**: Data visualization for dashboards
 - **React Router**: Client-side routing
 - **Axios**: HTTP client for API calls
 - **Lucide React**: Beautiful icon library
@@ -91,6 +94,7 @@ Unitasa is an AI-driven marketing platform that combines:
 - **SQLAlchemy**: ORM with async support
 - **Alembic**: Database migrations
 - **Pydantic**: Data validation and serialization
+- **BeautifulSoup4**: Website content extraction
 
 ### Payment & Integrations
 - **Razorpay**: Payment processing for India
@@ -267,11 +271,26 @@ GET /api/v1/health
 ```
 Returns basic health status of the API service.
 
-#### Detailed Status
+#### System Status
 ```http
-GET /api/v1/status
+GET /api/v1/system-status
+Authorization: Bearer unitasa2025
 ```
-Returns detailed system status including database connectivity and feature availability.
+Returns detailed system metrics including database connectivity, Redis status, and resource usage.
+
+### Onboarding Endpoints
+
+#### Start One-Click Onboarding
+```http
+POST /api/v1/onboarding/start
+Content-Type: application/json
+
+{
+  "url": "https://example.com",
+  "generate_content": true
+}
+```
+Ingests website content, creates a brand profile, and optionally generates initial social content.
 
 ### Assessment Endpoints
 
@@ -336,6 +355,13 @@ Content-Type: application/json
 GET /api/v1/social/linkedin/posts
 POST /api/v1/social/linkedin/post
 DELETE /api/v1/social/linkedin/post/{post_id}
+```
+
+#### Scheduled Posts
+```http
+GET /api/v1/social/scheduled
+PATCH /api/v1/social/scheduled/{post_id}
+DELETE /api/v1/social/scheduled/{post_id}
 ```
 
 ### Admin Endpoints
@@ -475,6 +501,7 @@ unitasa/
 │   ├── api/v1/                   # API endpoints
 │   │   ├── __init__.py
 │   │   ├── admin.py              # Admin dashboard APIs
+│   │   ├── admin_dashboard.py    # System status & metrics
 │   │   ├── analytics.py          # Analytics tracking
 │   │   ├── assessment_working.py
 │   │   ├── chat.py               # Chat functionality
@@ -482,11 +509,14 @@ unitasa/
 │   │   ├── crm_marketplace.py    # CRM integrations
 │   │   ├── health.py             # Health checks
 │   │   ├── landing.py            # Landing page APIs
+│   │   ├── onboarding.py         # One-click onboarding
 │   │   ├── razorpay_payments.py  # Payment processing
 │   │   ├── social.py             # Social media APIs
 │   │   └── wise_payments.py
 │   ├── agents/                   # AI Agents (Future)
 │   │   ├── __init__.py
+│   │   ├── ingestion_agent.py    # Website content ingestion
+│   │   ├── social_content_knowledge_base.py
 │   │   ├── lead_generation.py
 │   │   ├── content_creator.py
 │   │   ├── ad_manager.py
@@ -539,6 +569,7 @@ unitasa/
 │   │   │   └── useToast.tsx
 │   │   ├── pages/                # Page components
 │   │   │   ├── AdminDashboard.tsx
+│   │   │   ├── ClientOnboardingPage.tsx
 │   │   │   ├── Contact.tsx
 │   │   │   ├── LandingPage.tsx
 │   │   │   └── TermsOfService.tsx
@@ -643,6 +674,7 @@ For other platforms, ensure you have:
 - Automated evaluation pipelines
 
 ### Metrics & Alerting
+- **System Status Dashboard**: Real-time monitoring of CPU, Memory, and Disk usage
 - API response times and error rates
 - Agent task success/failure rates
 - Vector database query performance
@@ -775,12 +807,14 @@ Unitasa is building the future of AI-powered marketing automation. Our platform 
 - **Lead Management**: Comprehensive lead tracking and analytics
 - **Assessment Analytics**: Conversion funnel and qualification metrics
 - **Payment Tracking**: Revenue analytics and transaction history
-- **Real-time Monitoring**: Live system health and performance metrics
+- **System Observability**: Real-time health monitoring, database metrics, and Redis status
 
 ## Development Status
 
 ### ✅ Core Features (Implemented)
 - ✅ **AI Assessment Engine**: CRM evaluation and lead scoring
+- ✅ **One-Click Onboarding**: Instant brand profile generation
+- ✅ **System Observability**: Real-time status monitoring
 - ✅ **Payment Integration**: Razorpay with multi-currency support
 - ✅ **CRM Marketplace**: Universal CRM connection platform
 - ✅ **Social Media APIs**: LinkedIn automation framework

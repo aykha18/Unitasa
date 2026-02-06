@@ -13,11 +13,19 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.models.user import User
-from app.core.jwt_handler import JWTHandler, create_user_tokens, verify_password
+from app.core.jwt_handler import JWTHandler, create_user_tokens, verify_password, hash_password
 from app.core.email_service import EmailService
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import secrets
+import os
 
 router = APIRouter()
 security = HTTPBearer()
+
+class GoogleOAuthRequest(BaseModel):
+    credential: str  # Google ID token
+    company: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -129,6 +137,118 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed. Please try again."
+        )
+
+@router.post("/google-oauth", response_model=LoginResponse)
+async def google_login(
+    request: GoogleOAuthRequest,
+    db: AsyncSession = Depends(get_db)
+) -> LoginResponse:
+    """Login or register with Google OAuth"""
+    try:
+        # Verify Google Token
+        google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        # In development/test, we might skip verification if needed, but better to keep it
+        # If client ID is not set, we can try to verify without audience check or just extract
+        
+        try:
+            id_info = id_token.verify_oauth2_token(
+                request.credential,
+                google_requests.Request(),
+                google_client_id
+            )
+        except ValueError as e:
+            print(f"[GOOGLE_LOGIN] Token verification failed: {e}")
+            raise HTTPException(status_code=400, detail="Invalid Google token")
+
+        email = id_info.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Email not found in Google token")
+
+        # Check if user exists
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            print(f"[GOOGLE_LOGIN] Creating new user for email: {email}")
+            # Create new user
+            first_name = id_info.get("given_name", "")
+            last_name = id_info.get("family_name", "")
+            full_name = id_info.get("name", f"{first_name} {last_name}".strip())
+            picture = id_info.get("picture", "")
+            
+            # Generate random password
+            password = secrets.token_urlsafe(16)
+            hashed_password = hash_password(password)
+            
+            user = User(
+                email=email,
+                hashed_password=hashed_password,
+                first_name=first_name,
+                last_name=last_name,
+                full_name=full_name,
+                company=request.company,
+                avatar_url=picture,
+                is_active=True,
+                is_verified=True, # Google emails are verified
+                subscription_tier="free_trial",
+                trial_end_date=datetime.utcnow() + timedelta(days=15),
+                trial_days_remaining=15,
+                is_trial_active=True
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            
+            # Try to send welcome email
+            try:
+                email_service = EmailService()
+                await email_service.send_welcome_email(user)
+            except Exception as e:
+                print(f"[GOOGLE_LOGIN] Failed to send welcome email: {e}")
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        await db.commit()
+        
+        # Create tokens
+        tokens = create_user_tokens(user)
+        
+        # Prepare user data
+        user_data = {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "company": user.company,
+            "is_co_creator": user.is_co_creator,
+            "subscription_tier": user.subscription_tier,
+            "is_verified": user.is_verified,
+            "trial_end_date": user.trial_end_date.isoformat() if user.trial_end_date else None,
+            "trial_days_remaining": user.trial_days_remaining,
+            "is_trial_active": user.is_trial_active,
+            "avatar_url": user.avatar_url,
+            "last_login": user.last_login.isoformat() if user.last_login else None
+        }
+        
+        return LoginResponse(
+            success=True,
+            message="Login successful",
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+            token_type=tokens["token_type"],
+            expires_in=tokens["expires_in"],
+            user=user_data
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[GOOGLE_LOGIN] Error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google login failed"
         )
 
 @router.post("/refresh")

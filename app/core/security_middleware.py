@@ -110,7 +110,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
         
         # Cross-Origin Opener Policy
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
         
         # Cross-Origin Resource Policy
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"

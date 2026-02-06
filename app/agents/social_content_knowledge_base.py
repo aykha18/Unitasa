@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 import structlog
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
+
+from app.core.database import get_db_session
+from app.models.brand_profile import BrandProfile
 
 # Import LLM Router for intelligent template customization
 try:
@@ -301,13 +306,108 @@ class SocialContentKnowledgeBase:
 
         logger.info(f"Initialized {len(base_templates)} base content templates")
 
+    def _extract_user_id(self, client_id: str) -> Optional[int]:
+        try:
+            parts = client_id.split('_')
+            # Format is client_{user_id} or client_{company}_{user_id}
+            if len(parts) >= 2:
+                # The last part should be the user_id
+                return int(parts[-1])
+        except ValueError:
+            pass
+        return None
+
+    async def _save_brand_profile_to_db(self, client_id: str, profile_data: Dict[str, Any]):
+        """Save brand profile to database for persistence"""
+        try:
+            user_id = self._extract_user_id(client_id)
+            if not user_id:
+                return
+
+            async with get_db_session() as session:
+                stmt = select(BrandProfile).where(BrandProfile.client_id == client_id)
+                result = await session.execute(stmt)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    existing.profile_data = profile_data
+                    # Explicitly mark as modified if needed
+                    from sqlalchemy.orm.attributes import flag_modified
+                    flag_modified(existing, "profile_data")
+                else:
+                    new_profile = BrandProfile(
+                        user_id=user_id,
+                        client_id=client_id,
+                        profile_data=profile_data
+                    )
+                    session.add(new_profile)
+                
+                await session.commit()
+                logger.info(f"Persisted brand profile for {client_id}")
+        except Exception as e:
+            logger.error(f"Failed to save brand profile to DB: {e}")
+
+    async def _load_client_knowledge_base_from_db(self, client_id: str) -> bool:
+        """Load client KB from database"""
+        try:
+            async with get_db_session() as session:
+                stmt = select(BrandProfile).where(BrandProfile.client_id == client_id)
+                result = await session.execute(stmt)
+                bp = result.scalar_one_or_none()
+                
+                if not bp:
+                    return False
+                
+                data = bp.profile_data
+                if not data:
+                    return False
+
+                # Reconstruct objects
+                templates = []
+                if "generated_templates" in data:
+                     template_list = data["generated_templates"]
+                     for t in template_list:
+                        if isinstance(t, dict):
+                             templates.append(ContentTemplate(
+                                 id=t.get("id", f"tpl_{int(datetime.utcnow().timestamp())}"),
+                                 feature=t.get("feature", "general"),
+                                 platform=t.get("platform", "unknown"),
+                                 content_type=t.get("content_type", "general"),
+                                 template=t.get("template", "") or t.get("content", ""),
+                                 variables=t.get("variables", []),
+                                 hashtags=t.get("hashtags", []),
+                                 call_to_action=t.get("call_to_action", ""),
+                                 character_count=len(t.get("template", "") or t.get("content", "")),
+                                 performance_score=t.get("performance_score", 0.0)
+                             ))
+                
+                kb = ClientKnowledgeBase(
+                    client_id=client_id,
+                    brand_profile=data,
+                    templates=templates,
+                    patterns=[], 
+                    performance_baseline=data.get("performance_baseline", {})
+                )
+                
+                self.client_knowledge_bases[client_id] = kb
+                logger.info(f"Loaded KB from DB for client {client_id}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error loading client KB from DB for {client_id}: {e}")
+            return False
+
     async def get_client_knowledge_base(self, client_id: str) -> Optional[ClientKnowledgeBase]:
         """Get knowledge base for a specific client"""
         # Try to load from memory first
         if client_id in self.client_knowledge_bases:
             return self.client_knowledge_bases[client_id]
         
-        # Try to load from disk if not in memory
+        # Try to load from DB first
+        if await self._load_client_knowledge_base_from_db(client_id):
+            return self.client_knowledge_bases[client_id]
+
+        # Try to load from disk if not in memory (legacy)
         await self._load_client_knowledge_base_from_disk(client_id)
         
         return self.client_knowledge_bases.get(client_id)
@@ -635,30 +735,38 @@ class SocialContentKnowledgeBase:
             performance_baseline={"engagement_rate": 0.0, "conversion_rate": 0.0}
         )
         self.client_knowledge_bases[client_id] = client_kb
+        
+        # Persist to DB
+        await self._save_brand_profile_to_db(client_id, client_profile)
+        
         return client_kb
 
     async def get_client_content(self, client_id: str, content_request: Dict[str, Any]) -> List[Dict[str, Any]]:
         # If we don't have the KB loaded for this client, try to load or create it
         if client_id not in self.client_knowledge_bases:
-            # 1. Try to load from disk persistence first (best source of truth)
-            profile_loaded = False
-            client_profile = {}
-            
-            try:
-                # Look for client file in data/clients/
-                data_dir = os.path.join(os.getcwd(), "data", "clients")
-                file_path = os.path.join(data_dir, f"{client_id}.json")
+            # 1. Try to load from DB persistence first (best source of truth)
+            if await self._load_client_knowledge_base_from_db(client_id):
+                pass
+            else:
+                # 2. Try to load from disk persistence (legacy)
+                profile_loaded = False
+                client_profile = {}
                 
-                if os.path.exists(file_path):
-                    try:
-                        with open(file_path, "r") as f:
-                            client_profile = json.load(f)
-                        logger.info(f"Loaded persisted profile for {client_id}")
-                        profile_loaded = True
-                    except Exception as e:
-                        logger.error(f"Failed to read client profile file: {e}")
-            except Exception as e:
-                logger.error(f"Error checking for client profile file: {e}")
+                try:
+                    # Look for client file in data/clients/
+                    data_dir = os.path.join(os.getcwd(), "data", "clients")
+                    file_path = os.path.join(data_dir, f"{client_id}.json")
+                    
+                    if os.path.exists(file_path):
+                        try:
+                            with open(file_path, "r") as f:
+                                client_profile = json.load(f)
+                            logger.info(f"Loaded persisted profile for {client_id}")
+                            profile_loaded = True
+                        except Exception as e:
+                            logger.error(f"Failed to read client profile file: {e}")
+                except Exception as e:
+                    logger.error(f"Error checking for client profile file: {e}")
             
             # 2. If not found on disk, try minimal reconstruction from ID (fallback)
             if not profile_loaded:

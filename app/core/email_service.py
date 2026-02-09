@@ -5,6 +5,7 @@ Handles payment receipts, welcome emails, and notifications
 
 import os
 import smtplib
+import socket
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,6 +17,19 @@ from app.models.co_creator_program import CoCreator
 from app.core.config import get_settings
 
 settings = get_settings()
+
+# Custom SMTP classes to force IPv4
+class SMTP_SSL_IPv4(smtplib.SMTP_SSL):
+    def _get_socket(self, host, port, timeout):
+        if self.debuglevel > 0:
+            print(f"connect: ({host}, {port}) via IPv4", file=self._stderr)
+        return socket.create_connection((host, port), timeout, source_address=None)
+
+class SMTP_IPv4(smtplib.SMTP):
+    def _get_socket(self, host, port, timeout):
+        if self.debuglevel > 0:
+            print(f"connect: ({host}, {port}) via IPv4", file=self._stderr)
+        return socket.create_connection((host, port), timeout, source_address=None)
 
 
 class EmailService:
@@ -62,17 +76,22 @@ class EmailService:
             
             # Send email
             try:
+                print(f"[EMAIL_SERVICE] Attempting connection to {self.smtp_server}:{self.smtp_port} (IPv4)...")
+                
+                # Check for port 2525 support (treat as STARTTLS)
                 if self.smtp_port == 465:
-                    # Use SMTP_SSL for port 465 (Implicit SSL/TLS)
-                    with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+                    # Use SMTP_SSL for port 465 (Implicit SSL/TLS) - forcing IPv4
+                    with SMTP_SSL_IPv4(self.smtp_server, self.smtp_port) as server:
                         server.login(self.smtp_username, self.smtp_password)
                         server.send_message(msg)
                 else:
-                    # Use SMTP + STARTTLS for port 587 (Explicit SSL/TLS)
-                    with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                    # Use SMTP + STARTTLS for port 587 or 2525 (Explicit SSL/TLS) - forcing IPv4
+                    with SMTP_IPv4(self.smtp_server, self.smtp_port) as server:
                         server.starttls()
                         server.login(self.smtp_username, self.smtp_password)
                         server.send_message(msg)
+                        
+                print(f"[EMAIL_SERVICE] Email sent successfully to {to_email}")
             except OSError as e:
                  print(f"[EMAIL_SERVICE] Network error sending email: {e}")
                  if "Network is unreachable" in str(e) or "[Errno 101]" in str(e):

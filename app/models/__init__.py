@@ -17,6 +17,7 @@ from .chat_session import ChatSession, ChatMessage
 from .schedule_rule import ScheduleRule
 from .pricing_plan import PricingPlan
 from .brand_profile import BrandProfile
+from .team_invitation import TeamInvitation
 
 __all__ = [
     "Base",
@@ -36,5 +37,6 @@ __all__ = [
     "ChatMessage",
     "ScheduleRule",
     "PricingPlan",
-    "BrandProfile"
+    "BrandProfile",
+    "TeamInvitation"
 ]

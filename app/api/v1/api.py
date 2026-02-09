@@ -14,6 +14,7 @@ from .chat import router as chat_router
 from .analytics import router as analytics_router
 from .dashboard import router as dashboard_router
 from .admin import router as admin_router
+from .team import router as team_router
 
 api_router = APIRouter()
 
@@ -46,3 +47,6 @@ api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboar
 
 # Include admin router
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
+
+# Include team router
+api_router.include_router(team_router, prefix="/team", tags=["team"])

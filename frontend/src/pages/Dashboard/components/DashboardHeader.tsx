@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bell, Settings, User, LogOut } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { Button } from '../../../components/ui';
 
 interface User {
@@ -16,6 +17,8 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ user }) => {
+  const { logout } = useAuth();
+
   // Custom navigation function
   const navigate = (path: string) => {
     window.history.pushState({}, '', path);
@@ -23,10 +26,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ user }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    navigate('/');
+    logout();
   };
 
   const getUserDisplayName = () => {

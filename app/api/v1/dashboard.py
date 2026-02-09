@@ -13,6 +13,10 @@ from datetime import datetime, timedelta
 from app.core.database import get_db
 from app.core.jwt_handler import JWTHandler
 from app.models.user import User
+from app.models.social_account import SocialAccount, SocialPost
+from app.models.campaign import Campaign
+from app.models.crm_integration import CRMConnection, ConnectionStatus
+from app.models.team_invitation import TeamInvitation
 
 router = APIRouter()
 security = HTTPBearer()
@@ -92,6 +96,32 @@ async def get_onboarding_progress(
                 detail="User not found or inactive"
             )
 
+        # Check CRM connection
+        crm_result = await db.execute(
+            select(CRMConnection).where(
+                CRMConnection.user_id == user_id,
+                CRMConnection.connection_status == ConnectionStatus.CONNECTED
+            ).limit(1)
+        )
+        has_crm = crm_result.scalar_one_or_none() is not None
+
+        # Check first campaign (Campaigns or Social Posts)
+        campaign_result = await db.execute(
+            select(Campaign).where(Campaign.user_id == user_id).limit(1)
+        )
+        has_campaign = campaign_result.scalar_one_or_none() is not None
+
+        post_result = await db.execute(
+            select(SocialPost).where(SocialPost.user_id == user_id).limit(1)
+        )
+        has_post = post_result.scalar_one_or_none() is not None
+
+        # Check team invitations
+        team_result = await db.execute(
+            select(TeamInvitation).where(TeamInvitation.invited_by_id == user_id).limit(1)
+        )
+        has_team_invites = team_result.scalar_one_or_none() is not None
+
         # Calculate onboarding progress based on user data
         onboarding_progress = {
             "profileComplete": bool(
@@ -100,9 +130,9 @@ async def get_onboarding_progress(
                 user.last_name and
                 user.company
             ),
-            "crmConnected": False,  # TODO: Check if user has connected CRM integrations
-            "firstCampaign": False,  # TODO: Check if user has created their first campaign
-            "teamInvited": False  # TODO: Check if user has invited team members
+            "crmConnected": has_crm,
+            "firstCampaign": has_campaign or has_post,
+            "teamInvited": has_team_invites
         }
 
         return onboarding_progress

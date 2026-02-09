@@ -918,15 +918,23 @@ async def create_campaign(
 ):
     """Create a new social media campaign"""
     try:
-        # For now, create a basic campaign - this would be expanded
+        # Generate a unique campaign ID
+        campaign_id = f"cmp_{secrets.token_urlsafe(12)}"
+
+        # Create campaign with correctly mapped fields
         campaign = Campaign(
             user_id=user.id,
+            campaign_id=campaign_id,
             name=request.name,
             description=request.description,
-            platforms=request.platforms,
-            schedule_config=request.schedule_config,
-            content_templates=request.content_templates,
-            engagement_rules=request.engagement_rules,
+            campaign_type="social_content",  # Default type for social campaigns
+            target_audience={},  # Default empty dict as required by model
+            ad_platforms=request.platforms,  # Map platforms to ad_platforms
+            content_requirements={
+                "schedule_config": request.schedule_config,
+                "content_templates": request.content_templates,
+                "engagement_rules": request.engagement_rules
+            },
             status="draft"
         )
 
@@ -938,9 +946,10 @@ async def create_campaign(
             "success": True,
             "campaign": {
                 "id": campaign.id,
+                "campaign_id": campaign.campaign_id,
                 "name": campaign.name,
                 "status": campaign.status,
-                "platforms": campaign.platforms,
+                "platforms": campaign.ad_platforms,
                 "created_at": campaign.created_at.isoformat()
             }
         }

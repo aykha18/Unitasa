@@ -118,12 +118,8 @@ try:
         print(f"User registration module import failed: {e}")
 
     print("Importing auth module...")
-    auth = None
-    try:
-        from app.api.v1 import auth
-        print("Auth module imported successfully")
-    except Exception as e:
-        print(f"Auth module import failed: {e}")
+    from app.api.v1 import auth
+    print("Auth module imported successfully")
     
     print("Importing admin module...")
     admin = None
@@ -623,6 +619,11 @@ try:
         print(f"Dashboard router traceback: {traceback.format_exc()}")
         print("Skipping dashboard router")
 
+    print("Including team router...")
+    from app.api.v1 import team
+    app.include_router(team.router, prefix="/api/v1/team", tags=["team"])
+    print("Team router included successfully")
+
     print("All API routers included successfully")
 except Exception as e:
     print(f"Error including API routers: {e}")
@@ -786,6 +787,6 @@ async def serve_spa(full_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 3000))
+    port = int(os.getenv("PORT", 8001))
     print(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)

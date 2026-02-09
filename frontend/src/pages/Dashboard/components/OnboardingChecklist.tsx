@@ -1,5 +1,7 @@
-import React from 'react';
-import { CheckCircle, Circle, User, Link, Target, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, Circle, User, Link, Target, Users, ChevronRight } from 'lucide-react';
+import { CreateCampaignModal } from './CreateCampaignModal';
+import { InviteTeamModal } from './InviteTeamModal';
 
 interface User {
   subscription_tier: string;
@@ -19,6 +21,9 @@ interface OnboardingChecklistProps {
 }
 
 const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, user, onProgressUpdate }) => {
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+
   const steps = [
     {
       id: 'profile',
@@ -26,6 +31,7 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
       description: 'Add your company details and preferences',
       completed: progress.profileComplete,
       icon: User,
+      action: () => navigateTo('/onboarding')
     },
     {
       id: 'crm',
@@ -33,6 +39,7 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
       description: 'Integrate with your existing CRM system',
       completed: progress.crmConnected,
       icon: Link,
+      action: () => navigateTo('/settings/crm')
     },
     {
       id: 'campaign',
@@ -40,6 +47,7 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
       description: 'Launch your first social media campaign',
       completed: progress.firstCampaign,
       icon: Target,
+      action: () => setIsCampaignModalOpen(true)
     },
     {
       id: 'team',
@@ -47,6 +55,7 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
       description: 'Add your marketing team to collaborate',
       completed: progress.teamInvited,
       icon: Users,
+      action: () => setIsTeamModalOpen(true)
     },
   ];
 
@@ -60,87 +69,85 @@ const OnboardingChecklist: React.FC<OnboardingChecklistProps> = ({ progress, use
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Onboarding Progress</h2>
-          <p className="text-gray-600 text-sm">
-            {completedSteps} of {totalSteps} steps completed
-          </p>
+    <>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Onboarding Progress</h2>
+            <p className="text-gray-600 text-sm">
+              {completedSteps} of {totalSteps} steps completed
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-gray-900">{Math.round(progressPercentage)}%</div>
+            <div className="text-sm text-gray-600">Complete</div>
+          </div>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-gray-900">{Math.round(progressPercentage)}%</div>
-          <div className="text-sm text-gray-600">Complete</div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+          <div
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progressPercentage}%` }}
+          />
         </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-        <div
-          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${progressPercentage}%` }}
-        />
-      </div>
-
-      {/* Steps */}
-      <div className="space-y-4">
-        {steps.map((step, index) => (
-          <div 
-            key={step.id} 
-            className={`flex items-start space-x-3 p-2 rounded-lg transition-colors ${
-              step.id === 'profile' ? 'hover:bg-gray-50 cursor-pointer' : ''
-            }`}
-            onClick={() => {
-              if (step.id === 'profile') {
-                navigateTo('/onboarding');
-              }
-            }}
-          >
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-              step.completed
-                ? 'bg-green-100 text-green-600'
-                : 'bg-gray-100 text-gray-400'
-            }`}>
-              {step.completed ? (
-                <CheckCircle className="w-5 h-5" />
-              ) : (
-                <Circle className="w-5 h-5" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <div className={`text-sm font-medium ${
-                  step.completed ? 'text-gray-900' : 'text-gray-600'
-                }`}>
-                  {step.title}
-                </div>
-                {step.id === 'profile' && (
-                  <span className={`ml-2 text-xs px-3 py-1 rounded-full shadow-sm transition-all duration-200 border ${
-                    step.completed 
-                      ? 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50' 
-                      : 'bg-blue-600 border-transparent text-white hover:bg-blue-700 animate-pulse'
-                  }`}>
-                    {step.completed ? 'Update' : 'Start Now'}
-                  </span>
+        {/* Steps */}
+        <div className="space-y-4">
+          {steps.map((step, index) => (
+            <div 
+              key={step.id} 
+              className={`flex items-start space-x-3 p-3 rounded-lg transition-colors cursor-pointer hover:bg-gray-50 border border-transparent hover:border-gray-100`}
+              onClick={step.action}
+            >
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                step.completed
+                  ? 'bg-green-100 text-green-600'
+                  : 'bg-gray-100 text-gray-400'
+              }`}>
+                {step.completed ? (
+                  <CheckCircle className="w-5 h-5" />
+                ) : (
+                  <step.icon className="w-5 h-5" />
                 )}
               </div>
-              <div className="text-sm text-gray-500 mt-1">
-                {step.description}
+              
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-sm font-medium ${
+                    step.completed ? 'text-gray-900' : 'text-gray-700'
+                  }`}>
+                    {step.title}
+                  </h3>
+                  {!step.completed && (
+                    <button className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors">
+                      {step.id === 'campaign' ? 'Create' : step.id === 'team' ? 'Invite' : 'Start'}
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{step.description}</p>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* CTA */}
-      {completedSteps < totalSteps && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800">
-            Complete these steps to unlock the full potential of Unitasa!
-          </p>
-        </div>
-      )}
-    </div>
+      <CreateCampaignModal 
+        isOpen={isCampaignModalOpen}
+        onClose={() => setIsCampaignModalOpen(false)}
+        onCampaignCreated={() => {
+          onProgressUpdate();
+        }}
+      />
+
+      <InviteTeamModal
+        isOpen={isTeamModalOpen}
+        onClose={() => setIsTeamModalOpen(false)}
+        onInvitationSent={() => {
+          onProgressUpdate();
+        }}
+      />
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, Card, Input } from '../components/ui';
-import { Sparkles, PenTool, Hash, Megaphone } from 'lucide-react';
+import { Sparkles, PenTool, Hash, Megaphone, Calendar } from 'lucide-react';
 import apiClient from '../services/api';
 
 type GeneratedItem = {
@@ -81,6 +81,37 @@ const GenerateContentPage: React.FC = () => {
       setPosted(prev => ({ ...prev, [item.id]: { success: !!result.success, url: result.url } }));
     } catch (e) {
       setPosted(prev => ({ ...prev, [item.id]: { success: false } }));
+    } finally {
+      setPosting(prev => ({ ...prev, [item.id]: false }));
+    }
+  };
+
+  const schedulePost = async (item: GeneratedItem) => {
+    setPosting(prev => ({ ...prev, [item.id]: true }));
+    try {
+      // Default to 24 hours from now
+      const scheduledTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      
+      const res = await apiClient.post('/api/v1/social/schedule', {
+        content: item.content,
+        platforms: [item.platform],
+        scheduled_at: scheduledTime,
+        timezone_offset_minutes: new Date().getTimezoneOffset()
+      });
+
+      if (res.data.success) {
+        setPosted(prev => ({ 
+            ...prev, 
+            [item.id]: { 
+                success: true, 
+                note: "Scheduled for tomorrow. Check 'Awaiting Approval' in Scheduler." 
+            } 
+        }));
+      } else {
+        throw new Error('Scheduling failed');
+      }
+    } catch (e) {
+      setPosted(prev => ({ ...prev, [item.id]: { success: false, note: "Scheduling failed" } }));
     } finally {
       setPosting(prev => ({ ...prev, [item.id]: false }));
     }
@@ -207,6 +238,15 @@ const GenerateContentPage: React.FC = () => {
                       onClick={() => navigator.clipboard.writeText(item.content)}
                     >
                       Copy
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      loading={posting[item.id]}
+                      onClick={() => schedulePost(item)}
+                    >
+                      <Calendar className="w-4 h-4 mr-1" />
+                      Schedule
                     </Button>
                     <Button
                       size="sm"

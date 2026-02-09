@@ -367,6 +367,100 @@ class HubSpotAdapter(BaseCRMAdapter):
             raise
 
 
+class NeuraCRMAdapter(BaseCRMAdapter):
+    """
+    NeuraCRM adapter - Internal/Simulated CRM for testing and default usage.
+    This adapter mocks CRM operations to allow testing without external credentials.
+    """
+    
+    async def test_connection(self) -> Tuple[bool, str]:
+        """Test NeuraCRM connection (Always success for simulation)"""
+        return True, "NeuraCRM connection successful (Simulated)"
+    
+    async def get_contacts(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get simulated contacts"""
+        return [
+            {
+                "id": "nc_101",
+                "first_name": "Alice",
+                "last_name": "Smith",
+                "email": "alice.smith@example.com",
+                "company": "Tech Corp",
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "nc_102",
+                "first_name": "Bob",
+                "last_name": "Jones",
+                "email": "bob.jones@example.com",
+                "company": "Innovation Inc",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ]
+    
+    async def get_companies(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get simulated companies"""
+        return [
+            {
+                "id": "nc_co_1",
+                "name": "Tech Corp",
+                "industry": "Software",
+                "revenue": 1000000,
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "nc_co_2",
+                "name": "Innovation Inc",
+                "industry": "Manufacturing",
+                "revenue": 5000000,
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ]
+    
+    async def get_deals(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get simulated deals"""
+        return [
+            {
+                "id": "nc_dl_1",
+                "title": "Enterprise License Deal",
+                "value": 50000,
+                "status": "negotiation",
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "id": "nc_dl_2",
+                "title": "Startup Package",
+                "value": 5000,
+                "status": "closed_won",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ]
+    
+    async def get_activities(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get simulated activities"""
+        return [
+            {
+                "id": "nc_act_1",
+                "type": "call",
+                "subject": "Intro Call",
+                "completed": True,
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ]
+    
+    async def create_contact(self, contact_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Simulate creating contact"""
+        return {**contact_data, "id": f"nc_{int(datetime.utcnow().timestamp())}"}
+    
+    async def create_company(self, company_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Simulate creating company"""
+        return {**company_data, "id": f"nc_co_{int(datetime.utcnow().timestamp())}"}
+    
+    async def create_deal(self, deal_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Simulate creating deal"""
+        return {**deal_data, "id": f"nc_dl_{int(datetime.utcnow().timestamp())}"}
+
+
 class CRMIntegrationFramework:
     """Main CRM Integration Framework"""
     
@@ -375,6 +469,7 @@ class CRMIntegrationFramework:
         self.adapters = {
             CRMType.PIPEDRIVE: PipedriveAdapter,
             CRMType.HUBSPOT: HubSpotAdapter,
+            CRMType.NEURACRM: NeuraCRMAdapter,  # Internal/Simulated CRM
             # Add more adapters as needed
         }
         self.mcp_client = None

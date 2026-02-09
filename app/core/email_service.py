@@ -62,10 +62,17 @@ class EmailService:
             
             # Send email
             try:
-                with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                    server.starttls()
-                    server.login(self.smtp_username, self.smtp_password)
-                    server.send_message(msg)
+                if self.smtp_port == 465:
+                    # Use SMTP_SSL for port 465 (Implicit SSL/TLS)
+                    with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+                        server.login(self.smtp_username, self.smtp_password)
+                        server.send_message(msg)
+                else:
+                    # Use SMTP + STARTTLS for port 587 (Explicit SSL/TLS)
+                    with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                        server.starttls()
+                        server.login(self.smtp_username, self.smtp_password)
+                        server.send_message(msg)
             except OSError as e:
                  print(f"[EMAIL_SERVICE] Network error sending email: {e}")
                  if "Network is unreachable" in str(e) or "[Errno 101]" in str(e):

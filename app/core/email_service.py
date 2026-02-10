@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional, Tuple
 from jinja2 import Template
+import resend
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
@@ -48,12 +49,21 @@ class EmailService:
         
         # SendGrid settings
         self.sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+        
+        # Resend settings
+        self.resend_api_key = os.getenv("RESEND_API_KEY")
+        if self.resend_api_key:
+            resend.api_key = self.resend_api_key
 
         print(f"[EMAIL_SERVICE] Initialized with server: {self.smtp_server}, port: {self.smtp_port}")
-        if self.sendgrid_api_key:
+        
+        if self.resend_api_key:
+            print(f"[EMAIL_SERVICE] Resend API Key found. Will prefer Resend API over everything else.")
+        elif self.sendgrid_api_key:
             print(f"[EMAIL_SERVICE] SendGrid API Key found. Will prefer SendGrid API over SMTP.")
         else:
-            print(f"[EMAIL_SERVICE] No SendGrid API Key found. Will use SMTP.")
+            print(f"[EMAIL_SERVICE] No API Key found (Resend/SendGrid). Will use SMTP.")
+            
         print(f"[EMAIL_SERVICE] From: {self.from_name} <{self.from_email}>")
     
     def send_email(
@@ -64,7 +74,28 @@ class EmailService:
         text_content: str = None
     ) -> Tuple[bool, str]:
         """Send an email"""
-        # Try SendGrid first if configured
+        # Try Resend first if configured
+        if self.resend_api_key:
+            try:
+                params = {
+                    "from": f"{self.from_name} <{self.from_email}>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                }
+                
+                if text_content:
+                    params["text"] = text_content
+                
+                # Resend returns a dict with 'id' on success
+                email = resend.Emails.send(params)
+                print(f"[EMAIL_SERVICE] Email sent successfully via Resend to {to_email}. ID: {email.get('id')}")
+                return True, "Email sent successfully via Resend"
+            except Exception as e:
+                print(f"[EMAIL_SERVICE] Resend error: {str(e)}")
+                print("[EMAIL_SERVICE] Falling back to other methods...")
+
+        # Try SendGrid second if configured
         if self.sendgrid_api_key:
             try:
                 message = Mail(

@@ -11,6 +11,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional, Tuple
 from jinja2 import Template
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 from app.models.payment_transaction import PaymentTransaction
 from app.models.co_creator_program import CoCreator
@@ -43,8 +45,15 @@ class EmailService:
         self.smtp_password = os.getenv("SMTP_PASSWORD", "Miral@18")
         self.from_email = os.getenv("FROM_EMAIL", "support@unitasa.in")
         self.from_name = os.getenv("FROM_NAME", "Unitasa")
+        
+        # SendGrid settings
+        self.sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
 
         print(f"[EMAIL_SERVICE] Initialized with server: {self.smtp_server}, port: {self.smtp_port}")
+        if self.sendgrid_api_key:
+            print(f"[EMAIL_SERVICE] SendGrid API Key found. Will prefer SendGrid API over SMTP.")
+        else:
+            print(f"[EMAIL_SERVICE] No SendGrid API Key found. Will use SMTP.")
         print(f"[EMAIL_SERVICE] From: {self.from_name} <{self.from_email}>")
     
     def send_email(
@@ -55,6 +64,39 @@ class EmailService:
         text_content: str = None
     ) -> Tuple[bool, str]:
         """Send an email"""
+        # Try SendGrid first if configured
+        if self.sendgrid_api_key:
+            try:
+                message = Mail(
+                    from_email=(self.from_email, self.from_name),
+                    to_emails=to_email,
+                    subject=subject,
+                    html_content=html_content
+                )
+                
+                # Add plain text if available
+                if text_content:
+                    message.plain_text_content = text_content
+                
+                sg = SendGridAPIClient(self.sendgrid_api_key)
+                response = sg.send(message)
+                
+                if 200 <= response.status_code < 300:
+                    print(f"[EMAIL_SERVICE] Email sent successfully via SendGrid to {to_email}")
+                    return True, "Email sent successfully via SendGrid"
+                else:
+                    print(f"[EMAIL_SERVICE] SendGrid returned status {response.status_code}")
+                    # If SendGrid fails, fall through to SMTP? 
+                    # Usually better to report error, but we can try fallback if desired.
+                    # For now, let's assume if key is present, we want to use it exclusively or report error.
+                    return False, f"SendGrid API returned status {response.status_code}"
+            except Exception as e:
+                print(f"[EMAIL_SERVICE] SendGrid error: {str(e)}")
+                # If SendGrid fails with exception, maybe try SMTP as backup?
+                # Given the user's situation (Hobby plan), SMTP will definitely fail.
+                # So falling back is futile in production, but harmless in dev.
+                print("[EMAIL_SERVICE] Falling back to SMTP...")
+
         try:
             if not self.smtp_username or not self.smtp_password:
                 return False, "SMTP credentials not configured"
